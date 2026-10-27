@@ -1,0 +1,264 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Pillar 0: Global Default-Deny Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Global Primitives
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerifiedUser() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    // Validation Blueprint: UserVault
+    function isValidUserVault(data) {
+      return data.keys().hasAll([
+        'ownerId',
+        'fullName',
+        'username',
+        'email',
+        'phone',
+        'referralCode',
+        'lockedPoolBalance',
+        'totalKm',
+        'invitedFriendsCount',
+        'streakDays',
+        'battleWins',
+        'battleLosses',
+        'battleRating',
+        'firstLogin',
+        'firstActivity',
+        'firstInvite',
+        'createdAt',
+        'updatedAt'
+      ]) &&
+      data.keys().hasOnly([
+        'ownerId',
+        'fullName',
+        'username',
+        'email',
+        'phone',
+        'referralCode',
+        'lockedPoolBalance',
+        'totalKm',
+        'invitedFriendsCount',
+        'streakDays',
+        'battleWins',
+        'battleLosses',
+        'battleRating',
+        'firstLogin',
+        'firstActivity',
+        'firstInvite',
+        'createdAt',
+        'updatedAt'
+      ]) &&
+      data.ownerId is string && data.ownerId.size() >= 1 && data.ownerId.size() <= 128 && data.ownerId.matches('^[a-zA-Z0-9_\\-]+$') &&
+      data.ownerId == request.auth.uid &&
+      data.fullName is string && data.fullName.size() >= 1 && data.fullName.size() <= 100 &&
+      data.username is string && data.username.size() >= 1 && data.username.size() <= 60 &&
+      data.email is string && data.email.size() >= 3 && data.email.size() <= 120 &&
+      data.phone is string && data.phone.size() >= 3 && data.phone.size() <= 30 &&
+      data.referralCode is string && data.referralCode.size() >= 3 && data.referralCode.size() <= 32 &&
+      data.lockedPoolBalance is number && data.lockedPoolBalance >= 0 && data.lockedPoolBalance <= 1000000 &&
+      data.totalKm is number && data.totalKm >= 0 && data.totalKm <= 500000 &&
+      data.invitedFriendsCount is number && data.invitedFriendsCount >= 0 && data.invitedFriendsCount <= 100000 &&
+      data.streakDays is number && data.streakDays >= 0 && data.streakDays <= 10000 &&
+      data.battleWins is number && data.battleWins >= 0 && data.battleWins <= 100000 &&
+      data.battleLosses is number && data.battleLosses >= 0 && data.battleLosses <= 100000 &&
+      data.battleRating is number && data.battleRating >= 0 && data.battleRating <= 10000 &&
+      data.firstLogin is bool &&
+      data.firstActivity is bool &&
+      data.firstInvite is bool &&
+      data.createdAt is timestamp &&
+      data.updatedAt is timestamp;
+    }
+
+    // Validation Blueprint: RunActivityDoc
+    function isValidRunActivityDoc(data) {
+      return data.keys().hasAll([
+        'ownerId',
+        'title',
+        'filename',
+        'fileHash',
+        'distanceKm',
+        'elapsedSeconds',
+        'avgHeartRate',
+        'paceMinPerKm',
+        'status',
+        'poolReward',
+        'source',
+        'createdAt'
+      ]) &&
+      data.keys().hasOnly([
+        'ownerId',
+        'title',
+        'filename',
+        'fileHash',
+        'distanceKm',
+        'elapsedSeconds',
+        'avgHeartRate',
+        'paceMinPerKm',
+        'status',
+        'poolReward',
+        'source',
+        'createdAt'
+      ]) &&
+      data.ownerId is string && data.ownerId.size() >= 1 && data.ownerId.size() <= 128 && data.ownerId.matches('^[a-zA-Z0-9_\\-]+$') &&
+      data.ownerId == request.auth.uid &&
+      data.title is string && data.title.size() >= 1 && data.title.size() <= 120 &&
+      data.filename is string && data.filename.size() >= 1 && data.filename.size() <= 120 &&
+      data.fileHash is string && data.fileHash.size() >= 8 && data.fileHash.size() <= 128 &&
+      data.distanceKm is number && data.distanceKm >= 0 && data.distanceKm <= 250 &&
+      data.elapsedSeconds is number && data.elapsedSeconds >= 0 && data.elapsedSeconds <= 172800 &&
+      data.avgHeartRate is number && data.avgHeartRate >= 30 && data.avgHeartRate <= 240 &&
+      data.paceMinPerKm is number && data.paceMinPerKm >= 1 && data.paceMinPerKm <= 120 &&
+      data.status is string && data.status.size() >= 8 && data.status.size() <= 16 && (data.status == 'ACCEPTED' || data.status == 'REJECTED') &&
+      data.poolReward is number && data.poolReward >= 0 && data.poolReward <= 50000 &&
+      data.source is string && data.source.size() >= 1 && data.source.size() <= 60 &&
+      data.createdAt is timestamp;
+    }
+
+    // Validation Blueprint: CashoutDoc
+    function isValidCashoutDoc(data) {
+      return data.keys().hasAll([
+        'ownerId',
+        'poolAmount',
+        'tomanAmount',
+        'shebaNumber',
+        'bankName',
+        'status',
+        'trackingCode',
+        'createdAt'
+      ]) &&
+      data.keys().hasOnly([
+        'ownerId',
+        'poolAmount',
+        'tomanAmount',
+        'shebaNumber',
+        'bankName',
+        'status',
+        'trackingCode',
+        'createdAt'
+      ]) &&
+      data.ownerId is string && data.ownerId.size() >= 1 && data.ownerId.size() <= 128 && data.ownerId.matches('^[a-zA-Z0-9_\\-]+$') &&
+      data.ownerId == request.auth.uid &&
+      data.poolAmount is number && data.poolAmount >= 20 && data.poolAmount <= 1000000 &&
+      data.tomanAmount is number && data.tomanAmount >= 100000 && data.tomanAmount <= 5000000000 &&
+      data.shebaNumber is string && data.shebaNumber.size() >= 16 && data.shebaNumber.size() <= 34 &&
+      data.bankName is string && data.bankName.size() >= 2 && data.bankName.size() <= 60 &&
+      data.status is string && data.status.size() >= 7 && data.status.size() <= 16 && (data.status == 'PENDING' || data.status == 'PROCESSED') &&
+      data.trackingCode is string && data.trackingCode.size() >= 4 && data.trackingCode.size() <= 40 &&
+      data.createdAt is timestamp;
+    }
+
+    // Collection: /users/{userId}
+    match /users/{userId} {
+      allow get: if isOwner(userId) && isValidId(userId);
+      allow list: if false;
+
+      allow create: if isVerifiedUser() &&
+        isOwner(userId) &&
+        isValidId(userId) &&
+        isValidUserVault(incoming()) &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time;
+
+      allow update: if isVerifiedUser() &&
+        isOwner(userId) &&
+        isValidId(userId) &&
+        isValidUserVault(incoming()) &&
+        incoming().ownerId == existing().ownerId &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time &&
+        incoming().diff(existing()).affectedKeys().hasOnly([
+          'fullName',
+          'username',
+          'phone',
+          'lockedPoolBalance',
+          'totalKm',
+          'invitedFriendsCount',
+          'streakDays',
+          'battleWins',
+          'battleLosses',
+          'battleRating',
+          'firstLogin',
+          'firstActivity',
+          'firstInvite',
+          'updatedAt'
+        ]);
+
+      allow delete: if false;
+
+      // Subcollection: /users/{userId}/activities/{activityId}
+      match /activities/{activityId} {
+        allow get: if isOwner(userId) &&
+          isValidId(userId) &&
+          isValidId(activityId) &&
+          existing().ownerId == request.auth.uid &&
+          exists(/databases/$(database)/documents/users/$(userId)) &&
+          get(/databases/$(database)/documents/users/$(userId)).data.ownerId == request.auth.uid;
+
+        allow list: if isOwner(userId) &&
+          existing().ownerId == request.auth.uid;
+
+        allow create: if isVerifiedUser() &&
+          isOwner(userId) &&
+          isValidId(userId) &&
+          isValidId(activityId) &&
+          isValidRunActivityDoc(incoming()) &&
+          incoming().createdAt == request.time &&
+          exists(/databases/$(database)/documents/users/$(userId)) &&
+          get(/databases/$(database)/documents/users/$(userId)).data.ownerId == request.auth.uid;
+
+        allow update: if false;
+        allow delete: if false;
+      }
+
+      // Subcollection: /users/{userId}/cashouts/{cashoutId}
+      match /cashouts/{cashoutId} {
+        allow get: if isOwner(userId) &&
+          isValidId(userId) &&
+          isValidId(cashoutId) &&
+          existing().ownerId == request.auth.uid &&
+          exists(/databases/$(database)/documents/users/$(userId)) &&
+          get(/databases/$(database)/documents/users/$(userId)).data.ownerId == request.auth.uid;
+
+        allow list: if isOwner(userId) &&
+          existing().ownerId == request.auth.uid;
+
+        allow create: if isVerifiedUser() &&
+          isOwner(userId) &&
+          isValidId(userId) &&
+          isValidId(cashoutId) &&
+          isValidCashoutDoc(incoming()) &&
+          incoming().createdAt == request.time &&
+          exists(/databases/$(database)/documents/users/$(userId)) &&
+          get(/databases/$(database)/documents/users/$(userId)).data.ownerId == request.auth.uid;
+
+        allow update: if false;
+        allow delete: if false;
+      }
+    }
+  }
+}

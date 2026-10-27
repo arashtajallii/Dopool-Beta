@@ -1,0 +1,6 @@
+{
+  "name": "Doopool (دوپول) - Move-to-Earn for Iranian Runners",
+  "description": "پلتفرم دویدن و کسب درآمد ورزشی دونده‌های ایرانی با پشتیبانی از اتصال ساعت‌های هوشمند، فایل‌های فیت و ضدتقلب هوشمند",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

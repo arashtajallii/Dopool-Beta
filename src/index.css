@@ -1,0 +1,337 @@
+@import "tailwindcss";
+
+@layer base {
+  :root,
+  [data-theme="velvet"] {
+    font-family: 'Vazirmatn', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    font-feature-settings: 'ss01' on, 'ss02' on;
+
+    /* Eye-Comfort "Velvet Twilight" Palette (Low-Glare, Soft Mint-Sage & Periwinkle) */
+    --app-bg-outer: #111726;
+    --app-bg-canvas: #161e31;
+    --app-bg-header: rgba(22, 30, 49, 0.88);
+    --app-card-bg: rgba(30, 41, 62, 0.78);
+    --app-card-glow-bg: rgba(28, 40, 61, 0.88);
+    --app-border: rgba(148, 163, 184, 0.14);
+    --app-border-accent: rgba(45, 212, 191, 0.28);
+
+    /* Remap Tailwind Slate & Neon Accents to Eye-Soothing Velvet Tones */
+    --color-slate-950: #131a2a;
+    --color-slate-900: #1c263b;
+    --color-slate-800: #28354f;
+    --color-slate-700: #364666;
+    --color-slate-600: #526384;
+    --color-slate-500: #6e80a1;
+    --color-slate-400: #9ba9c4;
+    --color-slate-300: #c4cee2;
+    --color-slate-200: #dde4f0;
+    --color-slate-100: #eef2f8;
+    --color-white: #f6f8fc;
+
+    /* Soft Mint-Teal instead of harsh neon green */
+    --color-emerald-950: #132a2e;
+    --color-emerald-500: #2bb5a0;
+    --color-emerald-400: #4fd1be;
+    --color-emerald-300: #8ce9da;
+
+    /* Soft Lavender-Sky instead of harsh cyan */
+    --color-sky-950: #1c2340;
+    --color-sky-500: #7c8cf8;
+    --color-sky-400: #9aa7fc;
+    --color-sky-300: #c2cbff;
+
+    /* Warm Honey-Peach instead of glaring yellow */
+    --color-amber-500: #e89b3c;
+    --color-amber-400: #f4b25c;
+    --color-amber-300: #fbd092;
+  }
+
+  /* Theme 2: Warm Zero-Blue-Light Mocha & Sage (ملایم گرم - بدون نور آبی) */
+  [data-theme="warm"] {
+    --app-bg-outer: #181513;
+    --app-bg-canvas: #201c19;
+    --app-bg-header: rgba(32, 28, 25, 0.9);
+    --app-card-bg: rgba(42, 36, 32, 0.82);
+    --app-card-glow-bg: rgba(45, 38, 33, 0.9);
+    --app-border: rgba(214, 199, 184, 0.14);
+    --app-border-accent: rgba(116, 198, 157, 0.3);
+
+    --color-slate-950: #1b1715;
+    --color-slate-900: #26211d;
+    --color-slate-800: #362f29;
+    --color-slate-700: #4a4038;
+    --color-slate-600: #695b50;
+    --color-slate-500: #877668;
+    --color-slate-400: #b0a092;
+    --color-slate-300: #d1c4b8;
+    --color-slate-200: #e6dcd2;
+    --color-slate-100: #f2ebe4;
+    --color-white: #faf6f0;
+
+    --color-emerald-950: #1c2b22;
+    --color-emerald-500: #52b788;
+    --color-emerald-400: #74c69d;
+    --color-emerald-300: #95d5b2;
+
+    --color-sky-950: #29221e;
+    --color-sky-500: #e07a5f;
+    --color-sky-400: #f29578;
+    --color-sky-300: #f7b5a1;
+
+    --color-amber-500: #e9a84b;
+    --color-amber-400: #f4be6c;
+    --color-amber-300: #f9d69b;
+  }
+
+  /* Theme 3: Soft Daylight Paper (روز روشن کاغذی - بسیار راحت برای مطالعه و کار طولانی) */
+  [data-theme="daylight"] {
+    --app-bg-outer: #e9e5dc;
+    --app-bg-canvas: #f5f2eb;
+    --app-bg-header: rgba(245, 242, 235, 0.92);
+    --app-card-bg: rgba(255, 255, 255, 0.88);
+    --app-card-glow-bg: rgba(255, 255, 255, 0.95);
+    --app-border: rgba(30, 41, 59, 0.1);
+    --app-border-accent: rgba(13, 148, 136, 0.3);
+
+    /* Invert slate scale smoothly for warm paper daylight mode */
+    --color-slate-950: #ece8df;
+    --color-slate-900: #ffffff;
+    --color-slate-800: #dcd6c8;
+    --color-slate-700: #c5bdb0;
+    --color-slate-600: #78716c;
+    --color-slate-500: #57534e;
+    --color-slate-400: #525866;
+    --color-slate-300: #374151;
+    --color-slate-200: #1f2937;
+    --color-slate-100: #18202c;
+    --color-white: #111827;
+
+    --color-emerald-950: #d8f3dc;
+    --color-emerald-500: #0d9488;
+    --color-emerald-400: #0f766e;
+    --color-emerald-300: #115e59;
+
+    --color-sky-950: #e0e7ff;
+    --color-sky-500: #4f46e5;
+    --color-sky-400: #4338ca;
+    --color-sky-300: #3730a3;
+
+    --color-amber-500: #d97706;
+    --color-amber-400: #b45309;
+    --color-amber-300: #92400e;
+  }
+
+  body {
+    background-color: var(--app-bg-outer);
+    color: var(--color-slate-100);
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+    transition: background-color 0.25s ease, color 0.25s ease;
+  }
+}
+
+/* Eye-comfort theme container helpers */
+.app-outer-shell {
+  background-color: var(--app-bg-outer);
+  color: var(--color-slate-100);
+}
+
+.app-canvas-shell {
+  background-color: var(--app-bg-canvas);
+}
+
+.app-header-bar {
+  background-color: var(--app-bg-header);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+/* Custom ergonomic glass styles (GPU-optimized without stacked backdrop-filter lag) */
+.glass-panel {
+  background: var(--app-card-bg);
+  border: 1px solid var(--app-border);
+  box-shadow: 0 4px 16px -4px rgba(0, 0, 0, 0.14);
+}
+
+.glass-panel-glow {
+  background: var(--app-card-glow-bg);
+  border: 1px solid var(--app-border-accent);
+  box-shadow: 0 6px 20px -6px rgba(43, 181, 160, 0.14);
+}
+
+.glass-card {
+  background: var(--app-card-bg);
+  border: 1px solid var(--app-border);
+}
+
+.glass-card-interactive {
+  background: var(--app-card-bg);
+  border: 1px solid var(--app-border);
+  transition: transform 0.18s ease, border-color 0.18s ease;
+}
+
+.glass-card-interactive:hover {
+  border-color: var(--app-border-accent);
+  transform: translateY(-2px);
+}
+
+/* Shimmer effect for legendary shoes & badges */
+@keyframes shimmer {
+  0% { transform: translateX(-150%) rotate(45deg); }
+  100% { transform: translateX(150%) rotate(45deg); }
+}
+
+.animate-shimmer {
+  position: relative;
+  overflow: hidden;
+}
+
+.animate-shimmer::after {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: linear-gradient(
+    60deg,
+    transparent 35%,
+    rgba(255, 255, 255, 0.08) 50%,
+    transparent 65%
+  );
+  animation: shimmer 4s infinite linear;
+  pointer-events: none;
+}
+
+/* Subtle Floating animation for sneakers */
+@keyframes floatItem {
+  0%, 100% {
+    transform: translateY(0px) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-5px) rotate(-1deg);
+  }
+}
+
+.animate-float {
+  animation: floatItem 3.5s ease-in-out infinite;
+}
+
+/* Pulsing radar for live PvP & tracking */
+@keyframes radarPulse {
+  0% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(43, 181, 160, 0.5);
+  }
+  70% {
+    transform: scale(1);
+    box-shadow: 0 0 0 12px rgba(43, 181, 160, 0);
+  }
+  100% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(43, 181, 160, 0);
+  }
+}
+
+.animate-radar {
+  animation: radarPulse 2s infinite;
+}
+
+/* Smooth fade in */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Custom scrollbars */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--app-bg-canvas);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-slate-700);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-slate-600);
+}
+
+/* Wallet Absorb Bounce & Glow */
+@keyframes walletAbsorbBounce {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 0 0 rgba(43, 181, 160, 0);
+  }
+  35% {
+    transform: scale(1.22);
+    box-shadow: 0 0 20px rgba(79, 209, 190, 0.7), 0 0 40px rgba(43, 181, 160, 0.3);
+    filter: brightness(1.15);
+  }
+  70% {
+    transform: scale(0.96);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 rgba(43, 181, 160, 0);
+  }
+}
+
+.animate-wallet-absorb {
+  animation: walletAbsorbBounce 0.55s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+/* Floating gain pill */
+@keyframes floatPillUp {
+  0% {
+    opacity: 0;
+    transform: translateY(4px) scale(0.85);
+  }
+  20% {
+    opacity: 1;
+    transform: translateY(-4px) scale(1.05);
+  }
+  80% {
+    opacity: 1;
+    transform: translateY(-16px) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-28px) scale(0.8);
+  }
+}
+
+.animate-float-pill {
+  animation: floatPillUp 1.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Coin Sparkle Trail */
+@keyframes coinSparkle {
+  0% {
+    opacity: 0.9;
+    transform: scale(1) translate(0, 0);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.2) translate(var(--tw-translate-x, 0), var(--tw-translate-y, 0));
+  }
+}
+
+.animate-coin-sparkle {
+  animation: coinSparkle 0.6s ease-out forwards;
+}
