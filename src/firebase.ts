@@ -9,17 +9,36 @@ import {
 } from 'firebase/auth';
 import {
   getFirestore,
+  initializeFirestore,
+  setLogLevel,
   doc,
   getDoc,
-  getDocFromServer,
   setDoc,
   updateDoc,
   serverTimestamp,
 } from 'firebase/firestore';
 import firebaseConfig from '../firebase-applet-config.json';
 
+// Silence internal @firebase/firestore 10s backend timeout console.error when operating in offline/restricted networks
+setLogLevel('silent');
+
 const app = initializeApp(firebaseConfig);
-export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
+
+function initCloudFirestore() {
+  try {
+    return initializeFirestore(
+      app,
+      {
+        experimentalAutoDetectLongPolling: true,
+      },
+      firebaseConfig.firestoreDatabaseId
+    );
+  } catch {
+    return getFirestore(app, firebaseConfig.firestoreDatabaseId);
+  }
+}
+
+export const db = initCloudFirestore();
 export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
 
@@ -49,6 +68,13 @@ export interface FirestoreErrorInfo {
   };
 }
 
+function isOfflineError(error: unknown): boolean {
+  const msg = error instanceof Error ? error.message : String(error);
+  return /client is offline|unavailable|network-request-failed|could not reach|failed to get document/i.test(
+    msg
+  );
+}
+
 export function handleFirestoreError(
   error: unknown,
   operationType: OperationType,
@@ -71,21 +97,12 @@ export function handleFirestoreError(
     operationType,
     path,
   };
-  console.error('Firestore Error: ', JSON.stringify(errInfo));
+  if (!isOfflineError(error)) {
+    console.error('Firestore Error: ', JSON.stringify(errInfo));
+  }
   throw new Error(JSON.stringify(errInfo));
 }
 
-// Validate connection to Firestore on startup
-async function testConnection() {
-  try {
-    await getDocFromServer(doc(db, 'test', 'connection'));
-  } catch (error) {
-    if (error instanceof Error && error.message.includes('the client is offline')) {
-      console.error('Please check your Firebase configuration.');
-    }
-  }
-}
-testConnection();
 
 // Compute SHA-256 digital fingerprint for anti-cheat duplicate activity verification
 export async function computeActivityFingerprint(
@@ -183,6 +200,9 @@ export async function loadOrCreateCloudUserVault(
       };
     }
   } catch (error) {
+    if (isOfflineError(error)) {
+      return seed;
+    }
     handleFirestoreError(error, OperationType.GET, userPath);
   }
 
@@ -214,7 +234,9 @@ export async function loadOrCreateCloudUserVault(
   try {
     await setDoc(userRef, createPayload);
   } catch (error) {
-    handleFirestoreError(error, OperationType.CREATE, userPath);
+    if (!isOfflineError(error)) {
+      handleFirestoreError(error, OperationType.CREATE, userPath);
+    }
   }
 
   return {
@@ -247,9 +269,34 @@ export async function syncCloudUserVaultUpdate(
   const userRef = doc(db, 'users', uid);
 
   try {
+    const snap = await getDoc(userRef);
+    if (!snap.exists()) {
+      await setDoc(userRef, {
+        ownerId: uid,
+        fullName: sanitizeString(payload.fullName, 'دونده دوپول', 100),
+        username: sanitizeString(payload.username.replace(/[^a-zA-Z0-9_-]/g, '_'), 'runner_dopool', 60),
+        email: sanitizeString(currentUser.email || payload.email, 'runner@dopool.ir', 120),
+        phone: sanitizeString(payload.phone, '09120000000', 30),
+        referralCode: sanitizeString(payload.referralCode, 'DP-8834', 32),
+        lockedPoolBalance: clampNumber(payload.lockedPoolBalance, 0, 1000000),
+        totalKm: clampNumber(payload.totalKm, 0, 500000),
+        invitedFriendsCount: Math.floor(clampNumber(payload.invitedFriendsCount, 0, 100000)),
+        streakDays: Math.floor(clampNumber(payload.streakDays, 0, 10000)),
+        battleWins: Math.floor(clampNumber(payload.battleWins, 0, 100000)),
+        battleLosses: Math.floor(clampNumber(payload.battleLosses, 0, 100000)),
+        battleRating: Math.floor(clampNumber(payload.battleRating, 0, 10000)),
+        firstLogin: Boolean(payload.firstLogin),
+        firstActivity: Boolean(payload.firstActivity),
+        firstInvite: Boolean(payload.firstInvite),
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      });
+      return;
+    }
+
     await updateDoc(userRef, {
       fullName: sanitizeString(payload.fullName, 'دونده دوپول', 100),
-      username: sanitizeString(payload.username, 'runner_dopool', 60),
+      username: sanitizeString(payload.username.replace(/[^a-zA-Z0-9_-]/g, '_'), 'runner_dopool', 60),
       phone: sanitizeString(payload.phone, '09120000000', 30),
       lockedPoolBalance: clampNumber(payload.lockedPoolBalance, 0, 1000000),
       totalKm: clampNumber(payload.totalKm, 0, 500000),
@@ -264,7 +311,9 @@ export async function syncCloudUserVaultUpdate(
       updatedAt: serverTimestamp(),
     });
   } catch (error) {
-    handleFirestoreError(error, OperationType.UPDATE, userPath);
+    if (!isOfflineError(error)) {
+      handleFirestoreError(error, OperationType.UPDATE, userPath);
+    }
   }
 }
 
