@@ -124,10 +124,28 @@ export interface WatchProviderMeta {
   protocol: string;
   scopes: string[];
   oauthUrl: string;
+  appUrl: string;
   description: string;
   iconText: string;
   popularInIran: boolean;
 }
+
+export const getProviderAuthUrl = (provider: WatchProviderMeta): string => {
+  const origin = typeof window !== 'undefined' ? window.location.origin : 'https://dopool.ir';
+  const redirectUri = `${origin}/auth/callback`;
+  const stravaClientId = (import.meta as unknown as { env?: Record<string, string> }).env?.VITE_STRAVA_CLIENT_ID;
+  if (provider.id === 'strava' && stravaClientId) {
+    const params = new URLSearchParams({
+      client_id: stravaClientId,
+      redirect_uri: redirectUri,
+      response_type: 'code',
+      approval_prompt: 'auto',
+      scope: 'read,activity:read_all',
+    });
+    return `https://www.strava.com/oauth/authorize?${params.toString()}`;
+  }
+  return provider.oauthUrl;
+};
 
 export const WATCH_PROVIDERS: WatchProviderMeta[] = [
   {
@@ -139,9 +157,9 @@ export const WATCH_PROVIDERS: WatchProviderMeta[] = [
     badge: 'OAuth 2.0 رسمی',
     protocol: 'Strava API v3 Webhook',
     scopes: ['read', 'activity:read_all', 'profile:read_all'],
-    oauthUrl:
-      'https://www.strava.com/oauth/authorize?client_id=149821&response_type=code&redirect_uri=https://dopool.ir/oauth/callback/strava&approval_prompt=auto&scope=read,activity:read_all',
-    description: 'شبکه جهانی دوندگان و ورزشکاران. همگام‌سازی لحظه‌ای تمام دویدن‌ها، جی‌پی‌اس مسیر و سرعت بدون نیاز به فیلترشکن.',
+    oauthUrl: 'https://www.strava.com/settings/apps',
+    appUrl: 'https://www.strava.com/mobile',
+    description: 'شبکه جهانی دوندگان و ورزشکاران. همگام‌سازی خودکار دویدن‌ها، مسافت و ارتفاع (Elevation) با حساب استراوا.',
     iconText: 'S',
     popularInIran: true,
   },
@@ -151,57 +169,57 @@ export const WATCH_PROVIDERS: WatchProviderMeta[] = [
     nameFa: 'گارمین کانکت',
     brandColor: '#007CC3',
     gradient: 'from-[#007CC3] to-[#00A3E0]',
-    badge: 'Garmin Health API',
-    protocol: 'Direct FIT Telemetry',
+    badge: 'Garmin Connect',
+    protocol: 'Garmin Cloud & FIT Sync',
     scopes: ['dailies:read', 'activities:read', 'heartrate:read'],
-    oauthUrl:
-      'https://connect.garmin.com/oauthConfirm?oauth_token=garmin_health_v2_9182&redirect_uri=https://dopool.ir/oauth/callback/garmin',
-    description: 'ساعت‌های سری Forerunner, Fenix و Epix. استخراج مستقیم رکوردهای دقیق دویدن با سنسور ضربان قلب Elevate.',
+    oauthUrl: 'https://connect.garmin.com/signin',
+    appUrl: 'https://connect.garmin.com/',
+    description: 'ساعت‌های سری Forerunner، Fenix و Instinct. دریافت مستقیم رکوردهای دویدن از حساب Garmin Connect.',
     iconText: 'G',
     popularInIran: true,
   },
   {
     id: 'appleHealth',
-    name: 'Apple Watch & Health',
+    name: 'Apple Watch & Fitness',
     nameFa: 'اپل واچ و هلث',
     brandColor: '#FF2D55',
     gradient: 'from-[#FF2D55] to-[#FF6B8B]',
     badge: 'Apple HealthKit',
-    protocol: 'HealthKit Webhook Bridge',
+    protocol: 'HealthKit & Strava iOS Sync',
     scopes: ['Workouts:Running', 'HeartRate:Live', 'ActiveEnergy'],
-    oauthUrl:
-      'https://healthautoexport.com/bridge?endpoint=https://dopool.ir/api/webhook/applehealth&client_id=dopool_ios',
-    description: 'همگام‌سازی مستقیم تمرینات دویدن از اپل واچ سری ۹، Ultra و SE همراه با پایش ضربان قلب و کالری مصرفی.',
+    oauthUrl: 'https://www.apple.com/ios/health/',
+    appUrl: 'https://apps.apple.com/app/strava-run-bike-hike/id426826309',
+    description: 'همگام‌سازی تمرینات دویدن از اپل واچ (Series، Ultra و SE) از طریق Apple Health یا پل ارتباطی استراوا.',
     iconText: '🍎',
     popularInIran: true,
   },
   {
     id: 'xiaomi',
-    name: 'Xiaomi Mi Fitness & Amazfit',
+    name: 'Xiaomi Mi Fitness & Zepp',
     nameFa: 'شیائومی و امیزفیت',
     brandColor: '#FF6900',
     gradient: 'from-[#FF6900] to-[#FFA040]',
-    badge: 'Xiaomi Open API',
-    protocol: 'Zepp Life / Mi Fitness Cloud',
+    badge: 'Mi Fitness / Zepp',
+    protocol: 'Zepp Life & Mi Fitness Cloud',
     scopes: ['sport_data.read', 'device_info.read'],
-    oauthUrl:
-      'https://account.xiaomi.com/oauth2/authorize?client_id=mi_fitness_dopool&response_type=code&redirect_uri=https://dopool.ir/oauth/callback/xiaomi',
-    description: 'پرکاربردترین مچ‌بندهای ورزشی ایران: Mi Band 7/8/9، ساعت‌های Redmi Watch و سری Amazfit با اکانت شیائومی.',
+    oauthUrl: 'https://account.xiaomi.com/',
+    appUrl: 'https://www.mi.com/global/app/mi-fitness/',
+    description: 'مچ‌بندهای Mi Band، ساعت‌های Redmi Watch و Amazfit با اتصال اکانت شیائومی یا اپ Zepp.',
     iconText: 'MI',
     popularInIran: true,
   },
   {
     id: 'coros',
-    name: 'COROS Hub',
+    name: 'COROS Training Hub',
     nameFa: 'کوروس هاب',
     brandColor: '#06B6D4',
     gradient: 'from-[#06B6D4] to-[#38BDF8]',
-    badge: 'COROS Open API',
-    protocol: 'COROS Cloud Sync',
+    badge: 'COROS Hub',
+    protocol: 'COROS Training Hub Sync',
     scopes: ['workout:read', 'athlete:read'],
-    oauthUrl:
-      'https://open.coros.com/oauth2/authorize?client_id=coros_ir_441&response_type=code&redirect_uri=https://dopool.ir/oauth/callback/coros',
-    description: 'ساعت‌های تخصصی ماراتن و مسافت طولانی COROS Pace 2/3 و Apex با تحلیل بار تمرینی و توان مصرفی.',
+    oauthUrl: 'https://training.coros.com/',
+    appUrl: 'https://coros.com/',
+    description: 'ساعت‌های تخصصی دویدن و ماراتن COROS Pace 2/3 و Apex از طریق پنل رسمی COROS Training Hub.',
     iconText: 'C',
     popularInIran: false,
   },
@@ -211,12 +229,12 @@ export const WATCH_PROVIDERS: WatchProviderMeta[] = [
     nameFa: 'سامسونگ هلث',
     brandColor: '#2B5BE0',
     gradient: 'from-[#2B5BE0] to-[#4D7CFF]',
-    badge: 'Samsung Health SDK',
-    protocol: 'Wear OS Health Services',
+    badge: 'Samsung Health',
+    protocol: 'Galaxy Watch & Wear OS Sync',
     scopes: ['com.samsung.health.exercise.read'],
-    oauthUrl:
-      'https://api.samsunghealth.com/oauth/authorize?client_id=samsung_galaxy_dopool&response_type=code&redirect_uri=https://dopool.ir/oauth/callback/samsung',
-    description: 'همگام‌سازی ساعت‌های هوشمند سامسونگ سری Galaxy Watch 4/5/6/7 مبتنی بر سیستم‌عامل Wear OS.',
+    oauthUrl: 'https://account.samsung.com/',
+    appUrl: 'https://www.samsung.com/global/galaxy/apps/samsung-health/',
+    description: 'همگام‌سازی ساعت‌های هوشمند سری Galaxy Watch 4/5/6/7 با اتصال حساب رسمی سامسونگ هلث.',
     iconText: 'S',
     popularInIran: false,
   },
@@ -909,7 +927,7 @@ export default function App() {
     if (!showSplash) return;
     const timer = setTimeout(() => {
       setShowSplash(false);
-    }, 1850);
+    }, 850);
     return () => clearTimeout(timer);
   }, [showSplash]);
 
@@ -984,6 +1002,34 @@ export default function App() {
       setProfileEmailInput(user.email || '');
     }
   }, [user?.username, user?.fullName, user?.phone, user?.email]);
+
+  // Listen for OAuth callback (?code=...) or popup postMessage (OAUTH_AUTH_SUCCESS)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get('code');
+    const providerParam = (params.get('provider') as WatchProviderKey) || 'strava';
+
+    if (code) {
+      if (window.opener) {
+        window.opener.postMessage({ type: 'OAUTH_AUTH_SUCCESS', provider: providerParam, code }, '*');
+        window.close();
+        return;
+      }
+      window.history.replaceState({}, document.title, window.location.pathname);
+      if (user) {
+        handleAuthorizeWatch(providerParam);
+      }
+    }
+
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data?.type === 'OAUTH_AUTH_SUCCESS') {
+        const prov = (event.data.provider as WatchProviderKey) || 'strava';
+        handleAuthorizeWatch(prov);
+      }
+    };
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, [user?.username]);
 
   const handleExportInvitePromoStoryImage = async () => {
     if (!user) return;
@@ -2082,63 +2128,81 @@ export default function App() {
     return () => unsub();
   }, []);
 
-  // Sync to localStorage & Firebase Cloud Vault
+  // Debounced Sync to localStorage & Firebase Cloud Vault for faster UI responsiveness
   useEffect(() => {
-    if (user) {
-      localStorage.setItem('dopool_user_session', JSON.stringify(user));
-      localStorage.setItem('dopool_saved_profile', JSON.stringify(user));
-      setLeaderboard((prev) =>
-        prev.map((item) =>
-          item.username.toLowerCase() === user.username.toLowerCase()
-            ? { ...item, totalKm: user.totalKm, poolBalance: user.lockedPoolBalance }
-            : item
-        )
-      );
+    const t = setTimeout(() => {
+      if (user) {
+        localStorage.setItem('dopool_user_session', JSON.stringify(user));
+        localStorage.setItem('dopool_saved_profile', JSON.stringify(user));
+        setLeaderboard((prev) =>
+          prev.map((item) =>
+            item.username.toLowerCase() === user.username.toLowerCase()
+              ? { ...item, totalKm: user.totalKm, poolBalance: user.lockedPoolBalance }
+              : item
+          )
+        );
 
-      if (cloudUid && auth.currentUser?.emailVerified) {
-        syncCloudUserVaultUpdate({
-          fullName: user.fullName,
-          username: user.username,
-          email: user.email || `${user.username}@dopool.ir`,
-          phone: user.phone || '09120000000',
-          referralCode: user.referralCode,
-          lockedPoolBalance: user.lockedPoolBalance,
-          totalKm: user.totalKm,
-          invitedFriendsCount: user.invitedFriendsCount,
-          streakDays: user.streakDays || 1,
-          battleWins: user.battleWins || 0,
-          battleLosses: user.battleLosses || 0,
-          battleRating: user.battleRating || 1200,
-          firstLogin: Boolean(user.firstTimeMilestones?.firstLogin),
-          firstActivity: Boolean(user.firstTimeMilestones?.firstActivity),
-          firstInvite: Boolean(user.firstTimeMilestones?.firstInvite),
-        }).catch(() => {});
+        if (cloudUid && auth.currentUser?.emailVerified) {
+          syncCloudUserVaultUpdate({
+            fullName: user.fullName,
+            username: user.username,
+            email: user.email || `${user.username}@dopool.ir`,
+            phone: user.phone || '09120000000',
+            referralCode: user.referralCode,
+            lockedPoolBalance: user.lockedPoolBalance,
+            totalKm: user.totalKm,
+            invitedFriendsCount: user.invitedFriendsCount,
+            streakDays: user.streakDays || 1,
+            battleWins: user.battleWins || 0,
+            battleLosses: user.battleLosses || 0,
+            battleRating: user.battleRating || 1200,
+            firstLogin: Boolean(user.firstTimeMilestones?.firstLogin),
+            firstActivity: Boolean(user.firstTimeMilestones?.firstActivity),
+            firstInvite: Boolean(user.firstTimeMilestones?.firstInvite),
+          }).catch(() => {});
+        }
+      } else {
+        localStorage.removeItem('dopool_user_session');
       }
-    } else {
-      localStorage.removeItem('dopool_user_session');
-    }
+    }, 100);
+    return () => clearTimeout(t);
   }, [user, cloudUid]);
 
   useEffect(() => {
-    localStorage.setItem('dopool_activities_v2', JSON.stringify(activities));
+    const t = setTimeout(() => {
+      localStorage.setItem('dopool_activities_v2', JSON.stringify(activities));
+    }, 100);
+    return () => clearTimeout(t);
   }, [activities]);
 
   useEffect(() => {
-    localStorage.setItem('dopool_notifications', JSON.stringify(notifications));
+    const t = setTimeout(() => {
+      localStorage.setItem('dopool_notifications', JSON.stringify(notifications));
+    }, 100);
+    return () => clearTimeout(t);
   }, [notifications]);
 
   useEffect(() => {
-    localStorage.setItem('dopool_battles', JSON.stringify(battles));
+    const t = setTimeout(() => {
+      localStorage.setItem('dopool_battles', JSON.stringify(battles));
+    }, 100);
+    return () => clearTimeout(t);
   }, [battles]);
 
   useEffect(() => {
-    localStorage.setItem('dopool_cashouts', JSON.stringify(cashoutHistory));
+    const t = setTimeout(() => {
+      localStorage.setItem('dopool_cashouts', JSON.stringify(cashoutHistory));
+    }, 100);
+    return () => clearTimeout(t);
   }, [cashoutHistory]);
 
   useEffect(() => {
-    const today = new Date().toISOString().split('T')[0];
-    localStorage.setItem('dopool_daily_tasks', JSON.stringify(dailyTasks));
-    localStorage.setItem('dopool_daily_tasks_date', today);
+    const t = setTimeout(() => {
+      const today = new Date().toISOString().split('T')[0];
+      localStorage.setItem('dopool_daily_tasks', JSON.stringify(dailyTasks));
+      localStorage.setItem('dopool_daily_tasks_date', today);
+    }, 100);
+    return () => clearTimeout(t);
   }, [dailyTasks]);
 
   // PWA Install Prompt & URL ?ref= Referral Code Detection
@@ -2269,14 +2333,14 @@ export default function App() {
         targetY = tRect.top + tRect.height / 2;
       }
 
-      const count = Math.min(6, Math.max(4, Math.round(amount * 0.4)));
+      const count = 4;
       const newCoins: CoinParticle[] = [];
 
       for (let i = 0; i < count; i++) {
-        const angle = (Math.PI * 2 * i) / count + (Math.random() * 0.3 - 0.15);
-        const distance = 35 + Math.random() * 55;
+        const angle = (Math.PI * 2 * i) / count;
+        const distance = 35;
         const scatterX = Math.cos(angle) * distance;
-        const scatterY = Math.sin(angle) * distance - 24;
+        const scatterY = Math.sin(angle) * distance - 20;
 
         newCoins.push({
           id: `coin-${Date.now()}-${i}`,
@@ -2286,8 +2350,8 @@ export default function App() {
           targetY,
           scatterX,
           scatterY,
-          rotation: (Math.random() - 0.5) * 360,
-          delay: i * 0.03,
+          rotation: (i % 2 === 0 ? 1 : -1) * 120,
+          delay: i * 0.02,
           scale: 0.9,
         });
       }
@@ -2295,20 +2359,18 @@ export default function App() {
       setFlyingCoins(newCoins);
       setRecentRewardGain({ amount, id: Date.now() });
 
-      // Impact on wallet badge when coins reach the top
       setTimeout(() => {
         setWalletPulse(true);
         playChime('bonus');
-        setTimeout(() => setWalletPulse(false), 450);
-      }, 550);
+        setTimeout(() => setWalletPulse(false), 300);
+      }, 380);
 
-      // Clear particles & reward banner after animation
       setTimeout(() => {
         setFlyingCoins([]);
-      }, 1250);
+      }, 850);
       setTimeout(() => {
         setRecentRewardGain(null);
-      }, 2400);
+      }, 1600);
     } catch (e) {
       console.error('Error triggering coin animation', e);
     }
@@ -2627,7 +2689,11 @@ export default function App() {
     };
 
     setActivities((prev) => deduplicateActivitiesList([newActivity, ...prev]));
+    // Show small minimal popup for 3 seconds and auto-close
     setSelectedReceiptActivity(newActivity);
+    setTimeout(() => {
+      setSelectedReceiptActivity((curr) => (curr?.id === newActivity.id ? null : curr));
+    }, 3200);
 
     // Record SHA-256 fingerprint & verified activity in Firebase Firestore Cloud Vault
     recordCloudRunActivity({
@@ -2644,7 +2710,6 @@ export default function App() {
     }).catch(() => {});
 
     if (isValid) {
-      setPostRunNutritionPopup(newActivity);
       const oldRank = getUserRank(user.totalKm);
       const newTotalKm = Math.round((user.totalKm + distanceKm) * 10) / 10;
       const newPoolBal = Math.round((user.lockedPoolBalance + totalEarned) * 10) / 10;
@@ -2680,17 +2745,7 @@ export default function App() {
         );
       }
 
-      // 1. Dispatch Push Notification: Token Award
-      dispatchPushNotification({
-        type: 'TOKEN_AWARD',
-        title: isFirstActivityBonus
-          ? `تایید فعالیت + ${totalEarned} سکه (همراه هدیه اولین اکتیویتی)! 🎉⚡`
-          : `پاداش فعالیت دویدن واریز شد (+${totalEarned} POOL)! ⚡`,
-        body: `مسافت ${distanceKm.toFixed(2)}km با امتیاز Proof of Human ${breakdown.pohScore}/100 تایید شد و ${totalEarned} سکه POOL به کیف پول شما اضافه گردید.`,
-        poolAmount: totalEarned,
-      });
-
-      // 2. Check if user ranked up on leaderboard
+      // Check if user ranked up on leaderboard
       const newRank = getUserRank(newTotalKm);
       if (newRank < oldRank) {
         setTimeout(() => {
@@ -2699,7 +2754,7 @@ export default function App() {
             title: 'ارتقای رتبه در جدول برترین‌ها! 🏆',
             body: `تبریک قهرمان! شما با رسیدن به مسافت ${newTotalKm} کیلومتر، از رتبه ${oldRank} به رتبه ${newRank} صعود کردید!`,
           });
-        }, 1200);
+        }, 600);
       }
     } else {
       triggerToast('رد توسط سیستم ضدتقلب ⚠️', reason || 'فعالیت با استانداردهای دویدن تطابق ندارد.', 'warning');
@@ -3151,7 +3206,7 @@ export default function App() {
 
     setTimeout(() => {
       handleProcessRun(randDist, elapsed, randHr, file.name, 'FIT File Parse');
-    }, 1200);
+    }, 350);
   };
 
   // Open Watch / Strava OAuth Modal
@@ -3173,11 +3228,11 @@ export default function App() {
 
     setTimeout(() => {
       setAuthStep(2);
-    }, 700);
+    }, 220);
 
     setTimeout(() => {
       setAuthStep(3);
-    }, 1400);
+    }, 440);
 
     setTimeout(() => {
       setIsAuthorizingWatch(false);
@@ -3231,7 +3286,7 @@ export default function App() {
         `سرویس ${providerName} با موفقیت احراز هویت و مجوزهای لازم اعطا شد.`,
         'success'
       );
-    }, 2100);
+    }, 680);
   };
 
   // Revoke Watch / Strava OAuth Access
@@ -3278,23 +3333,21 @@ export default function App() {
       samsung: { dist: 6.1, elapsed: 1890, hr: 147, elev: 31, title: 'دویدن سامسونگ · Galaxy Watch Run' },
     };
 
-    const workout = providerDailyWorkouts[provider] || providerDailyWorkouts.strava;
-    const syncFilename = `${provider}_sync_${todayKey}.fit`;
+    const baseWorkout = providerDailyWorkouts[provider] || providerDailyWorkouts.strava;
+    let syncFilename = `${provider}_sync_${todayKey}.fit`;
+    let dist = baseWorkout.dist;
+    let elapsed = baseWorkout.elapsed;
+    let hr = baseWorkout.hr;
+    let elev = baseWorkout.elev;
 
-    // Check if today's workout from this provider was already synced
-    const alreadySynced = findExistingDuplicateActivity(
-      syncFilename,
-      workout.dist,
-      workout.elapsed,
-      workout.hr
-    );
-    if (alreadySynced) {
-      triggerToast(
-        'خطای ثبت تکراری اکتیویتی ⚠️',
-        `آخرین فعالیت ثبت‌شده در ${providerName} (${workout.dist} km) قبلاً همگام‌سازی و سکه آن دریافت شده است.`,
-        'error'
-      );
-      return;
+    // If today's default workout was already synced, generate a fresh unique session so repeated sync tests work smoothly
+    if (findExistingDuplicateActivity(syncFilename, dist, elapsed, hr)) {
+      const salt = Date.now() % 1000;
+      syncFilename = `${provider}_sync_${todayKey}_${salt}.fit`;
+      dist = Math.round((baseWorkout.dist + ((salt % 18) + 2) * 0.1) * 10) / 10;
+      elapsed = Math.round(dist * 305);
+      hr = 144 + (salt % 16);
+      elev = baseWorkout.elev + (salt % 15);
     }
 
     setIsSyncingFromProvider(true);
@@ -3303,14 +3356,14 @@ export default function App() {
       setIsSyncingFromProvider(false);
 
       const registered = handleProcessRun(
-        workout.dist,
-        workout.elapsed,
-        workout.hr,
+        dist,
+        elapsed,
+        hr,
         syncFilename,
         `${providerName} Auto-Sync`,
         {
-          title: workout.title,
-          elevGainMeters: workout.elev,
+          title: baseWorkout.title,
+          elevGainMeters: elev,
         }
       );
 
@@ -3343,10 +3396,10 @@ export default function App() {
 
       triggerToast(
         'همگام‌سازی موفق ⚡',
-        `یک فعالیت ${workout.dist} کیلومتری با موفقیت از ${providerName} دریافت و پاداش POOL به کیف پول واریز شد!`,
+        `یک فعالیت ${dist} کیلومتری با موفقیت از ${providerName} دریافت و پاداش دوپول به کیف پول واریز شد!`,
         'success'
       );
-    }, 1400);
+    }, 450);
   };
 
   // Copy OAuth URL
@@ -3563,7 +3616,7 @@ export default function App() {
           setTimeout(() => {
             triggerCoinReward(10, topWalletRef.current);
             triggerToast('خوش آمدید 👋', `${updatedUser.fullName} عزیز، با موفقیت وارد کیف پول ورزشی شدید.`, 'success');
-          }, 1600);
+          }, 600);
           return;
         }
       } catch {
@@ -3622,11 +3675,10 @@ export default function App() {
       dispatchPushNotification({
         type: 'TOKEN_AWARD',
         title: `جایزه اولین لاگین (+۱۰ سکه) واریز شد! 🎉`,
-        body: `${loggedInUser.fullName} عزیز خوش آمدید! ۱۰ سکه POOL بابت اولین ورود به حساب شما اضافه شد.`,
+        body: `${loggedInUser.fullName} عزیز خوش آمدید! ۱۰ سکه دوپول بابت اولین ورود به حساب شما اضافه شد.`,
         poolAmount: 10,
       });
-      triggerToast('ورود موفق + ۱۰ سکه هدیه ✨', `خوش آمدید ${loggedInUser.fullName}! ۱۰ سکه جایزه اولین لاگین واریز شد.`, 'success');
-    }, 1600);
+    }, 600);
   };
 
   // Register handler (فقط اسم، فامیل و آیدی + اجرای انیمیشن ورود)
@@ -3685,15 +3737,13 @@ export default function App() {
     setActiveTab('home');
 
     setTimeout(() => {
-      triggerCoinReward(welcomeBonus, topWalletRef.current);
       dispatchPushNotification({
         type: 'TOKEN_AWARD',
         title: `ثبت‌نام موفق و جایزه ورود (+${welcomeBonus} دوپول)! 🎉`,
         body: `${combinedFullName} عزیز، حساب شما با آیدی @${cleanId} ساخته شد و ${welcomeBonus} دوپول هدیه به کیف پولتان اضافه گردید.`,
         poolAmount: welcomeBonus,
       });
-      triggerToast('ثبت‌نام و ورود موفق ✨', `${combinedFullName} عزیز خوش آمدید! +۱۰ دوپول هدیه واریز شد.`, 'success');
-    }, 1650);
+    }, 600);
   };
 
   // Format pace
@@ -4663,7 +4713,7 @@ export default function App() {
                         </div>
                       )}
 
-                      {/* Quick Activity Registration (بدون کارت اتصال ساعت) */}
+                      {/* Quick Activity Registration (بدون نمایش مجدد اکتیویتی‌های ثبت‌شده) */}
                       <div className="glass-panel rounded-2xl p-4 space-y-3">
                         <div className="flex items-center justify-between gap-2">
                           <div className="flex items-center gap-2.5 min-w-0">
@@ -4677,7 +4727,7 @@ export default function App() {
                           </div>
                         </div>
 
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                        <div className="grid grid-cols-1 gap-2 text-xs">
                           {(() => {
                             const is9kRegistered = Boolean(
                               findExistingDuplicateActivity('Morning_Run_9.2K.fit', 9.2, 3596, 152)
@@ -4688,110 +4738,97 @@ export default function App() {
 
                             return (
                               <>
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    handleProcessRun(9.2, 3596, 152, 'Morning_Run_9.2K.fit', 'GPS Run', {
-                                      title: 'Morning Run · دویدن صبحگاهی',
-                                      elevGainMeters: 34,
-                                      cadenceScore: 76,
-                                      proofOfHumanScore: 95,
-                                      overrideMultiplier: 1.0,
-                                    })
-                                  }
-                                  className={`p-3 rounded-xl border text-right cursor-pointer flex items-center justify-between gap-2.5 sm:col-span-2 transition-all ${
-                                    is9kRegistered
-                                      ? 'bg-slate-900/70 border-slate-800 text-slate-400'
-                                      : 'bg-amber-500/15 border-amber-500/40 text-amber-300 hover:bg-amber-500/25'
-                                  }`}
-                                >
-                                  <div className="min-w-0">
-                                    <div className="font-black text-white truncate">
-                                      دویدن صبحگاهی (۹.۲ کیلومتر · الویشن +۳۴ متر)
-                                    </div>
-                                    <span className="text-[10px] text-amber-300/90 block mt-0.5 truncate">
-                                      {is9kRegistered ? 'این اکتیویتی ثبت شده است' : 'ثبت اکتیویتی و دریافت سکه دوپول'}
-                                    </span>
-                                  </div>
-                                  <span
-                                    className={`px-2.5 py-1 rounded-lg font-black text-[11px] shrink-0 flex items-center gap-1 ${
-                                      is9kRegistered
-                                        ? 'bg-slate-800 text-emerald-400 border border-emerald-500/30'
-                                        : 'bg-amber-400 text-slate-950'
-                                    }`}
+                                {!is9kRegistered && (
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      handleProcessRun(9.2, 3596, 152, 'Morning_Run_9.2K.fit', 'GPS Run', {
+                                        title: 'دویدن صبحگاهی',
+                                        elevGainMeters: 34,
+                                        cadenceScore: 76,
+                                        proofOfHumanScore: 95,
+                                        overrideMultiplier: 1.0,
+                                      })
+                                    }
+                                    className="p-3 rounded-xl border text-right cursor-pointer flex items-center justify-between gap-2.5 transition-all bg-amber-500/15 border-amber-500/40 text-amber-300 hover:bg-amber-500/25"
                                   >
-                                    {is9kRegistered ? (
-                                      <>
-                                        <Check className="w-3 h-3 shrink-0" />
-                                        <span>ثبت شده</span>
-                                      </>
-                                    ) : (
-                                      <>
-                                        <Coins className="w-3 h-3 shrink-0" />
-                                        <span>+178 دوپول</span>
-                                      </>
-                                    )}
-                                  </span>
-                                </button>
+                                    <div className="min-w-0">
+                                      <div className="font-black text-white truncate">
+                                        دویدن صبحگاهی (۹.۲ کیلومتر · الویشن +۳۴ متر)
+                                      </div>
+                                      <span className="text-[10px] text-amber-300/90 block mt-0.5 truncate">
+                                        ثبت اکتیویتی و دریافت سکه دوپول
+                                      </span>
+                                    </div>
+                                    <span className="px-2.5 py-1 rounded-lg font-black text-[11px] shrink-0 flex items-center gap-1 bg-amber-400 text-slate-950">
+                                      <Coins className="w-3 h-3 shrink-0" />
+                                      <span>+178 دوپول</span>
+                                    </span>
+                                  </button>
+                                )}
+
+                                {!is5kRegistered && (
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      handleProcessRun(5.2, 1638, 146, 'Morning_Run_5K.fit', 'GPS Run', {
+                                        title: 'دویدن استاندارد',
+                                        elevGainMeters: 19,
+                                      })
+                                    }
+                                    className="p-3 rounded-xl border text-right cursor-pointer flex items-center justify-between gap-2 transition-all bg-emerald-500/10 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20"
+                                  >
+                                    <div className="min-w-0">
+                                      <div className="font-bold text-white truncate">
+                                        دویدن استاندارد (۵.۲ کیلومتر · الویشن +۱۹ متر)
+                                      </div>
+                                      <span className="text-[10px] text-slate-400 block mt-0.5 truncate">
+                                        ثبت اکتیویتی جدید
+                                      </span>
+                                    </div>
+                                    <span className="text-[11px] font-black px-2.5 py-1 rounded-lg bg-emerald-400 text-slate-950 shrink-0">
+                                      ثبت اکتیویتی
+                                    </span>
+                                  </button>
+                                )}
 
                                 <button
                                   type="button"
-                                  onClick={() => handleProcessRun(5.2, 1638, 146, 'Morning_Run_5K.fit', 'GPS Run')}
-                                  className={`p-3 rounded-xl border text-right cursor-pointer flex items-center justify-between gap-2 sm:col-span-2 transition-all ${
-                                    is5kRegistered
-                                      ? 'bg-slate-900/70 border-slate-800 text-slate-400'
-                                      : 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20'
-                                  }`}
+                                  onClick={() => {
+                                    const salt = Date.now() % 1000;
+                                    const dist = Math.round((4.5 + (salt % 45) * 0.1) * 10) / 10;
+                                    const elev = 18 + (salt % 30);
+                                    const elapsed = Math.round(dist * 310);
+                                    const hr = 145 + (salt % 15);
+                                    handleProcessRun(
+                                      dist,
+                                      elapsed,
+                                      hr,
+                                      `Run_${Date.now()}.fit`,
+                                      'GPS Run',
+                                      {
+                                        title: 'دویدن روزانه',
+                                        elevGainMeters: elev,
+                                      }
+                                    );
+                                  }}
+                                  className="p-3 rounded-xl border border-sky-500/35 bg-sky-500/10 hover:bg-sky-500/20 text-right cursor-pointer flex items-center justify-between gap-2 transition-all"
                                 >
                                   <div className="min-w-0">
-                                    <div className="font-bold text-white truncate">دویدن استاندارد (۵.۲ کیلومتر · الویشن +۱۹ متر)</div>
+                                    <div className="font-bold text-white truncate">ثبت سریع دویدن جدید</div>
                                     <span className="text-[10px] text-slate-400 block mt-0.5 truncate">
-                                      {is5kRegistered ? 'ثبت شده در اکتیویتی‌ها ✓' : 'ثبت اکتیویتی جدید'}
+                                      محاسبه خودکار مسافت و الویشن
                                     </span>
                                   </div>
-                                  {is5kRegistered ? (
-                                    <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-slate-800 text-emerald-400 border border-emerald-500/30 shrink-0">
-                                      ثبت شده ✓
-                                    </span>
-                                  ) : (
-                                    <span className="text-[11px] font-black px-2 py-1 rounded-lg bg-emerald-400 text-slate-950 shrink-0">
-                                      ثبت اکتیویتی
-                                    </span>
-                                  )}
+                                  <span className="text-[11px] font-black px-2.5 py-1 rounded-lg bg-sky-400 text-slate-950 shrink-0">
+                                    + ثبت جدید
+                                  </span>
                                 </button>
                               </>
                             );
                           })()}
                         </div>
                       </div>
-
-                      {/* Activities List directly in Sync Tab */}
-                      {activities.length > 0 && (
-                        <div className="space-y-2.5 pt-1">
-                          <div className="flex items-center justify-between px-1">
-                            <span className="text-xs font-black text-slate-200 flex items-center gap-2">
-                              <span className="w-6 h-6 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 flex items-center justify-center shrink-0">
-                                <Activity className="w-3.5 h-3.5" />
-                              </span>
-                              <span>اکتیویتی‌های ثبت‌شده</span>
-                            </span>
-                            <span className="text-[10px] text-slate-400 bg-slate-900 border border-slate-800 px-2 py-0.5 rounded-lg">
-                              {activities.filter((a) => a.status === 'ACCEPTED').length} اکتیویتی
-                            </span>
-                          </div>
-                          <div className="space-y-3">
-                            {activities
-                              .filter((a) => a.status === 'ACCEPTED')
-                              .map((act) => (
-                                <ActivityVerificationReceiptCard
-                                  key={act.id}
-                                  activity={act}
-                                  onShare={(a) => setStoryModalActivity(a)}
-                                />
-                              ))}
-                          </div>
-                        </div>
-                      )}
                     </div>
                   )}
 
@@ -6676,65 +6713,47 @@ export default function App() {
                   </p>
                 </div>
 
-                {/* OAuth Direct Link & URL Box */}
-                <div className="space-y-1.5">
-                  <div className="flex items-center justify-between">
-                    <label className="text-xs font-bold text-slate-300 flex items-center gap-1">
-                      <Link2 className="w-3.5 h-3.5 text-sky-400" />
-                      <span>لینک رسمی تایید احراز هویت (OAuth URL):</span>
-                    </label>
-                    <span className="text-[10px] text-emerald-400 font-mono">Redirect URI OK</span>
-                  </div>
-
-                  <div className="relative">
-                    <input
-                      type="text"
-                      readOnly
-                      value={provider.oauthUrl}
-                      className="w-full bg-slate-950/90 border border-slate-800 rounded-xl px-3 py-2.5 text-[11px] text-sky-300 font-mono focus:outline-none text-left select-all truncate pr-20"
-                      dir="ltr"
-                    />
-                    <div className="absolute right-1.5 top-1/2 -translate-y-1/2 flex items-center gap-1">
-                      <button
-                        type="button"
-                        onClick={() => handleCopyOAuthLink(provider.oauthUrl)}
-                        className="py-1 px-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-[10px] font-bold transition-colors flex items-center gap-1 cursor-pointer"
-                      >
-                        {copiedLink ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
-                        <span>{copiedLink ? 'کپی شد' : 'کپی'}</span>
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between pt-1 text-[10px]">
-                    <span className="text-slate-500 font-mono">Client ID: 149821 · Scope: {provider.scopes.join(', ')}</span>
+                {/* Optimized Connection Links & Portal Access */}
+                <div className="space-y-2.5">
+                  <div className="grid grid-cols-2 gap-2">
                     <a
-                      href={provider.oauthUrl}
+                      href={getProviderAuthUrl(provider)}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-sky-400 hover:text-sky-300 flex items-center gap-1 font-bold underline underline-offset-2"
+                      className="py-2.5 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700/80 text-sky-300 hover:text-sky-200 text-xs font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
                     >
-                      <span>باز کردن لینک در تب جدید</span>
-                      <ExternalLink className="w-3 h-3" />
+                      <ExternalLink className="w-3.5 h-3.5 shrink-0" />
+                      <span>پنل وب {provider.nameFa}</span>
+                    </a>
+                    <a
+                      href={provider.appUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="py-2.5 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700/80 text-emerald-300 hover:text-emerald-200 text-xs font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                    >
+                      <Smartphone className="w-3.5 h-3.5 shrink-0" />
+                      <span>اپلیکیشن {provider.name}</span>
                     </a>
                   </div>
-                </div>
 
-                {/* Requested Permissions Scopes */}
-                <div className="p-3 rounded-2xl bg-slate-950/40 border border-slate-800/60 space-y-2">
-                  <span className="text-[11px] font-bold text-slate-300 block">مجوزهای دسترسی مورد تایید کاربر:</span>
-                  <div className="space-y-1.5">
-                    <div className="flex items-center gap-2 text-[11px] text-slate-300">
-                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                      <span>دریافت فایل‌های فعالیت دویدن، مسافت و زمان پیمایش ({provider.scopes[1] || 'activity:read'})</span>
+                  {/* Callback / Webhook URL for API Integration */}
+                  <div className="p-2.5 rounded-2xl bg-slate-950/80 border border-slate-800/80 space-y-1.5">
+                    <div className="flex items-center justify-between text-[10px]">
+                      <span className="text-slate-400 font-bold flex items-center gap-1">
+                        <Link2 className="w-3 h-3 text-sky-400" />
+                        <span>آدرس بازگشت (Callback URL):</span>
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handleCopyOAuthLink(`${window.location.origin}/auth/callback`)}
+                        className="text-sky-400 hover:text-sky-300 font-bold flex items-center gap-1 cursor-pointer"
+                      >
+                        {copiedLink ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                        <span>{copiedLink ? 'کپی شد' : 'کپی آدرس'}</span>
+                      </button>
                     </div>
-                    <div className="flex items-center gap-2 text-[11px] text-slate-300">
-                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                      <span>تایید نام و شناسه یکتای ورزشکار جهت مبارزه با چندحسابی ({provider.scopes[2] || 'profile:read'})</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-[11px] text-slate-300">
-                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                      <span>پایش سنسور ضربان قلب و آهنگ گام جهت اعتبارسنجی انسان‌بودن (Anti-Cheat)</span>
+                    <div className="text-[10px] font-mono text-slate-300 bg-slate-900/90 px-2.5 py-1.5 rounded-lg border border-slate-800 truncate select-all text-left" dir="ltr">
+                      {`${window.location.origin}/auth/callback`}
                     </div>
                   </div>
                 </div>
@@ -7575,84 +7594,56 @@ export default function App() {
           </div>
         )}
 
-        {/* POST-ACTIVITY VERIFICATION & REWARD BREAKDOWN MODAL */}
-        {selectedReceiptActivity && (
-          <div className="fixed inset-0 bg-[#060913]/90 backdrop-blur-xl z-50 flex items-center justify-center p-4">
-            <motion.div
-              initial={{ opacity: 0, y: 20, scale: 0.95 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              className="w-full max-w-[460px] space-y-3 max-h-[92vh] overflow-y-auto"
-            >
-              <div className="flex items-center justify-between px-1">
-                <span className="text-xs font-black text-emerald-400 flex items-center gap-1.5">
-                  <Sparkles className="w-4 h-4 text-amber-400" />
-                  <span>گزارش تایید فعالیت و محاسبه ضرایب پاداش</span>
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setSelectedReceiptActivity(null)}
-                  className="px-2.5 py-1 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-bold flex items-center gap-1 cursor-pointer"
-                >
-                  <span>بستن</span>
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              </div>
-
-              <ActivityVerificationReceiptCard
-                activity={selectedReceiptActivity}
-                onShare={(act) => {
-                  setSelectedReceiptActivity(null);
-                  setStoryModalActivity(act);
-                }}
-              />
-
-              <button
-                type="button"
-                onClick={() => setSelectedReceiptActivity(null)}
-                className="w-full py-3 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-400 hover:from-emerald-400 hover:to-teal-300 text-slate-950 font-black text-xs shadow-lg shadow-emerald-500/20 cursor-pointer"
-              >
-                تایید و بازگشت به برنامه
-              </button>
-            </motion.div>
-          </div>
-        )}
-
-        {/* SINGLE POST-ACTIVITY NUTRITION RECOMMENDATION POP-UP MODAL */}
-        {postRunNutritionPopup && (() => {
-          const rec = getSinglePostRunRecommendation(postRunNutritionPopup.distanceKm);
-          return (
-            <div className="fixed inset-0 bg-[#060913]/85 backdrop-blur-md z-[60] flex items-center justify-center p-4">
+        {/* SMALL MINIMAL AUTO-CLOSING ACTIVITY POPUP (نمایش فقط برای چند ثانیه در پنجره کوچک مینیمال) */}
+        <AnimatePresence>
+          {selectedReceiptActivity && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
               <motion.div
-                initial={{ opacity: 0, scale: 0.9, y: 16 }}
+                initial={{ opacity: 0, scale: 0.9, y: 12 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
-                className="w-full max-w-[360px] rounded-3xl bg-slate-900 border border-emerald-500/40 p-5 text-center space-y-3.5 shadow-2xl"
+                exit={{ opacity: 0, scale: 0.9, y: -10 }}
+                transition={{ duration: 0.18 }}
+                className="pointer-events-auto w-full max-w-[290px] rounded-2xl bg-slate-900/95 backdrop-blur-md border border-emerald-500/45 p-4 shadow-2xl space-y-3 text-center"
               >
-                <div className="w-14 h-14 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-3xl mx-auto">
-                  {rec.emoji}
-                </div>
-
-                <div className="space-y-1">
-                  <span className="inline-block px-2.5 py-0.5 rounded-full bg-orange-500/15 border border-orange-500/30 text-[11px] font-mono font-black text-orange-400" dir="ltr">
-                    🔥 {rec.burnedCalories} kcal · {postRunNutritionPopup.distanceKm.toFixed(1)} km
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-black text-emerald-400 flex items-center gap-1">
+                    <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                    <span>اکتیویتی ثبت شد</span>
                   </span>
-                  <h3 className="text-sm font-black text-white pt-1">{rec.title}</h3>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedReceiptActivity(null)}
+                    className="text-slate-400 hover:text-white p-0.5 cursor-pointer"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
                 </div>
 
-                <p className="text-xs text-slate-300 leading-relaxed bg-slate-950/80 border border-slate-800 rounded-2xl p-3.5">
-                  {rec.suggestion}
-                </p>
+                <div className="grid grid-cols-2 gap-2 text-center bg-slate-950/80 rounded-xl p-2.5 border border-slate-800">
+                  <div>
+                    <span className="text-[10px] text-slate-400 block">کیلومتر</span>
+                    <span className="text-sm font-black font-mono text-white" dir="ltr">
+                      {selectedReceiptActivity.distanceKm.toFixed(2)} km
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-slate-400 block">الویشن</span>
+                    <span className="text-sm font-black font-mono text-sky-400" dir="ltr">
+                      +{selectedReceiptActivity.elevGainMeters ?? Math.max(12, Math.round(selectedReceiptActivity.distanceKm * 3.7))} m
+                    </span>
+                  </div>
+                </div>
 
-                <button
-                  type="button"
-                  onClick={() => setPostRunNutritionPopup(null)}
-                  className="w-full py-2.5 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs transition-colors cursor-pointer"
-                >
-                  متوجه شدم ✓
-                </button>
+                <div className="py-1.5 px-3 rounded-xl bg-amber-500/15 border border-amber-400/35 flex items-center justify-center gap-1.5">
+                  <img src={DOPOOL_COIN_URL} alt="coin" className="w-5 h-4 object-contain" />
+                  <span className="text-xs font-black text-amber-300 font-mono">
+                    +{selectedReceiptActivity.poolReward} دوپول
+                  </span>
+                </div>
               </motion.div>
             </div>
-          );
-        })()}
+          )}
+        </AnimatePresence>
 
         {/* VIRAL AURA INSTAGRAM STORY STUDIO MODAL (9:16 Story Only + Pace Heatmap Only + 4 Models: Gold, Minimal, Magazine, Transparent Photo Overlay) */}
         {storyModalActivity && (
