@@ -309,11 +309,37 @@ export const WatchBrandLogo = memo(function WatchBrandLogo({
   }
 });
 
+const buildPresetAvatarDataUri = (emoji: string, c1: string, c2: string, ring: string) => {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120"><defs><radialGradient id="g" cx="35%" cy="30%" r="75%"><stop offset="0%" stop-color="${c1}"/><stop offset="100%" stop-color="${c2}"/></radialGradient></defs><circle cx="60" cy="60" r="58" fill="url(#g)" stroke="${ring}" stroke-width="3"/><text x="60" y="76" font-size="54" text-anchor="middle">${emoji}</text></svg>`;
+  return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+};
+
+const PRESET_USER_AVATARS = [
+  { id: 'leopard', label: 'پلنگ', emoji: '🐆', dataUrl: buildPresetAvatarDataUri('🐆', '#451a03', '#0f172a', '#f59e0b') },
+  { id: 'lion', label: 'شیر', emoji: '🦁', dataUrl: buildPresetAvatarDataUri('🦁', '#7c2d12', '#0f172a', '#fb923c') },
+  { id: 'monkey', label: 'میمون', emoji: '🐵', dataUrl: buildPresetAvatarDataUri('🐵', '#3f2e21', '#0f172a', '#fcd34d') },
+  { id: 'snake', label: 'مار', emoji: '🐍', dataUrl: buildPresetAvatarDataUri('🐍', '#064e3b', '#0f172a', '#10b981') },
+  { id: 'eagle', label: 'عقاب', emoji: '🦅', dataUrl: buildPresetAvatarDataUri('🦅', '#1e3a8a', '#0f172a', '#38bdf8') },
+  { id: 'dice', label: 'تاس', emoji: '🎲', dataUrl: buildPresetAvatarDataUri('🎲', '#3b0764', '#0f172a', '#c084fc') },
+  { id: 'ball', label: 'توپ', emoji: '⚽', dataUrl: buildPresetAvatarDataUri('⚽', '#14532d', '#0f172a', '#4ade80') },
+  { id: 'rocket', label: 'موشک', emoji: '🚀', dataUrl: buildPresetAvatarDataUri('🚀', '#312e81', '#0f172a', '#818cf8') },
+  { id: 'bolt', label: 'صاعقه', emoji: '⚡', dataUrl: buildPresetAvatarDataUri('⚡', '#713f12', '#0f172a', '#facc15') },
+  { id: 'shoe', label: 'کفش', emoji: '👟', dataUrl: buildPresetAvatarDataUri('👟', '#134e4a', '#0f172a', '#2dd4bf') },
+];
+
+const getDefaultPresetAvatar = (username?: string) => {
+  const seed = (username || 'dopool').split('').reduce((acc, ch) => acc + ch.charCodeAt(0), 0);
+  return PRESET_USER_AVATARS[seed % PRESET_USER_AVATARS.length];
+};
+
 interface UserProfile {
   id: number;
   fullName: string;
   phone: string;
   email?: string;
+  avatarUrl?: string;
+  phoneVerified?: boolean;
+  emailVerified?: boolean;
   username: string;
   referralCode: string;
   lockedPoolBalance: number;
@@ -938,18 +964,26 @@ export default function App() {
   const [inviteShareMode, setInviteShareMode] = useState<'link' | 'story_image'>('link');
   const [isExportingInvitePromoStory, setIsExportingInvitePromoStory] = useState(false);
 
-  // Profile & Settings Form State
+  // Profile & Settings Minimal State
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [profileFullNameInput, setProfileFullNameInput] = useState('');
   const [profileUsernameInput, setProfileUsernameInput] = useState('');
   const [profilePhoneInput, setProfilePhoneInput] = useState('');
+  const [profileEmailInput, setProfileEmailInput] = useState('');
+  const [phoneOtpStep, setPhoneOtpStep] = useState<'idle' | 'sent'>('idle');
+  const [phoneOtpCode, setPhoneOtpCode] = useState('');
+  const [emailOtpStep, setEmailOtpStep] = useState<'idle' | 'sent'>('idle');
+  const [emailOtpCode, setEmailOtpCode] = useState('');
+  const profileAvatarInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     if (user) {
       setProfileFullNameInput(user.fullName || '');
       setProfileUsernameInput(user.username || '');
       setProfilePhoneInput(user.phone || '');
+      setProfileEmailInput(user.email || '');
     }
-  }, [user?.username, user?.fullName, user?.phone]);
+  }, [user?.username, user?.fullName, user?.phone, user?.email]);
 
   const handleExportInvitePromoStoryImage = async () => {
     if (!user) return;
@@ -5118,31 +5152,30 @@ export default function App() {
 
               {/* TAB 3: LEADERBOARD */}
               {activeTab === 'leaderboard' && (
-                <div className="space-y-4">
-                  {/* Dopool Official Sponsor Banner with Small Logo */}
-                  <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-slate-900 via-[#0d1527] to-slate-950 p-3.5 border border-amber-500/35 shadow-lg">
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="space-y-1 min-w-0">
-                        <span className="text-[10px] font-black uppercase tracking-wider text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded border border-amber-400/20 inline-flex items-center gap-1">
-                          <Award className="w-3 h-3 shrink-0" />
-                          <span>اسپانسر رسمی لیگ دوندگان</span>
-                        </span>
-                        <h4 className="text-sm font-black text-white">دوپول | Dopool</h4>
-                        <p className="text-[11px] text-slate-400">
-                          پاداش ویژه سکه دوپول به نفرات برتر جدول رتبه‌بندی هفتگی و ماهانه
-                        </p>
-                      </div>
-                      <div className="w-12 h-12 rounded-2xl bg-amber-500/15 border border-amber-500/35 flex items-center justify-center shrink-0 shadow-inner">
+                <div className="space-y-3.5">
+                  {/* Minimal Dopool Sponsor Bar with Refined Color */}
+                  <div className="rounded-2xl bg-gradient-to-l from-emerald-500/15 via-teal-500/10 to-amber-500/15 px-3.5 py-2.5 border border-emerald-400/30 flex items-center justify-between gap-2.5 shadow-sm">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="w-8 h-8 rounded-xl bg-amber-400/15 border border-amber-400/35 flex items-center justify-center shrink-0">
                         <img
                           src={DOPOOL_COIN_URL}
                           alt="Dopool"
-                          className="w-9 h-8 object-contain drop-shadow-[0_4px_10px_rgba(245,158,11,0.4)]"
+                          className="w-6 h-5 object-contain"
                         />
                       </div>
+                      <div className="flex items-center gap-2 min-w-0 flex-wrap">
+                        <span className="text-xs font-black text-white">دوپول | Dopool</span>
+                        <span className="text-[10px] text-emerald-300 font-medium">
+                          · اسپانسر رسمی لیگ دوندگان
+                        </span>
+                      </div>
                     </div>
+                    <span className="text-[10px] font-bold text-amber-300 bg-amber-400/15 border border-amber-400/30 px-2 py-0.5 rounded-lg shrink-0">
+                      حامی جوایز
+                    </span>
                   </div>
 
-                  {/* Top 3 Podium (مدال‌های یک‌شکل با رنگ طلایی، نقره‌ای و برنز) */}
+                  {/* Top 3 Podium (مدال‌های یک‌شکل با رنگ طلایی، نقره‌ای و برنز - بدون نمایش مقدار دوپول) */}
                   <div className="grid grid-cols-3 gap-2 pt-2 items-end text-center">
                     {/* Rank 2 - Silver Medal */}
                     <div className="glass-panel rounded-2xl p-2.5 flex flex-col items-center border-slate-300/35">
@@ -5151,8 +5184,7 @@ export default function App() {
                       </div>
                       <span className="text-[11px] font-bold text-slate-200">نفر دوم (نقره‌ای)</span>
                       <span className="text-xs font-bold text-white mt-0.5 truncate max-w-[95px]">{leaderboard[1].fullName}</span>
-                      <span className="text-xs text-sky-400 font-mono mt-0.5 font-bold" dir="ltr">{leaderboard[1].totalKm} km</span>
-                      <span className="text-[10px] text-emerald-400 font-mono">{leaderboard[1].poolBalance} دوپول</span>
+                      <span className="text-xs text-sky-400 font-mono mt-1 font-bold" dir="ltr">{leaderboard[1].totalKm} km</span>
                     </div>
 
                     {/* Rank 1 - Gold Medal */}
@@ -5162,8 +5194,7 @@ export default function App() {
                       </div>
                       <span className="text-xs font-black text-amber-400">نفر اول (طلایی)</span>
                       <span className="text-xs font-black text-white mt-0.5 truncate max-w-[100px]">{leaderboard[0].fullName}</span>
-                      <span className="text-xs text-sky-400 font-mono font-black mt-0.5" dir="ltr">{leaderboard[0].totalKm} km</span>
-                      <span className="text-[10px] text-emerald-400 font-bold font-mono">{leaderboard[0].poolBalance} دوپول</span>
+                      <span className="text-xs text-sky-400 font-mono font-black mt-1" dir="ltr">{leaderboard[0].totalKm} km</span>
                     </div>
 
                     {/* Rank 3 - Bronze Medal */}
@@ -5173,8 +5204,7 @@ export default function App() {
                       </div>
                       <span className="text-[11px] font-bold text-amber-500">نفر سوم (برنز)</span>
                       <span className="text-xs font-bold text-white mt-0.5 truncate max-w-[95px]">{leaderboard[2].fullName}</span>
-                      <span className="text-xs text-sky-400 font-mono mt-0.5 font-bold" dir="ltr">{leaderboard[2].totalKm} km</span>
-                      <span className="text-[10px] text-emerald-400 font-mono">{leaderboard[2].poolBalance} دوپول</span>
+                      <span className="text-xs text-sky-400 font-mono mt-1 font-bold" dir="ltr">{leaderboard[2].totalKm} km</span>
                     </div>
                   </div>
 
@@ -5182,7 +5212,7 @@ export default function App() {
                   <div className="glass-panel rounded-2xl p-2 space-y-1">
                     <div className="px-3 py-1.5 flex items-center justify-between text-[11px] text-slate-400 border-b border-slate-800">
                       <span>رتبه و مشخصات دونده</span>
-                      <span>کیلومتر کل / پاداش</span>
+                      <span>مسافت ثبت‌شده</span>
                     </div>
                     {leaderboard.map((item, idx) => {
                       const isMe = item.username.toLowerCase() === user.username.toLowerCase();
@@ -5221,7 +5251,6 @@ export default function App() {
                           </div>
                           <div className="text-left font-mono shrink-0" dir="ltr">
                             <span className="text-xs text-sky-400 font-bold block">{item.totalKm} km</span>
-                            <span className="text-[10px] text-emerald-400">{item.poolBalance} دوپول</span>
                           </div>
                         </div>
                       );
@@ -5693,158 +5722,361 @@ export default function App() {
                 </div>
               )}
 
-              {/* TAB: USER PROFILE ONLY (فقط نمایش اطلاعات کاربر بدون ویرایش و بدون نمایش موجودی دوپول) */}
+              {/* TAB: MINIMAL USER PROFILE (بالا وسط جای عکس کاربر + ردیف‌های کشیده اسم و فامیل، آیدی، شماره تماس و ایمیل با تایید در جلوی ردیف + دکمه ویرایش مینیمال) */}
               {activeTab === 'profile' && (
                 <div className="space-y-4">
-                  <div className="glass-panel rounded-3xl p-5 border border-amber-500/30 space-y-4">
-                    <div className="flex items-center justify-between gap-3 pb-3 border-b border-slate-800/80">
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className="w-12 h-12 rounded-2xl bg-amber-500/15 border border-amber-500/35 flex items-center justify-center shrink-0">
-                          <User className="w-6 h-6 text-amber-400" />
-                        </div>
-                        <div className="min-w-0">
-                          <h3 className="text-sm font-black text-white truncate">{user.fullName}</h3>
-                          <span className="text-xs font-mono text-sky-400 block truncate" dir="ltr">
-                            @{user.username}
-                          </span>
-                        </div>
-                      </div>
-                      <span className="px-2.5 py-1 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-[11px] font-bold shrink-0">
-                        رتبه #{getUserRank(user.totalKm)}
-                      </span>
-                    </div>
-
-                    {/* Read-only User Information List */}
-                    <div className="space-y-2.5 text-xs">
-                      <div className="p-3 rounded-2xl bg-slate-950/75 border border-slate-800/80 flex items-center justify-between">
-                        <span className="text-slate-400">نام و نام خانوادگی:</span>
-                        <span className="font-bold text-white">{user.fullName}</span>
-                      </div>
-
-                      <div className="p-3 rounded-2xl bg-slate-950/75 border border-slate-800/80 flex items-center justify-between">
-                        <span className="text-slate-400">آیدی کاربری (ID):</span>
-                        <span className="font-mono font-bold text-sky-300" dir="ltr">@{user.username}</span>
-                      </div>
-
-                      <div className="p-3 rounded-2xl bg-slate-950/75 border border-slate-800/80 flex items-center justify-between">
-                        <span className="text-slate-400">شماره موبایل:</span>
-                        <span className="font-mono text-slate-200" dir="ltr">{user.phone || 'ثبت نشده'}</span>
-                      </div>
-
-                      <div className="p-3 rounded-2xl bg-slate-950/75 border border-slate-800/80 flex items-center justify-between">
-                        <span className="text-slate-400">کد معرف اختصاصی:</span>
-                        <span className="font-mono font-black text-amber-400" dir="ltr">{user.referralCode}</span>
-                      </div>
-
-                      <div className="grid grid-cols-3 gap-2 pt-1 text-center">
-                        <div className="p-2.5 rounded-2xl bg-slate-950/75 border border-slate-800/80">
-                          <span className="text-[10px] text-slate-400 block">مسافت کل</span>
-                          <span className="text-xs font-mono font-black text-emerald-400 mt-0.5 block" dir="ltr">
-                            {user.totalKm.toFixed(1)} km
-                          </span>
-                        </div>
-                        <div className="p-2.5 rounded-2xl bg-slate-950/75 border border-slate-800/80">
-                          <span className="text-[10px] text-slate-400 block">تعداد فعالیت</span>
-                          <span className="text-xs font-mono font-black text-white mt-0.5 block">
-                            {activities.filter((a) => a.status === 'ACCEPTED').length}
-                          </span>
-                        </div>
-                        <div className="p-2.5 rounded-2xl bg-slate-950/75 border border-slate-800/80">
-                          <span className="text-[10px] text-slate-400 block">دعوت موفق</span>
-                          <span className="text-xs font-mono font-black text-sky-400 mt-0.5 block">
-                            {user.invitedFriendsCount} نفر
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={() => setActiveTab('settings')}
-                      className="w-full py-2.5 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700/80 text-slate-200 font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer"
-                    >
-                      <span>رفتن به بخش تنظیمات و ویرایش اطلاعات</span>
-                      <ChevronRight className="w-4 h-4 rotate-180 shrink-0" />
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {/* TAB: SETTINGS (ویرایش اطلاعات کاربر، پوسته برنامه، اعلان‌ها و خروج از حساب) */}
-              {activeTab === 'settings' && (
-                <div className="space-y-4">
-                  {/* Edit User Info Card inside Settings */}
-                  <div className="glass-panel rounded-3xl p-4 border border-amber-500/30 space-y-3">
+                  <div className="glass-panel rounded-3xl p-5 border border-slate-800/90 space-y-5 relative">
+                    {/* Minimal Top-Left Edit / Save Toggle Button */}
                     <div className="flex items-center justify-between">
-                      <h3 className="text-xs font-black text-white">ویرایش اطلاعات کاربری</h3>
-                      <span className="text-[10px] font-mono text-sky-400" dir="ltr">@{user.username}</span>
+                      <span className="text-xs font-black text-slate-300">پروفایل کاربری</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (isEditingProfile) {
+                            const nextName = profileFullNameInput.trim() || user.fullName;
+                            const nextId = profileUsernameInput.trim() || user.username;
+                            const nextPhone = profilePhoneInput.trim();
+                            const nextEmail = profileEmailInput.trim();
+                            setUser({
+                              ...user,
+                              fullName: nextName,
+                              username: nextId,
+                              phone: nextPhone,
+                              email: nextEmail,
+                              phoneVerified: nextPhone === user.phone ? user.phoneVerified : false,
+                              emailVerified: nextEmail === user.email ? user.emailVerified : false,
+                            });
+                            setIsEditingProfile(false);
+                            triggerToast('پروفایل ذخیره شد ✓', 'اطلاعات کاربری شما بروزرسانی گردید.', 'success');
+                          } else {
+                            setIsEditingProfile(true);
+                          }
+                        }}
+                        className={`px-3 py-1 rounded-xl text-[11px] font-bold border transition-all cursor-pointer ${
+                          isEditingProfile
+                            ? 'bg-emerald-500 text-slate-950 border-emerald-400 font-black'
+                            : 'bg-slate-900/90 hover:bg-slate-800 text-slate-300 border-slate-700/80'
+                        }`}
+                      >
+                        {isEditingProfile ? 'ذخیره تغییرات' : 'ویرایش'}
+                      </button>
                     </div>
 
-                    <form
-                      onSubmit={(e) => {
-                        e.preventDefault();
-                        const trimmedName = profileFullNameInput.trim() || user.fullName;
-                        const trimmedId = profileUsernameInput.trim() || user.username;
-                        setUser({
-                          ...user,
-                          fullName: trimmedName,
-                          username: trimmedId,
-                          phone: profilePhoneInput.trim(),
-                        });
-                        triggerToast('اطلاعات ذخیره شد ✓', 'مشخصات کاربری شما با موفقیت بروزرسانی شد.', 'success');
-                      }}
-                      className="space-y-3 pt-1"
-                    >
-                      <div>
-                        <label className="block text-[11px] font-bold text-slate-300 mb-1">نام و نام خانوادگی</label>
-                        <input
-                          type="text"
-                          value={profileFullNameInput}
-                          onChange={(e) => setProfileFullNameInput(e.target.value)}
-                          className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500"
+                    {/* Top Center: User Photo Slot + 10 Minimal Preset Avatars (پلنگ، شیر، میمون، مار، عقاب، تاس، توپ و...) */}
+                    <div className="flex flex-col items-center justify-center pt-1 space-y-3">
+                      <input
+                        ref={profileAvatarInputRef}
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (!file) return;
+                          const reader = new FileReader();
+                          reader.onload = () => {
+                            if (typeof reader.result === 'string') {
+                              setUser({ ...user, avatarUrl: reader.result });
+                              triggerToast('عکس پروفایل ثبت شد ✓', 'تصویر کاربری شما بروزرسانی شد.', 'success');
+                            }
+                          };
+                          reader.readAsDataURL(file);
+                        }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => profileAvatarInputRef.current?.click()}
+                        className="group relative w-24 h-24 rounded-full bg-slate-950 border-2 border-amber-400/60 hover:border-amber-400 flex flex-col items-center justify-center overflow-hidden shadow-lg transition-all cursor-pointer"
+                        title="انتخاب یا تغییر عکس پروفایل"
+                      >
+                        <img
+                          src={user.avatarUrl || getDefaultPresetAvatar(user.username).dataUrl}
+                          alt={user.fullName}
+                          className="w-full h-full object-cover"
                         />
+                      </button>
+
+                      {/* 10 Preset Avatars Grid (حیوانات و آیتم‌های رندوم - حداکثر ۱۰ عدد) */}
+                      <div className="w-full max-w-[320px] space-y-1.5">
+                        <div className="flex items-center justify-between px-1">
+                          <span className="text-[10px] text-slate-400 font-bold">انتخاب آواتار (۱۰ طرح):</span>
+                          <button
+                            type="button"
+                            onClick={() => profileAvatarInputRef.current?.click()}
+                            className="text-[10px] font-bold text-amber-400 hover:text-amber-300 transition-colors cursor-pointer"
+                          >
+                            آپلود از گالری
+                          </button>
+                        </div>
+                        <div className="grid grid-cols-5 gap-2 p-2 rounded-2xl bg-slate-950/70 border border-slate-800/80">
+                          {PRESET_USER_AVATARS.map((av) => {
+                            const currentAvatar = user.avatarUrl || getDefaultPresetAvatar(user.username).dataUrl;
+                            const isSelected = currentAvatar === av.dataUrl;
+                            return (
+                              <button
+                                key={av.id}
+                                type="button"
+                                onClick={() => {
+                                  setUser({ ...user, avatarUrl: av.dataUrl });
+                                  triggerToast(`آواتار ${av.label} انتخاب شد ✓`, 'عکس پروفایل شما تغییر کرد.', 'success');
+                                }}
+                                title={av.label}
+                                className={`flex flex-col items-center justify-center p-1.5 rounded-xl border transition-all cursor-pointer ${
+                                  isSelected
+                                    ? 'bg-amber-500/20 border-amber-400 scale-105 shadow-sm'
+                                    : 'bg-slate-900/70 hover:bg-slate-900 border-slate-800/80 opacity-85 hover:opacity-100'
+                                }`}
+                              >
+                                <span className="text-xl leading-none">{av.emoji}</span>
+                                <span className="text-[9px] text-slate-300 font-bold mt-1">{av.label}</span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Full-Width Stretched Rows: 1. Full Name, 2. ID, 3. Phone (+Verify), 4. Email (+Verify) */}
+                    <div className="space-y-2.5 text-xs">
+                      {/* 1. اسم و فامیل */}
+                      <div className="w-full px-3.5 py-3 rounded-2xl bg-slate-950/80 border border-slate-800/90 flex items-center justify-between gap-3">
+                        <span className="text-slate-400 shrink-0">اسم و فامیل</span>
+                        {isEditingProfile ? (
+                          <input
+                            type="text"
+                            value={profileFullNameInput}
+                            onChange={(e) => setProfileFullNameInput(e.target.value)}
+                            placeholder="نام و نام خانوادگی"
+                            className="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-1.5 text-xs text-white text-left focus:outline-none focus:border-amber-400"
+                          />
+                        ) : (
+                          <span className="font-bold text-white truncate">{user.fullName}</span>
+                        )}
                       </div>
 
-                      <div className="grid grid-cols-2 gap-2.5">
-                        <div>
-                          <label className="block text-[11px] font-bold text-slate-300 mb-1">آیدی کاربری (ID)</label>
+                      {/* 2. آیدی */}
+                      <div className="w-full px-3.5 py-3 rounded-2xl bg-slate-950/80 border border-slate-800/90 flex items-center justify-between gap-3">
+                        <span className="text-slate-400 shrink-0">آیدی</span>
+                        {isEditingProfile ? (
                           <input
                             type="text"
                             dir="ltr"
                             value={profileUsernameInput}
                             onChange={(e) => setProfileUsernameInput(e.target.value)}
-                            className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-sky-300 font-mono focus:outline-none focus:border-amber-500"
+                            placeholder="username"
+                            className="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-1.5 text-xs text-sky-300 font-mono text-left focus:outline-none focus:border-amber-400"
                           />
-                        </div>
-                        <div>
-                          <label className="block text-[11px] font-bold text-slate-300 mb-1">شماره موبایل</label>
-                          <input
-                            type="tel"
-                            dir="ltr"
-                            value={profilePhoneInput}
-                            onChange={(e) => setProfilePhoneInput(e.target.value)}
-                            placeholder="0912..."
-                            className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 font-mono focus:outline-none focus:border-amber-500"
-                          />
-                        </div>
+                        ) : (
+                          <span className="font-mono font-bold text-sky-300 truncate" dir="ltr">
+                            @{user.username}
+                          </span>
+                        )}
                       </div>
 
-                      <button
-                        type="submit"
-                        className="w-full py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-400 text-slate-950 font-black text-xs cursor-pointer shadow-md shadow-amber-500/15"
-                      >
-                        ذخیره تغییرات اطلاعات
-                      </button>
-                    </form>
-                  </div>
+                      {/* 3. شماره تماس + وارد کردن و تایید در جلوی ردیف */}
+                      <div className="w-full px-3.5 py-3 rounded-2xl bg-slate-950/80 border border-slate-800/90 space-y-2">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-slate-400 shrink-0">شماره تماس</span>
+                          <div className="flex items-center gap-2 min-w-0 flex-1 justify-end">
+                            {isEditingProfile || !user.phone ? (
+                              <input
+                                type="tel"
+                                dir="ltr"
+                                value={profilePhoneInput}
+                                onChange={(e) => {
+                                  setProfilePhoneInput(e.target.value);
+                                  if (!isEditingProfile) {
+                                    setUser({ ...user, phone: e.target.value, phoneVerified: false });
+                                  }
+                                }}
+                                placeholder="0912..."
+                                className="w-32 sm:w-36 bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-1 text-xs text-white font-mono text-left focus:outline-none focus:border-amber-400"
+                              />
+                            ) : (
+                              <span className="font-mono text-slate-200 truncate" dir="ltr">
+                                {user.phone}
+                              </span>
+                            )}
 
-                  {/* App Preferences & Logout Card */}
-                  <div className="glass-panel rounded-3xl p-4 border border-slate-800 space-y-3">
-                    <h4 className="text-xs font-black text-white">تنظیمات برنامه و حساب</h4>
+                            {/* دکمه / وضعیت تایید جلوی شماره تماس */}
+                            {user.phoneVerified ? (
+                              <span className="px-2 py-0.5 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-[10px] font-bold shrink-0 flex items-center gap-1">
+                                <Check className="w-3 h-3 shrink-0" />
+                                <span>تایید شده</span>
+                              </span>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const targetPhone = profilePhoneInput.trim() || user.phone;
+                                  if (!targetPhone || targetPhone.length < 10) {
+                                    triggerToast('شماره تماس را وارد کنید', 'لطفاً ابتدا شماره موبایل معتبر وارد نمایید.', 'warning');
+                                    return;
+                                  }
+                                  setUser({ ...user, phone: targetPhone });
+                                  setPhoneOtpStep('sent');
+                                  triggerToast('کد تایید ارسال شد', `کد ۴ رقمی به شماره ${targetPhone} پیامک شد.`, 'info');
+                                }}
+                                className="px-2.5 py-1 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/35 text-amber-300 text-[10px] font-bold shrink-0 cursor-pointer"
+                              >
+                                {phoneOtpStep === 'sent' ? 'ارسال مجدد' : 'تایید شماره'}
+                              </button>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* کادر وارد کردن کد تایید شماره تماس */}
+                        {phoneOtpStep === 'sent' && !user.phoneVerified && (
+                          <div className="flex items-center justify-end gap-1.5 pt-1.5 border-t border-slate-800/70">
+                            <input
+                              type="text"
+                              dir="ltr"
+                              maxLength={4}
+                              value={phoneOtpCode}
+                              onChange={(e) => setPhoneOtpCode(e.target.value)}
+                              placeholder="کد ۴ رقمی (مثلاً 1234)"
+                              className="w-36 bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-1 text-[11px] text-white font-mono text-center focus:outline-none focus:border-emerald-400"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (phoneOtpCode.trim().length < 4) {
+                                  triggerToast('کد ناقص است', 'لطفاً کد ۴ رقمی را وارد کنید.', 'warning');
+                                  return;
+                                }
+                                setUser({
+                                  ...user,
+                                  phone: profilePhoneInput.trim() || user.phone,
+                                  phoneVerified: true,
+                                });
+                                setPhoneOtpStep('idle');
+                                setPhoneOtpCode('');
+                                triggerToast('شماره تماس تایید شد ✓', 'شماره موبایل شما با موفقیت تایید گردید.', 'success');
+                              }}
+                              className="px-3 py-1 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-[11px] font-black cursor-pointer shrink-0"
+                            >
+                              تایید
+                            </button>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* 4. ایمیل + وارد کردن و تایید در جلوی ردیف */}
+                      <div className="w-full px-3.5 py-3 rounded-2xl bg-slate-950/80 border border-slate-800/90 space-y-2">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-slate-400 shrink-0">ایمیل</span>
+                          <div className="flex items-center gap-2 min-w-0 flex-1 justify-end">
+                            {isEditingProfile || !user.email ? (
+                              <input
+                                type="email"
+                                dir="ltr"
+                                value={profileEmailInput}
+                                onChange={(e) => {
+                                  setProfileEmailInput(e.target.value);
+                                  if (!isEditingProfile) {
+                                    setUser({ ...user, email: e.target.value, emailVerified: false });
+                                  }
+                                }}
+                                placeholder="name@email.com"
+                                className="w-40 sm:w-44 bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-1 text-xs text-white font-mono text-left focus:outline-none focus:border-amber-400"
+                              />
+                            ) : (
+                              <span className="font-mono text-slate-200 truncate" dir="ltr">
+                                {user.email}
+                              </span>
+                            )}
+
+                            {/* دکمه / وضعیت تایید جلوی ایمیل */}
+                            {user.emailVerified ? (
+                              <span className="px-2 py-0.5 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-[10px] font-bold shrink-0 flex items-center gap-1">
+                                <Check className="w-3 h-3 shrink-0" />
+                                <span>تایید شده</span>
+                              </span>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const targetEmail = profileEmailInput.trim() || user.email || '';
+                                  if (!targetEmail || !targetEmail.includes('@')) {
+                                    triggerToast('ایمیل را وارد کنید', 'لطفاً ابتدا یک آدرس ایمیل معتبر وارد نمایید.', 'warning');
+                                    return;
+                                  }
+                                  setUser({ ...user, email: targetEmail });
+                                  setEmailOtpStep('sent');
+                                  triggerToast('کد تایید ایمیل ارسال شد', `کد تایید به ${targetEmail} ارسال شد.`, 'info');
+                                }}
+                                className="px-2.5 py-1 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/35 text-amber-300 text-[10px] font-bold shrink-0 cursor-pointer"
+                              >
+                                {emailOtpStep === 'sent' ? 'ارسال مجدد' : 'تایید ایمیل'}
+                              </button>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* کادر وارد کردن کد تایید ایمیل */}
+                        {emailOtpStep === 'sent' && !user.emailVerified && (
+                          <div className="flex items-center justify-end gap-1.5 pt-1.5 border-t border-slate-800/70">
+                            <input
+                              type="text"
+                              dir="ltr"
+                              maxLength={4}
+                              value={emailOtpCode}
+                              onChange={(e) => setEmailOtpCode(e.target.value)}
+                              placeholder="کد ۴ رقمی (مثلاً 1234)"
+                              className="w-36 bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-1 text-[11px] text-white font-mono text-center focus:outline-none focus:border-emerald-400"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (emailOtpCode.trim().length < 4) {
+                                  triggerToast('کد ناقص است', 'لطفاً کد ۴ رقمی را وارد کنید.', 'warning');
+                                  return;
+                                }
+                                setUser({
+                                  ...user,
+                                  email: profileEmailInput.trim() || user.email,
+                                  emailVerified: true,
+                                });
+                                setEmailOtpStep('idle');
+                                setEmailOtpCode('');
+                                triggerToast('ایمیل تایید شد ✓', 'آدرس ایمیل شما با موفقیت تایید گردید.', 'success');
+                              }}
+                              className="px-3 py-1 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-[11px] font-black cursor-pointer shrink-0"
+                            >
+                              تایید
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* TAB: MINIMAL SETTINGS (سایر موارد و تنظیمات برنامه به صورت ساده و مینیمال) */}
+              {activeTab === 'settings' && (
+                <div className="space-y-4">
+                  <div className="glass-panel rounded-3xl p-4 border border-slate-800 space-y-3.5">
+                    <h4 className="text-xs font-black text-white">تنظیمات</h4>
+
+                    {/* Account Summary & Referral Code moved to Settings */}
+                    <div className="p-3 rounded-2xl bg-slate-950/75 border border-slate-800/80 space-y-2 text-xs">
+                      <div className="flex items-center justify-between">
+                        <span className="text-slate-400">کد معرف اختصاصی</span>
+                        <span className="font-mono font-black text-amber-400" dir="ltr">
+                          {user.referralCode}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between pt-2 border-t border-slate-800/70">
+                        <span className="text-slate-400">رتبه فعلی شما</span>
+                        <span className="font-mono font-bold text-emerald-400" dir="ltr">
+                          #{getUserRank(user.totalKm)}
+                        </span>
+                      </div>
+                    </div>
 
                     {/* Theme Selector */}
-                    <div className="p-3 rounded-2xl bg-slate-950/70 border border-slate-800/80 space-y-2">
-                      <span className="text-[11px] font-bold text-slate-300 block">پوسته و تم رنگی دوپول</span>
+                    <div className="p-3 rounded-2xl bg-slate-950/75 border border-slate-800/80 space-y-2">
+                      <span className="text-[11px] font-bold text-slate-300 block">تم رنگی برنامه</span>
                       <div className="grid grid-cols-3 gap-1.5">
                         {[
                           { id: 'velvet', label: 'شب ملایم' },
@@ -5868,11 +6100,11 @@ export default function App() {
                     </div>
 
                     {/* Notifications Setting */}
-                    <div className="p-3 rounded-2xl bg-slate-950/70 border border-slate-800/80 flex items-center justify-between gap-2">
+                    <div className="p-3 rounded-2xl bg-slate-950/75 border border-slate-800/80 flex items-center justify-between gap-2">
                       <div>
-                        <span className="text-xs font-bold text-white block">اعلان‌ها و نوتیفیکیشن پاداش</span>
+                        <span className="text-xs font-bold text-white block">اعلان‌ها و نوتیفیکیشن</span>
                         <span className="text-[10px] text-slate-400 block">
-                          {pushPermission === 'granted' ? 'فعال و متصل به مرورگر' : 'دریافت پیام واریز سکه دوپول'}
+                          {pushPermission === 'granted' ? 'فعال' : 'غیرفعال'}
                         </span>
                       </div>
                       <button
@@ -7937,8 +8169,12 @@ export default function App() {
                   <div className="p-3 rounded-2xl bg-gradient-to-br from-slate-900 via-slate-900/95 to-amber-950/25 border border-amber-500/30 space-y-2.5">
                     <div className="flex items-center justify-between gap-2">
                       <div className="flex items-center gap-2.5 min-w-0">
-                        <div className="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/40 text-amber-300 flex items-center justify-center shrink-0">
-                          <User className="w-5 h-5" />
+                        <div className="w-10 h-10 rounded-full bg-amber-500/20 border border-amber-500/40 text-amber-300 flex items-center justify-center overflow-hidden shrink-0">
+                          <img
+                            src={user.avatarUrl || getDefaultPresetAvatar(user.username).dataUrl}
+                            alt={user.fullName}
+                            className="w-full h-full object-cover"
+                          />
                         </div>
                         <div className="min-w-0">
                           <h4 className="text-xs font-black text-white truncate">{user.fullName}</h4>
