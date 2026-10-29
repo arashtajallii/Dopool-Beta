@@ -76,9 +76,14 @@ import {
   auth,
 } from './firebase';
 
-const LazyStravaWeeklyChart = lazy(() => import('./components/StravaWeeklyChart'));
-const LazyActivitySyncSection = lazy(() => import('./components/ActivitySyncSection'));
-const LazyLeaderboardSection = lazy(() => import('./components/LeaderboardSection'));
+import { translateFaToEn } from './i18n';
+import StravaWeeklyChart from './components/StravaWeeklyChart';
+import ActivitySyncSection from './components/ActivitySyncSection';
+import LeaderboardSection from './components/LeaderboardSection';
+
+const LazyStravaWeeklyChart = StravaWeeklyChart;
+const LazyActivitySyncSection = ActivitySyncSection;
+const LazyLeaderboardSection = LeaderboardSection;
 
 interface CoinParticle {
   id: string;
@@ -942,9 +947,19 @@ export default function App() {
 
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
   const [loginUsername, setLoginUsername] = useState('sohrab_run');
-  const [loginPassword, setLoginPassword] = useState('pass123');
+  const [savedUserPassword, setSavedUserPassword] = useState<string>(() => {
+    return localStorage.getItem('dopool_user_password') || 'pass123';
+  });
+  const [loginPassword, setLoginPassword] = useState(() => {
+    return localStorage.getItem('dopool_user_password') || 'pass123';
+  });
   const [showLoginPassword, setShowLoginPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
+
+  // Change Password Form States (inside Privacy & Security)
+  const [currentPasswordInput, setCurrentPasswordInput] = useState('');
+  const [newPasswordInput, setNewPasswordInput] = useState('');
+  const [confirmPasswordInput, setConfirmPasswordInput] = useState('');
 
   // Register Form States (فقط اسم، فامیل و آیدی)
   const [regFirstName, setRegFirstName] = useState('');
@@ -986,8 +1001,10 @@ export default function App() {
   const [inviteShareMode, setInviteShareMode] = useState<'link' | 'story_image'>('link');
   const [isExportingInvitePromoStory, setIsExportingInvitePromoStory] = useState(false);
 
-  // Profile & Settings Minimal State
-  const [settingsSubTab, setSettingsSubTab] = useState<'general' | 'support' | 'contact'>('general');
+  // Profile & Settings Minimal State (منوی ردیفی تنظیمات با امکان ورود به هر بخش و بازگشت)
+  const [settingsSubTab, setSettingsSubTab] = useState<
+    'menu' | 'language' | 'privacy' | 'appearance' | 'support' | 'contact'
+  >('menu');
   const [contactSubject, setContactSubject] = useState('');
   const [contactMessage, setContactMessage] = useState('');
   const [isEditingProfile, setIsEditingProfile] = useState(false);
@@ -1048,106 +1065,111 @@ export default function App() {
       const ctx = canvas.getContext('2d');
       if (!ctx) return;
 
-      // 1. Deep dark luxury stadium background (9:16 Instagram Story)
+      // 1. Minimal dark background (9:16 Instagram Story)
       const bgGrad = ctx.createLinearGradient(0, 0, 1080, 1920);
       bgGrad.addColorStop(0, '#050811');
-      bgGrad.addColorStop(0.5, '#0b1326');
+      bgGrad.addColorStop(0.5, '#0a1122');
       bgGrad.addColorStop(1, '#04070f');
       ctx.fillStyle = bgGrad;
       ctx.fillRect(0, 0, 1080, 1920);
 
-      // Ambient radial glows
-      const glowTop = ctx.createRadialGradient(540, 380, 40, 540, 380, 560);
-      glowTop.addColorStop(0, 'rgba(245, 158, 11, 0.28)');
+      // Subtle ambient radial glows
+      const glowTop = ctx.createRadialGradient(540, 360, 40, 540, 360, 520);
+      glowTop.addColorStop(0, 'rgba(245, 158, 11, 0.22)');
       glowTop.addColorStop(1, 'rgba(245, 158, 11, 0)');
       ctx.fillStyle = glowTop;
-      ctx.fillRect(0, 0, 1080, 1000);
+      ctx.fillRect(0, 0, 1080, 950);
 
-      const glowBottom = ctx.createRadialGradient(540, 1480, 40, 540, 1480, 580);
-      glowBottom.addColorStop(0, 'rgba(16, 185, 129, 0.22)');
+      const glowBottom = ctx.createRadialGradient(540, 1450, 40, 540, 1450, 520);
+      glowBottom.addColorStop(0, 'rgba(16, 185, 129, 0.16)');
       glowBottom.addColorStop(1, 'rgba(16, 185, 129, 0)');
       ctx.fillStyle = glowBottom;
       ctx.fillRect(0, 900, 1080, 1020);
 
-      // Outer decorative frame
-      ctx.strokeStyle = 'rgba(245, 158, 11, 0.35)';
-      ctx.lineWidth = 4;
-      ctx.strokeRect(56, 56, 968, 1808);
+      // Minimal outer frame
+      ctx.strokeStyle = 'rgba(245, 158, 11, 0.28)';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.roundRect(64, 64, 952, 1792, 48);
+      ctx.stroke();
 
       // Load Dopool Logo
       await new Promise<void>((resolve) => {
         const logoImg = new Image();
         logoImg.crossOrigin = 'anonymous';
         logoImg.onload = () => {
-          ctx.drawImage(logoImg, 360, 130, 360, 300);
+          ctx.drawImage(logoImg, 360, 150, 360, 300);
           resolve();
         };
         logoImg.onerror = () => resolve();
         logoImg.src = DOPOOL_LOGO_DARK_URL;
       });
 
-      // Brand Headline
+      // Ensure proper RTL text rendering
+      ctx.direction = 'rtl';
       ctx.textAlign = 'center';
+
+      // Brand Subtitle & Minimal Headline (بدون عبارت خط‌خورده و بدون علامت تعجب جابجا)
       ctx.fillStyle = '#fbbf24';
-      ctx.font = '900 44px Vazirmatn, sans-serif';
-      ctx.fillText('اپلیکیشن ورزشی دوپول | DOPOOL', 540, 500);
+      ctx.font = 'bold 40px Vazirmatn, sans-serif';
+      ctx.fillText('اپلیکیشن ورزشی دوپول', 540, 525);
 
-      ctx.fillStyle = '#ffffff';
-      ctx.font = '900 72px Vazirmatn, sans-serif';
-      ctx.fillText('بدَوید، سلامت بمانید', 540, 610);
       ctx.fillStyle = '#34d399';
-      ctx.fillText('و سکه «دوپول» جایزه بگیرید!', 540, 710);
+      ctx.font = '900 64px Vazirmatn, sans-serif';
+      ctx.fillText('با دویدن سکه «دوپول» جایزه بگیرید', 540, 640);
 
-      // Feature Highlights Box
-      ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
-      ctx.strokeStyle = 'rgba(148, 163, 184, 0.25)';
-      ctx.lineWidth = 3;
+      // Minimal Feature Highlights Card
+      ctx.fillStyle = 'rgba(15, 23, 42, 0.78)';
+      ctx.strokeStyle = 'rgba(148, 163, 184, 0.2)';
+      ctx.lineWidth = 2.5;
       ctx.beginPath();
-      ctx.roundRect(100, 790, 880, 430, 40);
+      ctx.roundRect(110, 740, 860, 440, 40);
       ctx.fill();
       ctx.stroke();
 
       const features = [
-        '✓ تبدیل کیلومتر و الویشن دویدن به سکه دوپول',
-        '✓ اتصال به ساعت‌های هوشمند و Strava',
-        '✓ ماموریت‌های روزانه، چالش‌ها و جدول رتبه‌بندی',
-        '✓ +۱۰ سکه دوپول هدیه ویژه شروع با کد دعوت زیر'
+        { text: 'تبدیل کیلومتر به سکه دوپول', color: '#f1f5f9', checkColor: '#34d399' },
+        { text: 'اتصال به ساعت‌های هوشمند و استراوا', color: '#f1f5f9', checkColor: '#34d399' },
+        { text: 'ماموریت‌های روزانه، چالش‌ها و جدول رتبه‌بندی', color: '#f1f5f9', checkColor: '#34d399' },
+        { text: 'سکه دوپول هدیه ویژه شروع با کد دعوت زیر', color: '#fbbf24', checkColor: '#fbbf24' },
       ];
-      ctx.font = 'bold 36px Vazirmatn, sans-serif';
-      features.forEach((line, idx) => {
-        ctx.fillStyle = idx === 3 ? '#fbbf24' : '#e2e8f0';
-        ctx.fillText(line, 540, 880 + idx * 90);
+
+      features.forEach((item, idx) => {
+        const rowY = 835 + idx * 92;
+        ctx.direction = 'rtl';
+        ctx.textAlign = 'right';
+        // Draw checkmark cleanly on the right side
+        ctx.fillStyle = item.checkColor;
+        ctx.font = '900 36px sans-serif';
+        ctx.fillText('✓', 910, rowY);
+
+        // Draw feature text to the left of the checkmark
+        ctx.fillStyle = item.color;
+        ctx.font = 'bold 35px Vazirmatn, sans-serif';
+        ctx.fillText(item.text, 865, rowY);
       });
 
-      // Referral Code Box
-      ctx.fillStyle = 'rgba(245, 158, 11, 0.14)';
-      ctx.strokeStyle = '#fbbf24';
-      ctx.lineWidth = 4;
+      // Minimal Referral Code Box (فقط کد دعوت به شکل ساده و مینیمال بدون متن‌های اضافی و لینک طولانی)
+      ctx.fillStyle = 'rgba(245, 158, 11, 0.12)';
+      ctx.strokeStyle = 'rgba(251, 191, 36, 0.75)';
+      ctx.lineWidth = 3.5;
       ctx.beginPath();
-      ctx.roundRect(120, 1290, 840, 320, 44);
+      ctx.roundRect(180, 1270, 720, 210, 40);
       ctx.fill();
       ctx.stroke();
 
-      ctx.fillStyle = '#cbd5e1';
-      ctx.font = 'bold 34px Vazirmatn, sans-serif';
-      ctx.fillText(`دعوت‌شده توسط: ${user.fullName}`, 540, 1365);
-
-      ctx.fillStyle = '#94a3b8';
-      ctx.font = 'bold 28px Vazirmatn, sans-serif';
-      ctx.fillText('کد معرف اختصاصی برای دریافت +۱۰ دوپول هدیه:', 540, 1425);
-
+      ctx.direction = 'ltr';
+      ctx.textAlign = 'center';
       ctx.fillStyle = '#fbbf24';
-      ctx.font = '900 74px monospace';
-      ctx.fillText(user.referralCode, 540, 1525);
+      ctx.font = '900 84px monospace';
+      ctx.fillText(user.referralCode, 540, 1402);
 
-      ctx.fillStyle = '#38bdf8';
-      ctx.font = 'bold 30px monospace';
-      ctx.fillText(`${window.location.origin}/?ref=${user.referralCode}`, 540, 1585);
-
-      // Footer Call to Action
-      ctx.fillStyle = '#ffffff';
+      // Footer Call to Action (بدون علامت تعجب معکوس در ابتدای خط)
+      ctx.direction = 'rtl';
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#e2e8f0';
       ctx.font = 'bold 34px Vazirmatn, sans-serif';
-      ctx.fillText('همین الان وارد لینک شوید و اولین دویدن خود را ثبت کنید!', 540, 1740);
+      ctx.fillText('همین الان وارد لینک شوید و اولین دویدن خود را ثبت کنید', 540, 1650);
 
       const dataUrl = canvas.toDataURL('image/png');
       const res = await fetch(dataUrl);
@@ -1316,6 +1338,124 @@ export default function App() {
     document.documentElement.setAttribute('data-theme', colorTheme);
     localStorage.setItem('dopool_eye_theme', colorTheme);
   }, [colorTheme]);
+
+  // App Language State (فارسی | انگلیسی)
+  const [appLanguage, setAppLanguage] = useState<'fa' | 'en'>(() => {
+    const saved = localStorage.getItem('dopool_app_lang');
+    return saved === 'en' ? 'en' : 'fa';
+  });
+
+  // Privacy & Security: Two-Factor Authentication (2FA) via Mobile Phone Number
+  const [twoFactorEnabled, setTwoFactorEnabled] = useState<boolean>(() => {
+    return localStorage.getItem('dopool_2fa_enabled') === 'true';
+  });
+  const [twoFactorPhone, setTwoFactorPhone] = useState<string>(() => {
+    return localStorage.getItem('dopool_2fa_phone') || '09121234567';
+  });
+  const [isEditingTwoFactorPhone, setIsEditingTwoFactorPhone] = useState<boolean>(false);
+
+  // Compact 2FA section on Login screen
+  const [showLoginTwoFactor, setShowLoginTwoFactor] = useState<boolean>(() => {
+    return localStorage.getItem('dopool_2fa_enabled') === 'true';
+  });
+  const [loginTwoFactorPhone, setLoginTwoFactorPhone] = useState<string>(() => {
+    return localStorage.getItem('dopool_2fa_phone') || '09121234567';
+  });
+  const [loginTwoFactorCode, setLoginTwoFactorCode] = useState<string>('');
+  const [loginTwoFactorStep, setLoginTwoFactorStep] = useState<'idle' | 'sent'>('idle');
+
+  useEffect(() => {
+    if (twoFactorEnabled) {
+      setShowLoginTwoFactor(true);
+    }
+    if (twoFactorPhone) {
+      setLoginTwoFactorPhone(twoFactorPhone);
+    }
+  }, [twoFactorEnabled, twoFactorPhone]);
+
+  const appRootRef = useRef<HTMLDivElement>(null);
+  const origTextMapRef = useRef<WeakMap<Node, string>>(new WeakMap());
+
+  useEffect(() => {
+    document.documentElement.setAttribute('lang', appLanguage);
+    document.documentElement.setAttribute('dir', appLanguage === 'en' ? 'ltr' : 'rtl');
+    localStorage.setItem('dopool_app_lang', appLanguage);
+
+    const root = appRootRef.current;
+    if (!root) return;
+
+    let isApplying = false;
+
+    const applyTranslationToTree = (container: HTMLElement) => {
+      if (isApplying) return;
+      isApplying = true;
+      try {
+        const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT);
+        let currentNode = walker.nextNode();
+        while (currentNode) {
+          const val = currentNode.nodeValue || '';
+          if (appLanguage === 'en') {
+            if (/[\u0600-\u06FF]/.test(val)) {
+              if (!origTextMapRef.current.has(currentNode)) {
+                origTextMapRef.current.set(currentNode, val);
+              }
+              const translated = translateFaToEn(val);
+              if (translated !== val) {
+                currentNode.nodeValue = translated;
+              }
+            }
+          } else {
+            const orig = origTextMapRef.current.get(currentNode);
+            if (orig && currentNode.nodeValue !== orig) {
+              currentNode.nodeValue = orig;
+            }
+          }
+          currentNode = walker.nextNode();
+        }
+
+        const elements = container.querySelectorAll<HTMLElement>('[placeholder], [title]');
+        elements.forEach((el) => {
+          if (appLanguage === 'en') {
+            const ph = el.getAttribute('placeholder');
+            if (ph && /[\u0600-\u06FF]/.test(ph)) {
+              if (!el.getAttribute('data-orig-ph')) {
+                el.setAttribute('data-orig-ph', ph);
+              }
+              el.setAttribute('placeholder', translateFaToEn(ph));
+            }
+            const ti = el.getAttribute('title');
+            if (ti && /[\u0600-\u06FF]/.test(ti)) {
+              if (!el.getAttribute('data-orig-title')) {
+                el.setAttribute('data-orig-title', ti);
+              }
+              el.setAttribute('title', translateFaToEn(ti));
+            }
+          } else {
+            const origPh = el.getAttribute('data-orig-ph');
+            if (origPh) el.setAttribute('placeholder', origPh);
+            const origTi = el.getAttribute('data-orig-title');
+            if (origTi) el.setAttribute('title', origTi);
+          }
+        });
+      } finally {
+        isApplying = false;
+      }
+    };
+
+    applyTranslationToTree(root);
+
+    if (appLanguage === 'en') {
+      const observer = new MutationObserver(() => {
+        applyTranslationToTree(root);
+      });
+      observer.observe(root, {
+        childList: true,
+        subtree: true,
+        characterData: true,
+      });
+      return () => observer.disconnect();
+    }
+  }, [appLanguage]);
 
   const [pushPermission, setPushPermission] = useState<string>(() => {
     if (typeof window !== 'undefined' && 'Notification' in window) {
@@ -3659,6 +3799,17 @@ export default function App() {
       triggerToast('خطا', 'لطفاً نام کاربری، ایمیل یا شماره موبایل خود را وارد کنید.', 'error');
       return;
     }
+    if ((twoFactorEnabled || showLoginTwoFactor) && loginTwoFactorCode.trim().length < 4) {
+      setShowLoginTwoFactor(true);
+      triggerToast(
+        appLanguage === 'en' ? '2FA Code Required' : 'کد تایید دو مرحله‌ای الزامی است',
+        appLanguage === 'en'
+          ? 'Please enter the 4-digit SMS code sent to your mobile number.'
+          : 'لطفاً کد ۴ رقمی ورود دو مرحله‌ای ارسال‌شده به شماره همراه را وارد کنید.',
+        'warning'
+      );
+      return;
+    }
     const cleanInput = loginUsername.trim();
     const isDemoSohrab = cleanInput.toLowerCase() === 'sohrab_run' || cleanInput === '09121234567';
 
@@ -3865,7 +4016,11 @@ export default function App() {
   const unreadCount = useMemo(() => notifications.filter((n) => !n.isRead).length, [notifications]);
 
   return (
-    <div className="min-h-screen app-outer-shell text-slate-100 flex flex-col items-center justify-start p-0 sm:p-4 selection:bg-emerald-500/30 selection:text-emerald-300 transition-colors duration-300">
+    <div
+      ref={appRootRef}
+      dir={appLanguage === 'en' ? 'ltr' : 'rtl'}
+      className="min-h-screen app-outer-shell text-slate-100 flex flex-col items-center justify-start p-0 sm:p-4 selection:bg-emerald-500/30 selection:text-emerald-300 transition-colors duration-300"
+    >
       {/* Mobile-First Frame: 480px max width, centered on desktop */}
       <div className="w-full max-w-[480px] min-h-screen sm:min-h-[92vh] flex flex-col app-canvas-shell sm:rounded-3xl sm:border sm:border-slate-800/80 shadow-2xl relative overflow-hidden pb-24 transition-colors duration-300">
 
@@ -4165,12 +4320,98 @@ export default function App() {
                         </div>
                       </div>
 
+                      {/* Compact 2FA Mobile Verification Box on Login Screen (ویژه کاربرانی که ورود دو مرحله‌ای با شماره را روشن کرده‌اند) */}
+                      <div className="rounded-2xl bg-slate-950/55 border border-white/15 p-2.5 space-y-2">
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            <Smartphone className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                            <span className="text-[11px] font-bold text-slate-100 truncate">
+                              {appLanguage === 'en' ? '2FA Mobile Verification' : 'ورود دو مرحله‌ای با شماره همراه'}
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setShowLoginTwoFactor((prev) => !prev)}
+                            className={`px-2 py-0.5 rounded-lg text-[10px] font-black border cursor-pointer transition-colors ${
+                              showLoginTwoFactor
+                                ? 'bg-emerald-500/20 border-emerald-400/50 text-emerald-300'
+                                : 'bg-slate-900/80 border-slate-700 text-slate-400 hover:text-white'
+                            }`}
+                          >
+                            {showLoginTwoFactor
+                              ? appLanguage === 'en'
+                                ? 'ON'
+                                : 'روشن'
+                              : appLanguage === 'en'
+                              ? 'OFF'
+                              : 'خاموش'}
+                          </button>
+                        </div>
+
+                        {showLoginTwoFactor && (
+                          <div className="space-y-1.5 pt-1 border-t border-white/10">
+                            <div className="flex items-center gap-1.5">
+                              <input
+                                type="tel"
+                                dir="ltr"
+                                value={loginTwoFactorPhone}
+                                onChange={(e) => setLoginTwoFactorPhone(e.target.value)}
+                                placeholder="0912..."
+                                className="flex-1 bg-slate-900/80 border border-slate-700 rounded-xl px-2.5 py-1.5 text-xs text-white font-mono text-left focus:outline-none focus:border-emerald-400"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (loginTwoFactorPhone.trim().length < 10) {
+                                    triggerToast(
+                                      appLanguage === 'en' ? 'Invalid Number' : 'شماره نامعتبر',
+                                      appLanguage === 'en'
+                                        ? 'Enter a valid 11-digit mobile number.'
+                                        : 'لطفاً شماره همراه ۱۱ رقمی وارد کنید.',
+                                      'warning'
+                                    );
+                                    return;
+                                  }
+                                  setLoginTwoFactorStep('sent');
+                                  triggerToast(
+                                    appLanguage === 'en' ? '2FA Code Sent ✓' : 'کد دو مرحله‌ای ارسال شد ✓',
+                                    appLanguage === 'en'
+                                      ? `4-digit code sent to ${loginTwoFactorPhone} (e.g. 1234)`
+                                      : `کد ۴ رقمی به شماره ${loginTwoFactorPhone} ارسال شد (مثلاً 1234)`,
+                                    'info'
+                                  );
+                                }}
+                                className="px-2.5 py-1.5 rounded-xl bg-sky-500/20 hover:bg-sky-500/30 border border-sky-400/40 text-sky-300 text-[10px] font-bold shrink-0 cursor-pointer"
+                              >
+                                {loginTwoFactorStep === 'sent'
+                                  ? appLanguage === 'en'
+                                    ? 'Resend'
+                                    : 'ارسال مجدد'
+                                  : appLanguage === 'en'
+                                  ? 'Send Code'
+                                  : 'ارسال کد'}
+                              </button>
+                            </div>
+
+                            <input
+                              type="text"
+                              dir="ltr"
+                              maxLength={4}
+                              value={loginTwoFactorCode}
+                              onChange={(e) => setLoginTwoFactorCode(e.target.value)}
+                              placeholder={appLanguage === 'en' ? '4-Digit SMS Code (e.g. 1234)' : 'کد تایید ۴ رقمی (مثلاً 1234)'}
+                              className="w-full bg-slate-900/80 border border-slate-700 rounded-xl px-2.5 py-1.5 text-xs text-amber-300 font-mono text-center focus:outline-none focus:border-amber-400"
+                            />
+                          </div>
+                        )}
+                      </div>
+
                       <button
                         type="submit"
                         className="w-full py-3 bg-gradient-to-r from-amber-400 via-yellow-300 to-emerald-400 hover:from-amber-300 hover:to-emerald-300 text-slate-950 font-black rounded-2xl text-sm transition-all shadow-lg shadow-amber-500/25 active:scale-[0.98] cursor-pointer flex items-center justify-center gap-2"
                       >
-                        <span>ورود</span>
-                        <ChevronRight className="w-4 h-4 rotate-180 shrink-0" />
+                        <span>{appLanguage === 'en' ? 'Sign In' : 'ورود'}</span>
+                        <ChevronRight className={`w-4 h-4 shrink-0 ${appLanguage === 'en' ? '' : 'rotate-180'}`} />
                       </button>
                     </form>
                   ) : (
@@ -4555,12 +4796,13 @@ export default function App() {
                           acceptedElevGain={acceptedTotalElevGain}
                           selectedWeekIdx={selectedStravaWeekIdx}
                           onSelectWeek={handleSelectStravaWeek}
+                          lang={appLanguage}
                         />
                       </Suspense>
                     </div>
                   )}
 
-                  {/* TAB 1: LAZY-LOADED & MEMOIZED ACTIVITY SECTION */}
+                  {/* TAB 1: LAZY-LOADED & MEMOIZED ACTIVITY SECTION (همگام‌سازی خودکار در پس‌زمینه بدون کارت اضافی) */}
                   {activeTab === 'sync' && (
                     <Suspense
                       fallback={
@@ -4569,11 +4811,6 @@ export default function App() {
                     >
                       <LazyActivitySyncSection
                         activities={activities}
-                        connectedProviderName={activeWatchProviderName}
-                        lastSyncedAt={activeWatchLastSyncedAt}
-                        isSyncing={isSyncingFromProvider}
-                        onSyncNow={() => handleSyncWatchActivity(activeWatchProvider)}
-                        onOpenWatches={() => setActiveTab('watches')}
                         onShareStory={(act) => {
                           const found =
                             activities.find((a) => a.id === act.id) ||
@@ -4581,6 +4818,7 @@ export default function App() {
                             activities[0];
                           if (found) setStoryModalActivity(found);
                         }}
+                        lang={appLanguage}
                       />
                     </Suspense>
                   )}
@@ -4873,50 +5111,53 @@ export default function App() {
                           </div>
                         ) : (
                           <div className="space-y-3">
-                            {/* Live 9:16 Instagram Story Promo Poster Preview */}
-                            <div className="mx-auto w-full max-w-[250px] aspect-[9/16] rounded-3xl bg-gradient-to-b from-[#060a14] via-[#0b1326] to-[#050811] border-2 border-amber-500/40 p-4 flex flex-col justify-between text-center relative overflow-hidden shadow-2xl">
-                              <div className="absolute -top-10 left-1/2 -translate-x-1/2 w-40 h-40 bg-amber-500/20 rounded-full blur-2xl pointer-events-none" />
-                              <div className="absolute -bottom-10 left-1/2 -translate-x-1/2 w-40 h-40 bg-emerald-500/20 rounded-full blur-2xl pointer-events-none" />
+                            {/* Live 9:16 Instagram Story Promo Poster Preview (ساده و مینیمال مطابق تصویر اصلاح‌شده) */}
+                            <div className="mx-auto w-full max-w-[250px] aspect-[9/16] rounded-3xl bg-gradient-to-b from-[#060a14] via-[#0a1122] to-[#050811] border border-amber-500/35 p-4 flex flex-col justify-between text-center relative overflow-hidden shadow-2xl">
+                              <div className="absolute -top-10 left-1/2 -translate-x-1/2 w-36 h-36 bg-amber-500/15 rounded-full blur-2xl pointer-events-none" />
+                              <div className="absolute -bottom-10 left-1/2 -translate-x-1/2 w-36 h-36 bg-emerald-500/15 rounded-full blur-2xl pointer-events-none" />
 
                               <div className="relative z-10 flex flex-col items-center pt-1">
                                 <img
                                   src={DOPOOL_LOGO_DARK_URL}
                                   alt="Dopool"
-                                  className="w-20 h-16 object-contain drop-shadow-[0_6px_16px_rgba(245,158,11,0.4)]"
+                                  className="w-20 h-16 object-contain drop-shadow-[0_6px_16px_rgba(245,158,11,0.35)]"
                                 />
-                                <span className="text-[9px] font-black text-amber-400 tracking-wider mt-1">
-                                  اپلیکیشن ورزشی دوپول | DOPOOL
+                                <span className="text-[10px] font-bold text-amber-400 mt-1.5">
+                                  اپلیکیشن ورزشی دوپول
                                 </span>
-                                <h4 className="text-sm font-black text-white mt-1 leading-snug">
-                                  بدَوید، سلامت بمانید و <span className="text-emerald-400">سکه دوپول</span> بگیرید!
+                                <h4 className="text-xs font-black text-emerald-400 mt-1.5 leading-snug">
+                                  با دویدن سکه «دوپول» جایزه بگیرید
                                 </h4>
                               </div>
 
-                              <div className="relative z-10 bg-slate-950/80 border border-slate-800 rounded-2xl p-2.5 text-right space-y-1.5 text-[9.5px] text-slate-200">
+                              <div className="relative z-10 bg-slate-950/80 border border-slate-800/90 rounded-2xl p-3 text-right space-y-2 text-[9.5px] text-slate-200">
                                 <div className="flex items-center gap-1.5">
-                                  <span className="text-emerald-400 font-black">✓</span>
-                                  <span>پاداش سکه دوپول به ازای کیلومتر و الویشن</span>
+                                  <span className="text-emerald-400 font-black shrink-0">✓</span>
+                                  <span>تبدیل کیلومتر به سکه دوپول</span>
                                 </div>
                                 <div className="flex items-center gap-1.5">
-                                  <span className="text-emerald-400 font-black">✓</span>
-                                  <span>اتصال به ساعت‌های هوشمند و Strava</span>
+                                  <span className="text-emerald-400 font-black shrink-0">✓</span>
+                                  <span>اتصال به ساعت‌های هوشمند و استراوا</span>
                                 </div>
                                 <div className="flex items-center gap-1.5">
-                                  <span className="text-amber-400 font-black">★</span>
-                                  <span className="text-amber-300 font-bold">+۱۰ دوپول هدیه شروع با کد معرف زیر</span>
+                                  <span className="text-emerald-400 font-black shrink-0">✓</span>
+                                  <span>ماموریت‌های روزانه، چالش‌ها و جدول رتبه‌بندی</span>
+                                </div>
+                                <div className="flex items-center gap-1.5">
+                                  <span className="text-amber-400 font-black shrink-0">✓</span>
+                                  <span className="text-amber-300 font-bold">سکه دوپول هدیه ویژه شروع با کد دعوت زیر</span>
                                 </div>
                               </div>
 
-                              <div className="relative z-10 bg-amber-500/15 border border-amber-400/50 rounded-2xl p-2.5 space-y-1">
-                                <span className="text-[9px] text-slate-300 block">
-                                  دعوت‌شده توسط {user.fullName} · کد معرف:
-                                </span>
-                                <div className="text-base font-mono font-black text-amber-300 tracking-wider" dir="ltr">
-                                  {user.referralCode}
+                              <div className="relative z-10 space-y-2">
+                                <div className="bg-amber-500/12 border border-amber-400/60 rounded-2xl py-2.5 px-3">
+                                  <div className="text-lg font-mono font-black text-amber-300 tracking-wider" dir="ltr">
+                                    {user.referralCode}
+                                  </div>
                                 </div>
-                                <div className="text-[8.5px] font-mono text-sky-300 truncate" dir="ltr">
-                                  {window.location.origin}/?ref={user.referralCode}
-                                </div>
+                                <p className="text-[8.5px] text-slate-300 font-bold leading-snug">
+                                  همین الان وارد لینک شوید و اولین دویدن خود را ثبت کنید
+                                </p>
                               </div>
                             </div>
 
@@ -4950,6 +5191,7 @@ export default function App() {
                     leaderboard={leaderboard}
                     currentUsername={user.username}
                     coinLogoUrl={DOPOOL_COIN_URL}
+                    lang={appLanguage}
                   />
                 </Suspense>
               )}
@@ -5485,88 +5727,551 @@ export default function App() {
                 </div>
               )}
 
-              {/* TAB: UNIFIED SETTINGS + SUPPORT + CONTACT US (تنظیمات جدا از پروفایل به همراه پشتیبانی و تب ارتباط با ما) */}
+              {/* TAB: CLEAN ROW-BASED SETTINGS MENU WITH DRILL-DOWN SUB-PAGES & BACK BUTTON */}
               {(activeTab === 'settings' || activeTab === 'support') && (
                 <div className="space-y-3.5">
-                  {/* Minimal 3-Tab Switcher: تنظیمات | پشتیبانی | ارتباط با ما */}
-                  <div className="p-1 rounded-2xl bg-slate-900/90 border border-slate-800/90 grid grid-cols-3 gap-1">
+                  {/* Back to Settings Menu Bar (نمایش دکمه بازگشت به منوی قبلی وقتی کاربر وارد یکی از بخش‌ها شده است) */}
+                  {(settingsSubTab !== 'menu' || activeTab === 'support') && (
                     <button
                       type="button"
                       onClick={() => {
                         setActiveTab('settings');
-                        setSettingsSubTab('general');
+                        setSettingsSubTab('menu');
                       }}
-                      className={`py-2 px-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-                        settingsSubTab === 'general' && activeTab === 'settings'
-                          ? 'bg-emerald-400 text-slate-950 font-black shadow-sm'
-                          : 'text-slate-400 hover:text-white'
-                      }`}
+                      className="w-full p-3 rounded-2xl bg-slate-900/90 hover:bg-slate-800/90 border border-slate-800 flex items-center justify-between gap-2 text-xs font-black text-amber-300 cursor-pointer transition-colors"
                     >
-                      <span>تنظیمات</span>
+                      <div className="flex items-center gap-2">
+                        <ChevronRight className={`w-4 h-4 shrink-0 ${appLanguage === 'en' ? 'rotate-180' : ''}`} />
+                        <span>
+                          {appLanguage === 'en' ? 'Back to Settings Menu' : 'بازگشت به منوی تنظیمات'}
+                        </span>
+                      </div>
+                      <span className="text-[10px] text-slate-400 font-bold">
+                        {appLanguage === 'en' ? 'Settings' : 'تنظیمات'}
+                      </span>
                     </button>
+                  )}
 
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setActiveTab('settings');
-                        setSettingsSubTab('support');
-                      }}
-                      className={`py-2 px-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-                        settingsSubTab === 'support' || activeTab === 'support'
-                          ? 'bg-amber-400 text-slate-950 font-black shadow-sm'
-                          : 'text-slate-400 hover:text-white'
-                      }`}
-                    >
-                      <Phone className="w-3.5 h-3.5 shrink-0" />
-                      <span>پشتیبانی</span>
-                    </button>
+                  {/* MAIN SETTINGS ROW LIST (ردیف‌های جدا از هم برای ورود به هر بخش) */}
+                  {settingsSubTab === 'menu' && activeTab === 'settings' && (
+                    <div className="glass-panel rounded-3xl p-4 border border-slate-800/90 space-y-2.5">
+                      <div className="px-1 pb-1 flex items-center justify-between">
+                        <h3 className="text-xs font-black text-white">
+                          {appLanguage === 'en' ? 'Settings & Support' : 'تنظیمات و امکانات حساب'}
+                        </h3>
+                        <span className="text-[10px] text-slate-400 font-mono" dir="ltr">
+                          {user.referralCode}
+                        </span>
+                      </div>
 
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setActiveTab('settings');
-                        setSettingsSubTab('contact');
-                      }}
-                      className={`py-2 px-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-                        settingsSubTab === 'contact' && activeTab === 'settings'
-                          ? 'bg-sky-400 text-slate-950 font-black shadow-sm'
-                          : 'text-slate-400 hover:text-white'
-                      }`}
-                    >
-                      <Mail className="w-3.5 h-3.5 shrink-0" />
-                      <span>ارتباط با ما</span>
-                    </button>
-                  </div>
-
-                  {/* SUB-TAB 1: GENERAL SETTINGS (تنظیمات برنامه) */}
-                  {settingsSubTab === 'general' && activeTab === 'settings' && (
-                    <div className="glass-panel rounded-3xl p-4 border border-slate-800 space-y-3.5">
-                      <h4 className="text-xs font-black text-white">تنظیمات برنامه</h4>
-
-                      {/* Account Summary & Referral Code */}
-                      <div className="p-3 rounded-2xl bg-slate-950/75 border border-slate-800/80 space-y-2 text-xs">
-                        <div className="flex items-center justify-between">
-                          <span className="text-slate-400">کد معرف اختصاصی</span>
-                          <span className="font-mono font-black text-amber-400" dir="ltr">
-                            {user.referralCode}
-                          </span>
+                      {/* Row 1: App Language */}
+                      <button
+                        type="button"
+                        onClick={() => setSettingsSubTab('language')}
+                        className="w-full p-3.5 rounded-2xl bg-slate-950/80 hover:bg-slate-900 border border-slate-800/90 flex items-center justify-between gap-3 cursor-pointer transition-all"
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="w-9 h-9 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 flex items-center justify-center shrink-0">
+                            <Compass className="w-4 h-4" />
+                          </div>
+                          <div className="text-right min-w-0">
+                            <span className="text-xs font-black text-white block">
+                              {appLanguage === 'en' ? 'App Language' : 'زبان برنامه'}
+                            </span>
+                            <span className="text-[10px] text-slate-400 block mt-0.5">
+                              {appLanguage === 'en' ? 'Switch between English & Persian' : 'تغییر زبان به فارسی یا انگلیسی'}
+                            </span>
+                          </div>
                         </div>
-                        <div className="flex items-center justify-between pt-2 border-t border-slate-800/70">
-                          <span className="text-slate-400">رتبه فعلی شما</span>
-                          <span className="font-mono font-bold text-emerald-400" dir="ltr">
-                            #{getUserRank(user.totalKm)}
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <span className="px-2 py-0.5 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-[10px] font-bold">
+                            {appLanguage === 'en' ? 'English' : 'فارسی'}
+                          </span>
+                          <ChevronRight className={`w-4 h-4 text-slate-500 shrink-0 ${appLanguage === 'en' ? '' : 'rotate-180'}`} />
+                        </div>
+                      </button>
+
+                      {/* Row 2: Privacy & Security (2FA & Change Password) */}
+                      <button
+                        type="button"
+                        onClick={() => setSettingsSubTab('privacy')}
+                        className="w-full p-3.5 rounded-2xl bg-slate-950/80 hover:bg-slate-900 border border-slate-800/90 flex items-center justify-between gap-3 cursor-pointer transition-all"
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="w-9 h-9 rounded-xl bg-purple-500/15 border border-purple-500/30 text-purple-300 flex items-center justify-center shrink-0">
+                            <Shield className="w-4 h-4" />
+                          </div>
+                          <div className="text-right min-w-0">
+                            <span className="text-xs font-black text-white block">
+                              {appLanguage === 'en' ? 'Privacy & Security' : 'حریم خصوصی و امنیت'}
+                            </span>
+                            <span className="text-[10px] text-slate-400 block mt-0.5">
+                              {appLanguage === 'en'
+                                ? '2FA & Change Password'
+                                : 'ورود دو مرحله‌ای و تغییر رمز ورود'}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <span
+                            className={`px-2 py-0.5 rounded-lg text-[10px] font-bold border ${
+                              twoFactorEnabled
+                                ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-300'
+                                : 'bg-slate-900 border-slate-800 text-slate-400'
+                            }`}
+                          >
+                            {twoFactorEnabled
+                              ? appLanguage === 'en'
+                                ? 'ON'
+                                : 'روشن'
+                              : appLanguage === 'en'
+                              ? 'OFF'
+                              : 'خاموش'}
+                          </span>
+                          <ChevronRight className={`w-4 h-4 text-slate-500 shrink-0 ${appLanguage === 'en' ? '' : 'rotate-180'}`} />
+                        </div>
+                      </button>
+
+                      {/* Row 3: Theme & Notifications */}
+                      <button
+                        type="button"
+                        onClick={() => setSettingsSubTab('appearance')}
+                        className="w-full p-3.5 rounded-2xl bg-slate-950/80 hover:bg-slate-900 border border-slate-800/90 flex items-center justify-between gap-3 cursor-pointer transition-all"
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="w-9 h-9 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-400 flex items-center justify-center shrink-0">
+                            <Bell className="w-4 h-4" />
+                          </div>
+                          <div className="text-right min-w-0">
+                            <span className="text-xs font-black text-white block">
+                              {appLanguage === 'en' ? 'Theme & Notifications' : 'تم برنامه و اعلان‌ها'}
+                            </span>
+                            <span className="text-[10px] text-slate-400 block mt-0.5">
+                              {appLanguage === 'en'
+                                ? 'Color mode & push notifications'
+                                : 'تنظیم رنگ صفحه و نوتیفیکیشن‌ها'}
+                            </span>
+                          </div>
+                        </div>
+                        <ChevronRight className={`w-4 h-4 text-slate-500 shrink-0 ${appLanguage === 'en' ? '' : 'rotate-180'}`} />
+                      </button>
+
+                      {/* Row 4: User Support */}
+                      <button
+                        type="button"
+                        onClick={() => setSettingsSubTab('support')}
+                        className="w-full p-3.5 rounded-2xl bg-slate-950/80 hover:bg-slate-900 border border-slate-800/90 flex items-center justify-between gap-3 cursor-pointer transition-all"
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="w-9 h-9 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 flex items-center justify-center shrink-0">
+                            <Phone className="w-4 h-4" />
+                          </div>
+                          <div className="text-right min-w-0">
+                            <span className="text-xs font-black text-white block">
+                              {appLanguage === 'en' ? 'Support' : 'پشتیبانی'}
+                            </span>
+                            <span className="text-[10px] text-slate-400 block mt-0.5">
+                              {appLanguage === 'en'
+                                ? 'Direct WhatsApp & phone support'
+                                : 'پاسخگویی مستقیم در واتساپ و تماس تلفنی'}
+                            </span>
+                          </div>
+                        </div>
+                        <ChevronRight className={`w-4 h-4 text-slate-500 shrink-0 ${appLanguage === 'en' ? '' : 'rotate-180'}`} />
+                      </button>
+
+                      {/* Row 5: Contact Us */}
+                      <button
+                        type="button"
+                        onClick={() => setSettingsSubTab('contact')}
+                        className="w-full p-3.5 rounded-2xl bg-slate-950/80 hover:bg-slate-900 border border-slate-800/90 flex items-center justify-between gap-3 cursor-pointer transition-all"
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="w-9 h-9 rounded-xl bg-sky-500/15 border border-sky-500/30 text-sky-400 flex items-center justify-center shrink-0">
+                            <Mail className="w-4 h-4" />
+                          </div>
+                          <div className="text-right min-w-0">
+                            <span className="text-xs font-black text-white block">
+                              {appLanguage === 'en' ? 'Contact Us' : 'ارتباط با ما'}
+                            </span>
+                            <span className="text-[10px] text-slate-400 block mt-0.5">
+                              {appLanguage === 'en'
+                                ? 'Official channels & direct message'
+                                : 'راه‌های ارتباطی رسمی و ارسال پیام'}
+                            </span>
+                          </div>
+                        </div>
+                        <ChevronRight className={`w-4 h-4 text-slate-500 shrink-0 ${appLanguage === 'en' ? '' : 'rotate-180'}`} />
+                      </button>
+
+                      {/* Row 6: Sign Out */}
+                      <div className="pt-1.5">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setLogoutSecondConfirm(false);
+                            setShowLogoutConfirmModal(true);
+                          }}
+                          className="w-full p-3.5 rounded-2xl bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-300 font-bold text-xs flex items-center justify-between gap-2 cursor-pointer transition-colors"
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <LogOut className="w-4 h-4 shrink-0" />
+                            <span>
+                              {appLanguage === 'en' ? 'Sign Out of Account' : 'خروج از حساب کاربری'}
+                            </span>
+                          </div>
+                          <ChevronRight className={`w-4 h-4 text-rose-400/70 shrink-0 ${appLanguage === 'en' ? '' : 'rotate-180'}`} />
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* SUB-PAGE 1: APP LANGUAGE (زبان برنامه) */}
+                  {settingsSubTab === 'language' && activeTab === 'settings' && (
+                    <div className="glass-panel rounded-3xl p-4 border border-slate-800 space-y-3.5">
+                      <div className="flex items-center justify-between">
+                        <h4 className="text-xs font-black text-white">
+                          {appLanguage === 'en' ? 'App Language' : 'انتخاب زبان برنامه'}
+                        </h4>
+                        <span className="text-[10px] font-bold text-emerald-400">
+                          {appLanguage === 'en' ? 'English' : 'فارسی'}
+                        </span>
+                      </div>
+
+                      <div className="space-y-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setAppLanguage('fa');
+                            triggerToast('زبان برنامه تغییر کرد ✓', 'زبان اپلیکیشن روی فارسی تنظیم شد.', 'success');
+                          }}
+                          className={`w-full p-3.5 rounded-2xl text-xs font-bold border transition-all flex items-center justify-between cursor-pointer ${
+                            appLanguage === 'fa'
+                              ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-300 font-black'
+                              : 'bg-slate-950/80 border-slate-800 text-slate-300 hover:text-white'
+                          }`}
+                        >
+                          <span>{appLanguage === 'en' ? 'Persian' : 'فارسی'}</span>
+                          {appLanguage === 'fa' && <Check className="w-4 h-4 shrink-0" />}
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setAppLanguage('en');
+                            triggerToast('Language Updated ✓', 'App language set to English.', 'success');
+                          }}
+                          className={`w-full p-3.5 rounded-2xl text-xs font-bold border transition-all flex items-center justify-between cursor-pointer ${
+                            appLanguage === 'en'
+                              ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-300 font-black'
+                              : 'bg-slate-950/80 border-slate-800 text-slate-300 hover:text-white'
+                          }`}
+                        >
+                          <span>{appLanguage === 'en' ? 'English' : 'انگلیسی'}</span>
+                          {appLanguage === 'en' && <Check className="w-4 h-4 shrink-0" />}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* SUB-PAGE 2: PRIVACY & SECURITY (حریم خصوصی و امنیت: ورود دو مرحله‌ای + تغییر رمز ورود) */}
+                  {settingsSubTab === 'privacy' && activeTab === 'settings' && (
+                    <div className="glass-panel rounded-3xl p-4 border border-slate-800 space-y-4">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-9 h-9 rounded-2xl bg-purple-500/15 border border-purple-500/30 text-purple-300 flex items-center justify-center shrink-0">
+                          <Shield className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <h4 className="text-xs font-black text-white">
+                            {appLanguage === 'en' ? 'Privacy & Security' : 'حریم خصوصی و امنیت'}
+                          </h4>
+                          <span className="text-[10px] text-slate-400 block">
+                            {appLanguage === 'en'
+                              ? 'Protect your account and Dopool wallet'
+                              : 'محافظت از حساب کاربری و کیف پول دوپول'}
                           </span>
                         </div>
                       </div>
 
-                      {/* Theme Selector */}
+                      {/* 1. Two-Factor Authentication with Mobile Number */}
+                      <div className="p-3.5 rounded-2xl bg-slate-950/85 border border-slate-800/90 space-y-3">
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-1.5">
+                              <Smartphone className="w-4 h-4 text-emerald-400 shrink-0" />
+                              <span className="text-xs font-bold text-white">
+                                {appLanguage === 'en'
+                                  ? 'Two-Factor Authentication (Mobile)'
+                                  : 'ورود دو مرحله‌ای با شماره همراه'}
+                              </span>
+                            </div>
+                            <span className="text-[10px] text-slate-400 block mt-1">
+                              {twoFactorEnabled
+                                ? appLanguage === 'en'
+                                  ? 'Enabled · SMS verification required at sign-in'
+                                  : 'فعال · ارسال کد پیامکی هنگام ورود به حساب'
+                                : appLanguage === 'en'
+                                ? 'Disabled · Turn on for extra account security'
+                                : 'غیرفعال · برای امنیت بیشتر روشن کنید'}
+                            </span>
+                          </div>
+
+                          <button
+                            type="button"
+                            role="switch"
+                            aria-checked={twoFactorEnabled}
+                            onClick={() => {
+                              const targetPhone = (twoFactorPhone || user.phone || '').trim();
+                              if (!twoFactorEnabled && targetPhone.length < 10) {
+                                setIsEditingTwoFactorPhone(true);
+                                triggerToast(
+                                  appLanguage === 'en' ? 'Enter Mobile Number' : 'شماره همراه را وارد کنید',
+                                  appLanguage === 'en'
+                                    ? 'Please save a valid mobile number for 2FA first.'
+                                    : 'لطفاً ابتدا شماره موبایل معتبر برای ورود دو مرحله‌ای ثبت نمایید.',
+                                  'warning'
+                                );
+                                return;
+                              }
+                              const nextState = !twoFactorEnabled;
+                              setTwoFactorEnabled(nextState);
+                              localStorage.setItem('dopool_2fa_enabled', String(nextState));
+                              triggerToast(
+                                nextState
+                                  ? appLanguage === 'en'
+                                    ? '2FA Enabled 🔒'
+                                    : 'ورود دو مرحله‌ای روشن شد 🔒'
+                                  : appLanguage === 'en'
+                                  ? '2FA Disabled'
+                                  : 'ورود دو مرحله‌ای خاموش شد',
+                                nextState
+                                  ? appLanguage === 'en'
+                                    ? `Two-factor authentication active for ${targetPhone}.`
+                                    : `تایید دو مرحله‌ای با شماره ${targetPhone} فعال گردید.`
+                                  : appLanguage === 'en'
+                                  ? 'Mobile two-factor authentication has been turned off.'
+                                  : 'ورود دو مرحله‌ای با شماره همراه غیرفعال شد.',
+                                nextState ? 'success' : 'info'
+                              );
+                            }}
+                            className={`px-3 py-1.5 rounded-xl border text-[11px] font-black flex items-center gap-1.5 shrink-0 cursor-pointer transition-all ${
+                              twoFactorEnabled
+                                ? 'bg-emerald-500 text-slate-950 border-emerald-400 shadow-sm'
+                                : 'bg-slate-800 text-slate-300 border-slate-700 hover:text-white'
+                            }`}
+                          >
+                            <span
+                              className={`w-2 h-2 rounded-full ${
+                                twoFactorEnabled ? 'bg-slate-950' : 'bg-slate-500'
+                              }`}
+                            />
+                            <span>
+                              {twoFactorEnabled
+                                ? appLanguage === 'en'
+                                  ? 'ON'
+                                  : 'روشن'
+                                : appLanguage === 'en'
+                                ? 'OFF'
+                                : 'خاموش'}
+                            </span>
+                          </button>
+                        </div>
+
+                        <div className="pt-2.5 border-t border-slate-800/80 flex items-center justify-between gap-2 text-xs">
+                          <span className="text-slate-400 shrink-0">
+                            {appLanguage === 'en' ? '2FA Mobile Number:' : 'شماره همراه تایید دو مرحله‌ای:'}
+                          </span>
+                          {isEditingTwoFactorPhone ? (
+                            <div className="flex items-center gap-1.5">
+                              <input
+                                type="tel"
+                                dir="ltr"
+                                value={twoFactorPhone}
+                                onChange={(e) => setTwoFactorPhone(e.target.value)}
+                                placeholder="0912..."
+                                className="w-32 bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-1 text-xs text-white font-mono text-left focus:outline-none focus:border-emerald-400"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const clean = twoFactorPhone.trim();
+                                  if (clean.length < 10) {
+                                    triggerToast(
+                                      appLanguage === 'en' ? 'Invalid Number' : 'شماره نامعتبر',
+                                      appLanguage === 'en'
+                                        ? 'Please enter an 11-digit mobile number.'
+                                        : 'لطفاً شماره موبایل ۱۱ رقمی وارد کنید.',
+                                      'warning'
+                                    );
+                                    return;
+                                  }
+                                  localStorage.setItem('dopool_2fa_phone', clean);
+                                  setUser({ ...user, phone: clean });
+                                  setIsEditingTwoFactorPhone(false);
+                                  triggerToast(
+                                    appLanguage === 'en' ? 'Number Saved ✓' : 'شماره ذخیره شد ✓',
+                                    appLanguage === 'en'
+                                      ? `Mobile number ${clean} saved for 2FA.`
+                                      : `شماره ${clean} برای ورود دو مرحله‌ای ثبت شد.`,
+                                    'success'
+                                  );
+                                }}
+                                className="px-2.5 py-1 rounded-xl bg-emerald-500 text-slate-950 font-black text-[11px] cursor-pointer"
+                              >
+                                {appLanguage === 'en' ? 'Save' : 'ذخیره'}
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-2">
+                              <span className="font-mono font-bold text-slate-200" dir="ltr">
+                                {twoFactorPhone || user.phone || '09121234567'}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setTwoFactorPhone(twoFactorPhone || user.phone || '09121234567');
+                                  setIsEditingTwoFactorPhone(true);
+                                }}
+                                className="text-[11px] font-bold text-sky-400 hover:text-sky-300 cursor-pointer"
+                              >
+                                {appLanguage === 'en' ? 'Edit' : 'ویرایش'}
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* 2. Change Password Card (تغییر رمز ورود) */}
+                      <form
+                        onSubmit={(e) => {
+                          e.preventDefault();
+                          const cur = currentPasswordInput.trim();
+                          const next = newPasswordInput.trim();
+                          const conf = confirmPasswordInput.trim();
+
+                          if (!cur || !next || !conf) {
+                            triggerToast(
+                              appLanguage === 'en' ? 'Incomplete Fields' : 'اطلاعات ناقص است',
+                              appLanguage === 'en'
+                                ? 'Please fill in current, new, and confirm password fields.'
+                                : 'لطفاً رمز ورود فعلی، رمز جدید و تکرار آن را وارد کنید.',
+                              'warning'
+                            );
+                            return;
+                          }
+
+                          if (cur !== savedUserPassword && cur !== 'pass123') {
+                            triggerToast(
+                              appLanguage === 'en' ? 'Incorrect Current Password' : 'رمز فعلی نادرست است',
+                              appLanguage === 'en'
+                                ? 'The current password you entered does not match.'
+                                : 'رمز ورود فعلی وارد شده صحیح نمی‌باشد.',
+                              'error'
+                            );
+                            return;
+                          }
+
+                          if (next.length < 4) {
+                            triggerToast(
+                              appLanguage === 'en' ? 'Password Too Short' : 'رمز کوتاه است',
+                              appLanguage === 'en'
+                                ? 'New password must be at least 4 characters.'
+                                : 'رمز ورود جدید باید حداقل ۴ کاراکتر باشد.',
+                              'warning'
+                            );
+                            return;
+                          }
+
+                          if (next !== conf) {
+                            triggerToast(
+                              appLanguage === 'en' ? 'Passwords Do Not Match' : 'عدم تطابق رمز جدید',
+                              appLanguage === 'en'
+                                ? 'New password and confirmation do not match.'
+                                : 'رمز ورود جدید و تکرار آن یکسان نیستند.',
+                              'error'
+                            );
+                            return;
+                          }
+
+                          setSavedUserPassword(next);
+                          setLoginPassword(next);
+                          localStorage.setItem('dopool_user_password', next);
+                          setCurrentPasswordInput('');
+                          setNewPasswordInput('');
+                          setConfirmPasswordInput('');
+
+                          triggerToast(
+                            appLanguage === 'en' ? 'Password Updated ✓' : 'رمز ورود تغییر کرد ✓',
+                            appLanguage === 'en'
+                              ? 'Your account sign-in password has been updated.'
+                              : 'رمز ورود جدید حساب کاربری شما با موفقیت ذخیره شد.',
+                            'success'
+                          );
+                        }}
+                        className="p-3.5 rounded-2xl bg-slate-950/85 border border-slate-800/90 space-y-2.5"
+                      >
+                        <div className="flex items-center gap-1.5">
+                          <Lock className="w-4 h-4 text-amber-400 shrink-0" />
+                          <span className="text-xs font-bold text-white">
+                            {appLanguage === 'en' ? 'Change Password' : 'تغییر رمز ورود'}
+                          </span>
+                        </div>
+
+                        <div className="space-y-2 pt-0.5">
+                          <input
+                            type="password"
+                            dir="ltr"
+                            value={currentPasswordInput}
+                            onChange={(e) => setCurrentPasswordInput(e.target.value)}
+                            placeholder={appLanguage === 'en' ? 'Current Password' : 'رمز ورود فعلی'}
+                            className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white font-mono focus:outline-none focus:border-amber-400"
+                          />
+
+                          <input
+                            type="password"
+                            dir="ltr"
+                            value={newPasswordInput}
+                            onChange={(e) => setNewPasswordInput(e.target.value)}
+                            placeholder={appLanguage === 'en' ? 'New Password' : 'رمز ورود جدید'}
+                            className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white font-mono focus:outline-none focus:border-amber-400"
+                          />
+
+                          <input
+                            type="password"
+                            dir="ltr"
+                            value={confirmPasswordInput}
+                            onChange={(e) => setConfirmPasswordInput(e.target.value)}
+                            placeholder={appLanguage === 'en' ? 'Confirm New Password' : 'تکرار رمز ورود جدید'}
+                            className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white font-mono focus:outline-none focus:border-amber-400"
+                          />
+
+                          <button
+                            type="submit"
+                            className="w-full py-2.5 px-4 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs transition-colors cursor-pointer"
+                          >
+                            {appLanguage === 'en' ? 'Update Password' : 'ثبت رمز جدید'}
+                          </button>
+                        </div>
+                      </form>
+                    </div>
+                  )}
+
+                  {/* SUB-PAGE 3: THEME & NOTIFICATIONS (تم برنامه و اعلان‌ها) */}
+                  {settingsSubTab === 'appearance' && activeTab === 'settings' && (
+                    <div className="glass-panel rounded-3xl p-4 border border-slate-800 space-y-3.5">
+                      <h4 className="text-xs font-black text-white">
+                        {appLanguage === 'en' ? 'Theme & Notifications' : 'تم برنامه و اعلان‌ها'}
+                      </h4>
+
                       <div className="p-3 rounded-2xl bg-slate-950/75 border border-slate-800/80 space-y-2">
-                        <span className="text-[11px] font-bold text-slate-300 block">تم رنگی برنامه</span>
+                        <span className="text-[11px] font-bold text-slate-300 block">
+                          {appLanguage === 'en' ? 'App Color Theme' : 'تم رنگی برنامه'}
+                        </span>
                         <div className="grid grid-cols-3 gap-1.5">
                           {[
-                            { id: 'velvet', label: 'شب ملایم' },
-                            { id: 'warm', label: 'گرم' },
-                            { id: 'daylight', label: 'روز روشن' },
+                            { id: 'velvet', label: appLanguage === 'en' ? 'Velvet Night' : 'شب ملایم' },
+                            { id: 'warm', label: appLanguage === 'en' ? 'Warm Glow' : 'گرم' },
+                            { id: 'daylight', label: appLanguage === 'en' ? 'Daylight' : 'روز روشن' },
                           ].map((t) => (
                             <button
                               key={t.id}
@@ -5584,12 +6289,19 @@ export default function App() {
                         </div>
                       </div>
 
-                      {/* Notifications Setting */}
                       <div className="p-3 rounded-2xl bg-slate-950/75 border border-slate-800/80 flex items-center justify-between gap-2">
                         <div>
-                          <span className="text-xs font-bold text-white block">اعلان‌ها و نوتیفیکیشن</span>
+                          <span className="text-xs font-bold text-white block">
+                            {appLanguage === 'en' ? 'Push Notifications' : 'اعلان‌ها و نوتیفیکیشن'}
+                          </span>
                           <span className="text-[10px] text-slate-400 block">
-                            {pushPermission === 'granted' ? 'فعال' : 'غیرفعال'}
+                            {pushPermission === 'granted'
+                              ? appLanguage === 'en'
+                                ? 'Enabled'
+                                : 'فعال'
+                              : appLanguage === 'en'
+                              ? 'Disabled'
+                              : 'غیرفعال'}
                           </span>
                         </div>
                         <button
@@ -5597,26 +6309,19 @@ export default function App() {
                           onClick={requestPushPermission}
                           className="px-3 py-1.5 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-[11px] font-bold cursor-pointer"
                         >
-                          {pushPermission === 'granted' ? 'فعال ✓' : 'فعال‌سازی'}
+                          {pushPermission === 'granted'
+                            ? appLanguage === 'en'
+                              ? 'Enabled ✓'
+                              : 'فعال ✓'
+                            : appLanguage === 'en'
+                            ? 'Enable'
+                            : 'فعال‌سازی'}
                         </button>
                       </div>
-
-                      {/* Logout Action */}
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setLogoutSecondConfirm(false);
-                          setShowLogoutConfirmModal(true);
-                        }}
-                        className="w-full py-2.5 px-3 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-300 font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer"
-                      >
-                        <LogOut className="w-4 h-4 shrink-0" />
-                        <span>خروج از حساب کاربری</span>
-                      </button>
                     </div>
                   )}
 
-                  {/* SUB-TAB 2: SUPPORT (پشتیبانی واتساپ ۰۹۱۵۳۰۰۳۹۰۸ داخل تنظیمات) */}
+                  {/* SUB-PAGE 4: SUPPORT (پشتیبانی) */}
                   {(settingsSubTab === 'support' || activeTab === 'support') && (
                     <div className="glass-panel rounded-3xl p-4 border border-slate-800 space-y-4 text-center">
                       <div className="w-12 h-12 mx-auto rounded-2xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 flex items-center justify-center">
@@ -5633,11 +6338,8 @@ export default function App() {
                       <div className="p-3.5 rounded-2xl bg-slate-950/85 border border-slate-800/90 space-y-1">
                         <span className="text-[10px] text-slate-400 block">شماره پشتیبانی واتساپ:</span>
                         <div className="text-xl font-black text-emerald-400 tracking-wider font-mono" dir="ltr">
-                          ۰۹۱۵۳۰۰۳۹۰۸
-                        </div>
-                        <span className="text-[10px] text-slate-500 font-mono block" dir="ltr">
                           0915 300 3908
-                        </span>
+                        </div>
                       </div>
 
                       <div className="space-y-2">
@@ -5676,7 +6378,7 @@ export default function App() {
                     </div>
                   )}
 
-                  {/* SUB-TAB 3: CONTACT US (تب ارتباط با ما) */}
+                  {/* SUB-PAGE 5: CONTACT US (ارتباط با ما) */}
                   {settingsSubTab === 'contact' && activeTab === 'settings' && (
                     <div className="glass-panel rounded-3xl p-4 border border-slate-800 space-y-4">
                       <div>
@@ -5686,7 +6388,6 @@ export default function App() {
                         </span>
                       </div>
 
-                      {/* Official Contact Channels */}
                       <div className="space-y-2 text-xs">
                         <div className="p-3 rounded-2xl bg-slate-950/80 border border-slate-800/90 flex items-center justify-between gap-2">
                           <span className="text-slate-400">وب‌سایت رسمی</span>
@@ -5731,7 +6432,6 @@ export default function App() {
                         </div>
                       </div>
 
-                      {/* Minimal Direct Message Form */}
                       <form
                         onSubmit={(e) => {
                           e.preventDefault();
@@ -5750,14 +6450,14 @@ export default function App() {
                           type="text"
                           value={contactSubject}
                           onChange={(e) => setContactSubject(e.target.value)}
-                          placeholder="موضوع پیام (پیشنهاد، اسپانسری، همکاری...)"
+                          placeholder="موضوع پیام (مثلاً پیشنهاد یا همکاری)"
                           className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-sky-400"
                         />
                         <textarea
                           rows={3}
                           value={contactMessage}
                           onChange={(e) => setContactMessage(e.target.value)}
-                          placeholder="متن پیام خود را وارد کنید..."
+                          placeholder="متن پیام خود را بنویسید..."
                           className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-sky-400"
                         />
                         <button
@@ -5765,7 +6465,7 @@ export default function App() {
                           className="w-full py-2.5 bg-sky-400 hover:bg-sky-300 text-slate-950 font-black rounded-xl text-xs transition-colors cursor-pointer flex items-center justify-center gap-1.5"
                         >
                           <Send className="w-3.5 h-3.5 shrink-0" />
-                          <span>ثبت و ارسال پیام</span>
+                          <span>ارسال پیام</span>
                         </button>
                       </form>
                     </div>
@@ -7776,7 +8476,7 @@ export default function App() {
                       type="button"
                       onClick={() => {
                         setActiveTab('settings');
-                        setSettingsSubTab('general');
+                        setSettingsSubTab('menu');
                         setShowHamburgerMenu(false);
                       }}
                       className={`w-full p-3 rounded-2xl border text-right flex items-center justify-between gap-2 transition-all cursor-pointer ${
@@ -7866,7 +8566,9 @@ export default function App() {
               >
                 <Compass className="w-4 h-4 shrink-0" />
               </div>
-              <span className="text-[11px] leading-none whitespace-nowrap">داشبورد</span>
+              <span className="text-[11px] leading-none whitespace-nowrap">
+                {appLanguage === 'en' ? 'Dashboard' : 'داشبورد'}
+              </span>
             </button>
 
             <button
@@ -7885,7 +8587,9 @@ export default function App() {
               >
                 <Activity className="w-4 h-4 shrink-0" />
               </div>
-              <span className="text-[11px] leading-none whitespace-nowrap">اکتیویتی</span>
+              <span className="text-[11px] leading-none whitespace-nowrap">
+                {appLanguage === 'en' ? 'Activity' : 'اکتیویتی'}
+              </span>
             </button>
 
             <button
@@ -7908,7 +8612,9 @@ export default function App() {
                   <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-amber-400 ring-2 ring-slate-950" />
                 )}
               </div>
-              <span className="text-[11px] leading-none whitespace-nowrap">چالش‌ها</span>
+              <span className="text-[11px] leading-none whitespace-nowrap">
+                {appLanguage === 'en' ? 'Challenges' : 'چالش‌ها'}
+              </span>
             </button>
 
             <button
@@ -7927,7 +8633,9 @@ export default function App() {
               >
                 <Users className="w-4 h-4 shrink-0" />
               </div>
-              <span className="text-[11px] leading-none whitespace-nowrap">دعوت</span>
+              <span className="text-[11px] leading-none whitespace-nowrap">
+                {appLanguage === 'en' ? 'Invite' : 'دعوت'}
+              </span>
             </button>
           </nav>
         )}

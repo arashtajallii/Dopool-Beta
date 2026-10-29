@@ -7,10 +7,11 @@ interface StravaWeeklyChartProps {
   acceptedElevGain: number;
   selectedWeekIdx: number;
   onSelectWeek: (idx: number) => void;
+  lang?: 'fa' | 'en';
 }
 
 const WEEK_RATIOS = [0.42, 0.58, 0.51, 0.74, 0.65, 0.88, 0.79];
-const WEEK_LABELS = [
+const WEEK_LABELS_FA = [
   { label: '۷ هفته پیش', short: 'هفته ۱' },
   { label: '۶ هفته پیش', short: 'هفته ۲' },
   { label: '۵ هفته پیش', short: 'هفته ۳' },
@@ -18,6 +19,15 @@ const WEEK_LABELS = [
   { label: '۳ هفته پیش', short: 'هفته ۵' },
   { label: '۲ هفته پیش', short: 'هفته ۶' },
   { label: 'هفته گذشته', short: 'هفته ۷' },
+];
+const WEEK_LABELS_EN = [
+  { label: '7 Weeks Ago', short: 'Wk 1' },
+  { label: '6 Weeks Ago', short: 'Wk 2' },
+  { label: '5 Weeks Ago', short: 'Wk 3' },
+  { label: '4 Weeks Ago', short: 'Wk 4' },
+  { label: '3 Weeks Ago', short: 'Wk 5' },
+  { label: '2 Weeks Ago', short: 'Wk 6' },
+  { label: 'Last Week', short: 'Wk 7' },
 ];
 const GUIDE_RATIOS = [0.25, 0.55, 0.85];
 
@@ -34,8 +44,10 @@ const StravaWeeklyChart = memo(function StravaWeeklyChart({
   acceptedElevGain,
   selectedWeekIdx,
   onSelectWeek,
+  lang = 'fa',
 }: StravaWeeklyChartProps) {
-  // Memoize 8-week personal dataset & SVG geometry so it only recalculates when user stats change
+  const isEn = lang === 'en';
+
   const { weeksData, points, polylinePoints, areaPath } = useMemo(() => {
     const cleanName = username || 'runner';
     const userSeed = cleanName
@@ -48,8 +60,10 @@ const StravaWeeklyChart = memo(function StravaWeeklyChart({
       acceptedElevGain > 0 ? acceptedElevGain : Math.round(currentPersonalKm * 12);
     const currentTotalMins = Math.round(currentPersonalKm * 5.6);
 
+    const labels = isEn ? WEEK_LABELS_EN : WEEK_LABELS_FA;
+
     const computedWeeks = [
-      ...WEEK_LABELS.map((w, idx) => {
+      ...labels.map((w, idx) => {
         const seedOffset = (((userSeed + idx * 17) % 9) - 4) * 0.6;
         const wkKm =
           currentPersonalKm > 0
@@ -67,8 +81,8 @@ const StravaWeeklyChart = memo(function StravaWeeklyChart({
         };
       }),
       {
-        label: 'این هفته',
-        short: 'این هفته',
+        label: isEn ? 'This Week' : 'این هفته',
+        short: isEn ? 'This Wk' : 'این هفته',
         km: currentPersonalKm,
         time:
           Math.floor(currentTotalMins / 60) > 0
@@ -97,7 +111,7 @@ const StravaWeeklyChart = memo(function StravaWeeklyChart({
       polylinePoints: polyStr,
       areaPath: areaStr,
     };
-  }, [username, totalKm, acceptedElevGain]);
+  }, [username, totalKm, acceptedElevGain, isEn]);
 
   const activeWeek = weeksData[selectedWeekIdx] || weeksData[7];
 
@@ -109,122 +123,203 @@ const StravaWeeklyChart = memo(function StravaWeeklyChart({
   );
 
   return (
-    <div className="glass-panel rounded-2xl p-3.5 border border-slate-800/90 space-y-3">
+    <div className="glass-panel rounded-3xl p-4 border border-[#fc4c02]/25 bg-gradient-to-b from-slate-900/95 via-[#111626] to-slate-950/95 shadow-[0_8px_30px_-8px_rgba(252,76,2,0.18)] space-y-3.5 relative overflow-hidden">
+      {/* Subtle Ambient Strava Orange Glow */}
+      <div className="absolute -top-12 -left-12 w-36 h-36 rounded-full bg-[#fc4c02]/10 blur-2xl pointer-events-none" />
+
       {/* Header */}
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2 min-w-0">
-          <div className="w-7 h-7 rounded-lg bg-[#fc4c02]/15 border border-[#fc4c02]/35 text-[#fc4c02] flex items-center justify-center shrink-0">
+      <div className="relative z-10 flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#fc4c02]/25 to-amber-500/15 border border-[#fc4c02]/45 text-[#fc4c02] flex items-center justify-center shrink-0 shadow-sm shadow-[#fc4c02]/20">
             <TrendingUp className="w-4 h-4" />
           </div>
           <div className="min-w-0">
-            <h3 className="text-xs font-black text-white">نمودار هفتگی دویدن</h3>
-            <span className="text-[10px] text-slate-400 block">
-              @{username} · {activeWeek.label}
+            <h3 className="text-xs font-black text-white flex items-center gap-1.5">
+              <span>{isEn ? 'Weekly Running Chart' : 'نمودار هفتگی دویدن'}</span>
+              <span className="px-1.5 py-0.2 rounded bg-[#fc4c02]/20 text-[#ff6b2b] text-[9px] font-mono font-extrabold uppercase tracking-wider">
+                STRAVA
+              </span>
+            </h3>
+            <span className="text-[10px] text-slate-400 block mt-0.5">
+              @{username} · <strong className="text-slate-200">{activeWeek.label}</strong>
             </span>
           </div>
         </div>
 
         <span
-          className="px-2 py-0.5 rounded-lg bg-[#fc4c02]/15 border border-[#fc4c02]/30 text-[#fc4c02] text-[10px] font-mono font-bold shrink-0"
+          className="px-2.5 py-1 rounded-xl bg-gradient-to-r from-[#fc4c02] to-[#ff6b2b] text-white text-xs font-mono font-black shrink-0 shadow-sm shadow-[#fc4c02]/30"
           dir="ltr"
         >
           {activeWeek.km} km
         </span>
       </div>
 
-      {/* Selected Week Summary Strip */}
-      <div className="grid grid-cols-3 gap-2 p-2.5 rounded-xl bg-slate-950/75 border border-slate-800/80 text-center">
+      {/* Selected Week 3-Column Strava Telemetry Strip */}
+      <div className="relative z-10 grid grid-cols-3 gap-2 p-2.5 rounded-2xl bg-slate-950/85 border border-slate-800/90 text-center shadow-inner">
         <div>
-          <span className="text-[10px] text-slate-400 block">مسافت هفته</span>
-          <span className="text-xs font-mono font-black text-[#fc4c02]" dir="ltr">
+          <span className="text-[10px] text-slate-400 block">
+            {isEn ? 'Weekly Distance' : 'مسافت هفته'}
+          </span>
+          <span className="text-xs sm:text-sm font-mono font-black text-[#ff5a14] mt-0.5 block" dir="ltr">
             {activeWeek.km} km
           </span>
         </div>
         <div className="border-x border-slate-800/80">
-          <span className="text-[10px] text-slate-400 block">زمان دویدن</span>
-          <span className="text-xs font-mono font-bold text-white" dir="ltr">
+          <span className="text-[10px] text-slate-400 block">
+            {isEn ? 'Running Time' : 'زمان دویدن'}
+          </span>
+          <span className="text-xs sm:text-sm font-mono font-black text-white mt-0.5 block" dir="ltr">
             {activeWeek.time}
           </span>
         </div>
         <div>
-          <span className="text-[10px] text-slate-400 block">الویشن هفته</span>
-          <span className="text-xs font-mono font-bold text-emerald-400" dir="ltr">
+          <span className="text-[10px] text-slate-400 block">
+            {isEn ? 'Weekly Elevation' : 'الویشن هفته'}
+          </span>
+          <span className="text-xs sm:text-sm font-mono font-black text-emerald-400 mt-0.5 block" dir="ltr">
             +{activeWeek.elev} m
           </span>
         </div>
       </div>
 
-      {/* Interactive SVG Strava Line & Area Chart */}
-      <div className="pt-1">
+      {/* Interactive SVG Strava Line & Glowing Area Chart */}
+      <div className="relative z-10 pt-2">
         <svg
-          viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT + 18}`}
-          className="w-full h-28 overflow-visible select-none"
+          viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT + 20}`}
+          className="w-full h-32 overflow-visible select-none"
         >
           <defs>
             <linearGradient id="stravaAreaGrad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#fc4c02" stopOpacity="0.38" />
+              <stop offset="0%" stopColor="#fc4c02" stopOpacity="0.48" />
+              <stop offset="65%" stopColor="#fc4c02" stopOpacity="0.14" />
               <stop offset="100%" stopColor="#fc4c02" stopOpacity="0.0" />
             </linearGradient>
+            <linearGradient id="stravaStrokeGrad" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0%" stopColor="#fb923c" />
+              <stop offset="50%" stopColor="#fc4c02" />
+              <stop offset="100%" stopColor="#ff5500" />
+            </linearGradient>
+            <filter id="stravaLineGlow" x="-15%" y="-25%" width="130%" height="150%">
+              <feDropShadow dx="0" dy="3" stdDeviation="3.5" floodColor="#fc4c02" floodOpacity="0.45" />
+            </filter>
           </defs>
 
+          {/* Horizontal Dashed Strava Reference Lines */}
           {GUIDE_RATIOS.map((ratio, idx) => (
             <line
-              key={idx}
+              key={`h-${idx}`}
               x1={PAD_X}
               x2={CHART_WIDTH - PAD_X}
               y1={PAD_Y + USABLE_H * ratio}
               y2={PAD_Y + USABLE_H * ratio}
-              stroke="rgba(148, 163, 184, 0.12)"
+              stroke="rgba(148, 163, 184, 0.13)"
               strokeDasharray="3 3"
               strokeWidth="1"
             />
           ))}
 
+          {/* Subtle Vertical Week Tick Lines (Strava signature weekly columns) */}
+          {points.map((pt) => (
+            <line
+              key={`v-${pt.idx}`}
+              x1={pt.x}
+              x2={pt.x}
+              y1={PAD_Y}
+              y2={CHART_HEIGHT - 6}
+              stroke={
+                pt.idx === selectedWeekIdx
+                  ? 'rgba(252, 76, 2, 0.45)'
+                  : 'rgba(148, 163, 184, 0.07)'
+              }
+              strokeDasharray={pt.idx === selectedWeekIdx ? 'none' : '2 3'}
+              strokeWidth={pt.idx === selectedWeekIdx ? '1.5' : '1'}
+            />
+          ))}
+
+          {/* Baseline */}
+          <line
+            x1={PAD_X}
+            x2={CHART_WIDTH - PAD_X}
+            y1={CHART_HEIGHT - 6}
+            y2={CHART_HEIGHT - 6}
+            stroke="rgba(252, 76, 2, 0.25)"
+            strokeWidth="1"
+          />
+
+          {/* Area Fill Under Curve */}
           <path d={areaPath} fill="url(#stravaAreaGrad)" />
 
+          {/* Glowing Strava Progress Polyline */}
           <polyline
             fill="none"
-            stroke="#fc4c02"
-            strokeWidth="2.5"
+            stroke="url(#stravaStrokeGrad)"
+            strokeWidth="3"
             strokeLinecap="round"
             strokeLinejoin="round"
             points={polylinePoints}
+            filter="url(#stravaLineGlow)"
           />
 
+          {/* Interactive Week Nodes & Floating Active Callout */}
           {points.map((pt) => {
             const isSelected = pt.idx === selectedWeekIdx;
+            const badgeY = Math.max(2, pt.y - 20);
             return (
               <g
                 key={pt.idx}
                 onClick={() => handleNodeClick(pt.idx)}
                 className="cursor-pointer"
               >
+                {/* Invisible larger touch target for mobile fingers */}
+                <circle cx={pt.x} cy={pt.y} r={14} fill="transparent" />
+
                 {isSelected && (
-                  <line
-                    x1={pt.x}
-                    x2={pt.x}
-                    y1={PAD_Y}
-                    y2={CHART_HEIGHT - 6}
-                    stroke="#fc4c02"
-                    strokeWidth="1.2"
-                    strokeDasharray="2 2"
-                  />
+                  <>
+                    {/* Outer glowing halo ring */}
+                    <circle
+                      cx={pt.x}
+                      cy={pt.y}
+                      r={9.5}
+                      fill="rgba(252, 76, 2, 0.22)"
+                    />
+                    {/* Floating KM Callout Pill above selected node */}
+                    <rect
+                      x={pt.x - 18}
+                      y={badgeY - 9}
+                      width={36}
+                      height={14}
+                      rx={5}
+                      fill="#fc4c02"
+                    />
+                    <text
+                      x={pt.x}
+                      y={badgeY + 0.5}
+                      textAnchor="middle"
+                      fill="#ffffff"
+                      fontSize="7.5"
+                      fontWeight="900"
+                    >
+                      {pt.km}k
+                    </text>
+                  </>
                 )}
+
                 <circle
                   cx={pt.x}
                   cy={pt.y}
-                  r={isSelected ? 5.5 : 3.5}
-                  fill={isSelected ? '#fc4c02' : '#0f172a'}
+                  r={isSelected ? 5.5 : 3.8}
+                  fill={isSelected ? '#ffffff' : '#0f172a'}
                   stroke="#fc4c02"
-                  strokeWidth={isSelected ? 2.5 : 2}
+                  strokeWidth={isSelected ? 3 : 2.2}
                 />
+
                 <text
                   x={pt.x}
-                  y={CHART_HEIGHT + 12}
+                  y={CHART_HEIGHT + 13}
                   textAnchor="middle"
-                  fill={isSelected ? '#fb923c' : '#64748b'}
+                  fill={isSelected ? '#ff6b2b' : '#94a3b8'}
                   fontSize="8.5"
-                  fontWeight={isSelected ? '800' : '600'}
+                  fontWeight={isSelected ? '900' : '600'}
                 >
                   {pt.short}
                 </text>

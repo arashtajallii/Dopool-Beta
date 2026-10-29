@@ -1,5 +1,6 @@
 import React, { memo, useMemo } from 'react';
 import { Award } from 'lucide-react';
+import { translateFaToEn } from '../i18n';
 
 export interface LeaderboardRunner {
   rank: number;
@@ -13,9 +14,11 @@ interface LeaderboardRowProps {
   item: LeaderboardRunner;
   idx: number;
   isMe: boolean;
+  isEn: boolean;
 }
 
-const LeaderboardRow = memo(function LeaderboardRow({ item, idx, isMe }: LeaderboardRowProps) {
+const LeaderboardRow = memo(function LeaderboardRow({ item, idx, isMe, isEn }: LeaderboardRowProps) {
+  const displayName = isEn ? translateFaToEn(item.fullName) : item.fullName;
   return (
     <div
       className={`flex items-center justify-between p-2.5 rounded-xl transition-colors ${
@@ -38,10 +41,10 @@ const LeaderboardRow = memo(function LeaderboardRow({ item, idx, isMe }: Leaderb
         </span>
         <div className="min-w-0">
           <span className="text-xs text-slate-200 font-bold flex items-center gap-1.5">
-            <span>{item.fullName}</span>
+            <span>{displayName}</span>
             {isMe && (
               <span className="text-[9px] text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded shrink-0">
-                (شما)
+                {isEn ? '(You)' : '(شما)'}
               </span>
             )}
           </span>
@@ -61,13 +64,16 @@ interface LeaderboardSectionProps {
   leaderboard: LeaderboardRunner[];
   currentUsername: string;
   coinLogoUrl: string;
+  lang?: 'fa' | 'en';
 }
 
 const LeaderboardSection = memo(function LeaderboardSection({
   leaderboard,
   currentUsername,
   coinLogoUrl,
+  lang = 'fa',
 }: LeaderboardSectionProps) {
+  const isEn = lang === 'en';
   const normalizedCurrentUsername = useMemo(
     () => (currentUsername || '').toLowerCase(),
     [currentUsername]
@@ -77,27 +83,27 @@ const LeaderboardSection = memo(function LeaderboardSection({
 
   return (
     <div className="space-y-3.5">
-      {/* Minimal Dopool Sponsor Bar */}
-      <div className="rounded-2xl bg-gradient-to-l from-emerald-500/15 via-teal-500/10 to-amber-500/15 px-3.5 py-2.5 border border-emerald-400/30 flex items-center justify-between gap-2.5 shadow-sm">
-        <div className="flex items-center gap-2.5 min-w-0">
-          <div className="w-8 h-8 rounded-xl bg-amber-400/15 border border-amber-400/35 flex items-center justify-center shrink-0">
-            <img
-              src={coinLogoUrl}
-              alt="Dopool"
-              loading="lazy"
-              decoding="async"
-              className="w-6 h-5 object-contain"
-            />
-          </div>
-          <div className="flex items-center gap-2 min-w-0 flex-wrap">
-            <span className="text-xs font-black text-white">دوپول | Dopool</span>
-            <span className="text-[10px] text-emerald-300 font-medium">
-              · اسپانسر رسمی لیگ دوندگان
-            </span>
-          </div>
+      {/* Sleek Minimal Sponsor Strip with Refined Gold & Royal Indigo-Emerald Palette */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-amber-500/20 via-indigo-950/60 to-emerald-500/15 px-3.5 py-2.5 border border-amber-400/35 flex items-center justify-between gap-2 shadow-[0_4px_20px_-4px_rgba(245,158,11,0.18)]">
+        <div className="flex items-center gap-2 min-w-0">
+          <img
+            src={coinLogoUrl}
+            alt="Dopool"
+            loading="lazy"
+            decoding="async"
+            className="w-5 h-5 object-contain drop-shadow-[0_2px_8px_rgba(251,191,36,0.5)] shrink-0"
+          />
+          <span className="text-xs font-black bg-gradient-to-l from-amber-200 via-yellow-300 to-amber-400 bg-clip-text text-transparent">
+            {isEn ? 'Dopool' : 'دوپول'}
+          </span>
+          <span className="text-slate-600 text-xs">•</span>
+          <span className="text-[11px] text-slate-200 font-medium truncate">
+            {isEn ? 'Official League Sponsor' : 'اسپانسر رسمی لیگ دوندگان'}
+          </span>
         </div>
-        <span className="text-[10px] font-bold text-amber-300 bg-amber-400/15 border border-amber-400/30 px-2 py-0.5 rounded-lg shrink-0">
-          حامی جوایز
+
+        <span className="text-[10px] font-black text-slate-950 bg-gradient-to-r from-amber-300 to-yellow-400 px-2.5 py-0.5 rounded-lg shrink-0 shadow-xs">
+          {isEn ? 'Prize Sponsor' : 'حامی جوایز'}
         </span>
       </div>
 
@@ -109,9 +115,11 @@ const LeaderboardSection = memo(function LeaderboardSection({
             <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-slate-200/25 to-slate-400/20 border border-slate-300/50 text-slate-200 flex items-center justify-center mb-1 shadow-sm">
               <Award className="w-4 h-4 text-slate-200" />
             </div>
-            <span className="text-[10px] font-bold text-slate-200">نفر دوم</span>
+            <span className="text-[10px] font-bold text-slate-200">
+              {isEn ? '2nd Place' : 'نفر دوم'}
+            </span>
             <span className="text-[11px] font-bold text-white mt-0.5 leading-tight">
-              {topThree[1].fullName}
+              {isEn ? translateFaToEn(topThree[1].fullName) : topThree[1].fullName}
             </span>
             <span className="text-xs text-sky-400 font-mono mt-1 font-bold" dir="ltr">
               {topThree[1].totalKm} km
@@ -123,9 +131,11 @@ const LeaderboardSection = memo(function LeaderboardSection({
             <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-amber-300/30 to-yellow-500/25 border border-amber-400/60 text-amber-300 flex items-center justify-center mb-1 shadow-sm">
               <Award className="w-4 h-4 text-amber-300" />
             </div>
-            <span className="text-[11px] font-black text-amber-400">نفر اول</span>
+            <span className="text-[11px] font-black text-amber-400">
+              {isEn ? '1st Place' : 'نفر اول'}
+            </span>
             <span className="text-[11px] font-black text-white mt-0.5 leading-tight">
-              {topThree[0].fullName}
+              {isEn ? translateFaToEn(topThree[0].fullName) : topThree[0].fullName}
             </span>
             <span className="text-xs text-sky-400 font-mono font-black mt-1" dir="ltr">
               {topThree[0].totalKm} km
@@ -137,9 +147,11 @@ const LeaderboardSection = memo(function LeaderboardSection({
             <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-amber-600/25 to-orange-800/25 border border-amber-600/50 text-amber-500 flex items-center justify-center mb-1 shadow-sm">
               <Award className="w-4 h-4 text-amber-500" />
             </div>
-            <span className="text-[10px] font-bold text-amber-500">نفر سوم</span>
+            <span className="text-[10px] font-bold text-amber-500">
+              {isEn ? '3rd Place' : 'نفر سوم'}
+            </span>
             <span className="text-[11px] font-bold text-white mt-0.5 leading-tight">
-              {topThree[2].fullName}
+              {isEn ? translateFaToEn(topThree[2].fullName) : topThree[2].fullName}
             </span>
             <span className="text-xs text-sky-400 font-mono mt-1 font-bold" dir="ltr">
               {topThree[2].totalKm} km
@@ -151,8 +163,8 @@ const LeaderboardSection = memo(function LeaderboardSection({
       {/* Complete Rankings List */}
       <div className="glass-panel rounded-2xl p-2 space-y-1">
         <div className="px-3 py-1.5 flex items-center justify-between text-[11px] text-slate-400 border-b border-slate-800">
-          <span>رتبه و مشخصات دونده</span>
-          <span>مسافت ثبت‌شده</span>
+          <span>{isEn ? 'Rank & Runner' : 'رتبه و مشخصات دونده'}</span>
+          <span>{isEn ? 'Total Distance' : 'مسافت ثبت‌شده'}</span>
         </div>
         {leaderboard.map((item, idx) => (
           <LeaderboardRow
@@ -160,6 +172,7 @@ const LeaderboardSection = memo(function LeaderboardSection({
             item={item}
             idx={idx}
             isMe={item.username.toLowerCase() === normalizedCurrentUsername}
+            isEn={isEn}
           />
         ))}
       </div>
