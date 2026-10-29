@@ -1272,8 +1272,8 @@ export default function App() {
       {
         id: 'notif-1',
         type: 'REFERRAL_BONUS',
-        title: 'پاداش دعوت دوست واریز شد! 🎉',
-        body: 'دوست شما (نیلوفر رضایی) با کد معرف شما ثبت‌نام کرد. ۱۰ توکن POOL به حساب شما اضافه شد.',
+        title: 'پاداش دعوت دوست',
+        body: 'دوست شما با کد معرف ثبت‌نام کرد و ۱۰ دوپول به کیف پول اضافه شد.',
         poolAmount: 10,
         isRead: false,
         createdAt: '۱۰ دقیقه پیش',
@@ -1281,17 +1281,17 @@ export default function App() {
       {
         id: 'notif-2',
         type: 'TOKEN_AWARD',
-        title: 'پاداش فعالیت دویدن واریز شد! ⚡',
-        body: 'فعالیت دویدن ۵.۲ کیلومتری شما تایید شد (+۶۷.۶ توکن POOL با ضریب ۱.۳x). ۱۰.۴ انرژی مصرف شد.',
-        poolAmount: 67.6,
+        title: 'پاداش ثبت اکتیویتی',
+        body: 'دویدن ۵.۲ کیلومتری ثبت شد و ۵۲ دوپول به حساب شما واریز گردید.',
+        poolAmount: 52,
         isRead: true,
-        createdAt: 'امروز، ساعت ۰۶:۴۵',
+        createdAt: 'امروز',
       },
       {
         id: 'notif-3',
         type: 'RANK_UP',
-        title: 'ارتقای رتبه در جدول برترین‌ها! 🏆',
-        body: 'تبریک! شما با رسیدن به مسافت ۱۲.۵ کیلومتر، به رتبه ۴ جدول لیگ دوندگان نایکی صعود کردید!',
+        title: 'صعود در جدول رتبه‌بندی',
+        body: 'با ثبت رکورد جدید به رتبه ۴ جدول دوندگان صعود کردید.',
         isRead: true,
         createdAt: 'دیروز',
       },
@@ -3952,17 +3952,17 @@ export default function App() {
 
               <div className="min-w-0">
                 <div className="flex items-center gap-1.5">
-                  <h1 className="text-sm font-black text-white truncate">
+                  <h1 className="text-sm font-black text-white whitespace-nowrap">
                     دوپول | Dopool
                   </h1>
                 </div>
-                <span className="text-[10px] text-slate-400 block truncate">
-                  پلتفرم دویدن و پاداش دوپول
+                <span className="text-[10px] text-slate-400 block whitespace-nowrap">
+                  اپلیکیشن ورزشی دوپول
                 </span>
               </div>
             </button>
 
-            {/* Left Side: Notifications + 3-Line Menu (تنظیمات تم به منوی ۳ خط منتقل شد) */}
+            {/* Left Side: Notifications + 3-Line Menu */}
             <div ref={topWalletRef} className="flex items-center gap-1.5 shrink-0">
 
               {/* Notification Bell Button */}
@@ -3970,7 +3970,7 @@ export default function App() {
                 type="button"
                 onClick={() => setShowNotifDrawer(true)}
                 className="w-9 h-9 rounded-xl bg-slate-800/60 hover:bg-slate-800 border border-slate-700/60 text-slate-300 hover:text-white relative flex items-center justify-center shrink-0 transition-colors cursor-pointer"
-                title="اعلان‌ها و پیام‌ها"
+                title="اعلان‌ها"
               >
                 {unreadCount > 0 ? (
                   <BellRing className="w-4 h-4 text-amber-400 animate-pulse shrink-0" />
@@ -3990,15 +3990,14 @@ export default function App() {
                 onClick={() => setShowHamburgerMenu(true)}
                 className={`w-9 h-9 rounded-xl border relative flex items-center justify-center shrink-0 transition-all cursor-pointer ${
                   activeTab === 'watches' ||
-                  activeTab === 'store' ||
                   activeTab === 'leaderboard' ||
-                  activeTab === 'crews' ||
-                  activeTab === 'history' ||
-                  activeTab === 'support'
+                  activeTab === 'support' ||
+                  activeTab === 'profile' ||
+                  activeTab === 'settings'
                     ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-400'
                     : 'bg-slate-800/60 hover:bg-slate-800 border-slate-700/60 text-slate-200 hover:text-white'
                 }`}
-                title="منوی امکانات (اتصال ساعت هوشمند، جوایز، رتبه‌بندی، کلاب‌ها، سوابق و پشتیبانی)"
+                title="منوی امکانات"
               >
                 <Menu className="w-4 h-4 shrink-0" />
               </button>
@@ -4221,11 +4220,11 @@ export default function App() {
                               />
                             </div>
                             <div className="min-w-0">
-                              <span className="text-[11px] font-bold text-slate-400 block">
+                              <span className="text-xs font-bold text-slate-300 block">
                                 موجودی کیف پول
                               </span>
-                              <span className="text-[10px] text-slate-500 block truncate">
-                                دارایی سکه‌های ورزشی شما
+                              <span className="text-[10px] text-slate-400 block">
+                                دارایی سکه‌های شما
                               </span>
                             </div>
                           </div>
@@ -4240,26 +4239,26 @@ export default function App() {
                           </div>
                         </div>
 
-                        {/* Minimal 4-Column Stats Row (مسافت کل | تعداد فعالیت | دعوت موفق | رتبه شما) */}
+                        {/* Minimal 4-Column Stats Row (مسافت | فعالیت | دعوت | رتبه) */}
                         <div className="grid grid-cols-4 gap-1.5 pt-2.5 border-t border-slate-800/80">
                           <button
                             type="button"
                             onClick={() => setActiveTab('sync')}
-                            className="bg-slate-950/60 hover:bg-slate-950 rounded-xl py-2 px-1.5 border border-slate-800/80 flex flex-col items-center justify-center gap-0.5 text-center transition-colors cursor-pointer"
+                            className="bg-slate-950/60 hover:bg-slate-950 rounded-xl py-2 px-1 border border-slate-800/80 flex flex-col items-center justify-center gap-0.5 text-center transition-colors cursor-pointer"
                           >
-                            <span className="text-[9.5px] text-slate-400 font-medium">مسافت کل</span>
-                            <span className="text-xs font-black text-white font-mono" dir="ltr">
+                            <span className="text-[10px] text-slate-400 font-bold whitespace-nowrap">مسافت کل</span>
+                            <span className="text-xs font-black text-white font-mono whitespace-nowrap" dir="ltr">
                               {user.totalKm.toFixed(1)} <span className="text-[9px] text-emerald-400">km</span>
                             </span>
                           </button>
 
                           <button
                             type="button"
-                            onClick={() => setActiveTab('history')}
-                            className="bg-slate-950/60 hover:bg-slate-950 rounded-xl py-2 px-1.5 border border-slate-800/80 flex flex-col items-center justify-center gap-0.5 text-center transition-colors cursor-pointer"
+                            onClick={() => setActiveTab('sync')}
+                            className="bg-slate-950/60 hover:bg-slate-950 rounded-xl py-2 px-1 border border-slate-800/80 flex flex-col items-center justify-center gap-0.5 text-center transition-colors cursor-pointer"
                           >
-                            <span className="text-[9.5px] text-slate-400 font-medium">تعداد فعالیت</span>
-                            <span className="text-xs font-black text-teal-400 font-mono">
+                            <span className="text-[10px] text-slate-400 font-bold whitespace-nowrap">تعداد فعالیت</span>
+                            <span className="text-xs font-black text-teal-400 font-mono whitespace-nowrap">
                               {activities.filter((a) => a.status === 'ACCEPTED').length}
                             </span>
                           </button>
@@ -4267,10 +4266,10 @@ export default function App() {
                           <button
                             type="button"
                             onClick={() => setActiveTab('invite')}
-                            className="bg-slate-950/60 hover:bg-slate-950 rounded-xl py-2 px-1.5 border border-slate-800/80 flex flex-col items-center justify-center gap-0.5 text-center transition-colors cursor-pointer"
+                            className="bg-slate-950/60 hover:bg-slate-950 rounded-xl py-2 px-1 border border-slate-800/80 flex flex-col items-center justify-center gap-0.5 text-center transition-colors cursor-pointer"
                           >
-                            <span className="text-[9.5px] text-slate-400 font-medium">دعوت موفق</span>
-                            <span className="text-xs font-black text-white font-mono">
+                            <span className="text-[10px] text-slate-400 font-bold whitespace-nowrap">دعوت موفق</span>
+                            <span className="text-xs font-black text-white font-mono whitespace-nowrap">
                               {user.invitedFriendsCount} <span className="text-[9px] text-sky-400 font-sans">نفر</span>
                             </span>
                           </button>
@@ -4278,10 +4277,10 @@ export default function App() {
                           <button
                             type="button"
                             onClick={() => setActiveTab('leaderboard')}
-                            className="bg-slate-950/60 hover:bg-slate-950 rounded-xl py-2 px-1.5 border border-slate-800/80 flex flex-col items-center justify-center gap-0.5 text-center transition-colors cursor-pointer"
+                            className="bg-slate-950/60 hover:bg-slate-950 rounded-xl py-2 px-1 border border-slate-800/80 flex flex-col items-center justify-center gap-0.5 text-center transition-colors cursor-pointer"
                           >
-                            <span className="text-[9.5px] text-slate-400 font-medium">رتبه شما</span>
-                            <span className="text-xs font-black text-amber-400 font-mono" dir="ltr">
+                            <span className="text-[10px] text-slate-400 font-bold whitespace-nowrap">رتبه شما</span>
+                            <span className="text-xs font-black text-amber-400 font-mono whitespace-nowrap" dir="ltr">
                               #{getUserRank(user.totalKm)}
                             </span>
                           </button>
@@ -4312,7 +4311,7 @@ export default function App() {
                                 </motion.div>
                                 <div className="min-w-0">
                                   <h3 className="text-xs font-black text-white flex items-center gap-1.5 flex-wrap">
-                                    <span>جوایز ۱۰ سکه‌ای شروع</span>
+                                    <span>جوایز شروع</span>
                                     <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-bold shrink-0">
                                       +{([
                                         !user.firstTimeMilestones?.firstLogin,
@@ -4322,8 +4321,8 @@ export default function App() {
                                       دوپول
                                     </span>
                                   </h3>
-                                  <span className="text-[10px] text-slate-400 block truncate">
-                                    سکه هدیه انیمیشنی برای اولین ورود، اولین فعالیت و اولین دعوت
+                                  <span className="text-[10px] text-slate-400 block">
+                                    هدیه اولین ورود، فعالیت و دعوت
                                   </span>
                                 </div>
                               </div>
@@ -4353,9 +4352,9 @@ export default function App() {
                                         <span className="text-[9px] font-mono font-black text-amber-300" dir="ltr">+10</span>
                                       </motion.div>
                                       <div className="min-w-0">
-                                        <h4 className="text-xs font-bold text-white truncate">سکه هدیه اولین ورود</h4>
-                                        <span className="text-[10px] text-slate-400 block truncate">
-                                          ۱۰ سکه طلایی اولین لاگین به حساب کاربری
+                                        <h4 className="text-xs font-bold text-white">هدیه اولین ورود</h4>
+                                        <span className="text-[10px] text-slate-400 block">
+                                          ۱۰ سکه هدیه ورود به برنامه
                                         </span>
                                       </div>
                                     </div>
@@ -4364,10 +4363,10 @@ export default function App() {
                                       whileHover={{ scale: 1.05 }}
                                       whileTap={{ scale: 0.93 }}
                                       onClick={(e) => handleClaimFirstMilestone('firstLogin', e)}
-                                      className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-400 to-emerald-400 text-slate-950 font-black text-xs shadow-md shadow-amber-500/20 inline-flex items-center gap-1.5 cursor-pointer shrink-0 animate-shimmer"
+                                      className="px-2.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-400 to-emerald-400 text-slate-950 font-black text-[11px] shadow-md shadow-amber-500/20 inline-flex items-center gap-1 cursor-pointer shrink-0 animate-shimmer"
                                     >
                                       <Coins className="w-3.5 h-3.5 shrink-0" />
-                                      <span>دریافت +۱۰ سکه</span>
+                                      <span>دریافت +۱۰</span>
                                     </motion.button>
                                   </motion.div>
                                 )}
@@ -4394,9 +4393,9 @@ export default function App() {
                                         <span className="text-[9px] font-mono font-black text-amber-300" dir="ltr">+10</span>
                                       </motion.div>
                                       <div className="min-w-0">
-                                        <h4 className="text-xs font-bold text-white truncate">سکه جایزه اولین اکتیویتی</h4>
-                                        <span className="text-[10px] text-slate-400 block truncate">
-                                          ۱۰ سکه هدیه ثبت اولین فعالیت دویدن
+                                        <h4 className="text-xs font-bold text-white">هدیه اولین فعالیت</h4>
+                                        <span className="text-[10px] text-slate-400 block">
+                                          ۱۰ سکه ثبت اولین دویدن
                                         </span>
                                       </div>
                                     </div>
@@ -4404,19 +4403,19 @@ export default function App() {
                                       <button
                                         type="button"
                                         onClick={() => setActiveTab('sync')}
-                                        className="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-[11px] font-bold cursor-pointer"
+                                        className="px-2 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-[11px] font-bold cursor-pointer"
                                       >
-                                        تب اکتیویتی
+                                        اکتیویتی
                                       </button>
                                       <motion.button
                                         type="button"
                                         whileHover={{ scale: 1.05 }}
                                         whileTap={{ scale: 0.93 }}
                                         onClick={(e) => handleClaimFirstMilestone('firstActivity', e)}
-                                        className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-sky-400 to-emerald-400 text-slate-950 font-black text-xs shadow-md shadow-sky-500/20 inline-flex items-center gap-1.5 cursor-pointer animate-shimmer"
+                                        className="px-2.5 py-1.5 rounded-xl bg-gradient-to-r from-sky-400 to-emerald-400 text-slate-950 font-black text-[11px] shadow-md shadow-sky-500/20 inline-flex items-center gap-1 cursor-pointer animate-shimmer"
                                       >
                                         <Coins className="w-3.5 h-3.5 shrink-0" />
-                                        <span>دریافت +۱۰ سکه</span>
+                                        <span>دریافت +۱۰</span>
                                       </motion.button>
                                     </div>
                                   </motion.div>
@@ -4444,9 +4443,9 @@ export default function App() {
                                         <span className="text-[9px] font-mono font-black text-amber-300" dir="ltr">+10</span>
                                       </motion.div>
                                       <div className="min-w-0">
-                                        <h4 className="text-xs font-bold text-white truncate">سکه جایزه اولین دعوت</h4>
-                                        <span className="text-[10px] text-slate-400 block truncate">
-                                          ۱۰ سکه هدیه اولین دعوت از دوستان
+                                        <h4 className="text-xs font-bold text-white">هدیه اولین دعوت</h4>
+                                        <span className="text-[10px] text-slate-400 block">
+                                          ۱۰ سکه دعوت از دوستان
                                         </span>
                                       </div>
                                     </div>
@@ -4454,19 +4453,19 @@ export default function App() {
                                       <button
                                         type="button"
                                         onClick={() => setActiveTab('invite')}
-                                        className="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-[11px] font-bold cursor-pointer"
+                                        className="px-2 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-[11px] font-bold cursor-pointer"
                                       >
-                                        تب دعوت
+                                        دعوت
                                       </button>
                                       <motion.button
                                         type="button"
                                         whileHover={{ scale: 1.05 }}
                                         whileTap={{ scale: 0.93 }}
                                         onClick={(e) => handleClaimFirstMilestone('firstInvite', e)}
-                                        className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-400 to-yellow-300 text-slate-950 font-black text-xs shadow-md shadow-amber-500/25 inline-flex items-center gap-1.5 cursor-pointer animate-shimmer"
+                                        className="px-2.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-400 to-yellow-300 text-slate-950 font-black text-[11px] shadow-md shadow-amber-500/25 inline-flex items-center gap-1 cursor-pointer animate-shimmer"
                                       >
                                         <Coins className="w-3.5 h-3.5 shrink-0" />
-                                        <span>دریافت +۱۰ سکه</span>
+                                        <span>دریافت +۱۰</span>
                                       </motion.button>
                                     </div>
                                   </motion.div>
@@ -4561,9 +4560,9 @@ export default function App() {
                                   <TrendingUp className="w-4 h-4" />
                                 </div>
                                 <div className="min-w-0">
-                                  <h3 className="text-xs font-black text-white truncate">نمودار هفتگی دویدن شما</h3>
-                                  <span className="text-[10px] text-slate-400 block truncate">
-                                    عملکرد اختصاصی @{user.username} ({activeWeek.label})
+                                  <h3 className="text-xs font-black text-white">نمودار هفتگی دویدن</h3>
+                                  <span className="text-[10px] text-slate-400 block">
+                                    @{user.username} · {activeWeek.label}
                                   </span>
                                 </div>
                               </div>
@@ -4696,19 +4695,19 @@ export default function App() {
                               <span className="font-mono font-black text-[9px] leading-none" dir="ltr">+10</span>
                             </div>
                             <div className="min-w-0">
-                              <h4 className="text-xs font-black text-white truncate">پاداش اولین اکتیویتی (+۱۰ دوپول هدیه)</h4>
+                              <h4 className="text-xs font-black text-white">پاداش اولین اکتیویتی (+۱۰ دوپول)</h4>
                               <span className="text-[10px] text-slate-300 block mt-0.5 leading-snug">
-                                با ثبت اولین فعالیت در این بخش، ۱۰ سکه دوپول اضافه هدیه می‌گیرید!
+                                با ثبت اولین فعالیت، ۱۰ دوپول هدیه می‌گیرید.
                               </span>
                             </div>
                           </div>
                           <button
                             type="button"
                             onClick={() => handleProcessRun(5.2, 1638, 146, 'First_Run_5K.fit', 'دویدن روزانه')}
-                            className="px-3 py-1.5 bg-sky-400 hover:bg-sky-300 text-slate-950 font-black rounded-xl text-xs shrink-0 flex items-center gap-1 cursor-pointer"
+                            className="px-2.5 py-1.5 bg-sky-400 hover:bg-sky-300 text-slate-950 font-black rounded-xl text-[11px] shrink-0 flex items-center gap-1 cursor-pointer"
                           >
                             <Zap className="w-3.5 h-3.5 shrink-0" />
-                            <span>ثبت سریع (+۱۰)</span>
+                            <span>ثبت سریع</span>
                           </button>
                         </div>
                       )}
@@ -4721,8 +4720,8 @@ export default function App() {
                               <Activity className="w-4 h-4" />
                             </div>
                             <div className="min-w-0">
-                              <h3 className="text-xs font-bold text-slate-200 truncate">ثبت اکتیویتی جدید</h3>
-                              <span className="text-[10px] text-slate-400 block truncate">ثبت مسافت (کیلومتر) و الویشن (متر)</span>
+                              <h3 className="text-xs font-bold text-slate-200">ثبت اکتیویتی جدید</h3>
+                              <span className="text-[10px] text-slate-400 block">ثبت کیلومتر و الویشن دویدن</span>
                             </div>
                           </div>
                         </div>
@@ -4753,11 +4752,11 @@ export default function App() {
                                     className="p-3 rounded-xl border text-right cursor-pointer flex items-center justify-between gap-2.5 transition-all bg-amber-500/15 border-amber-500/40 text-amber-300 hover:bg-amber-500/25"
                                   >
                                     <div className="min-w-0">
-                                      <div className="font-black text-white truncate">
-                                        دویدن صبحگاهی (۹.۲ کیلومتر · الویشن +۳۴ متر)
+                                      <div className="font-black text-white text-xs">
+                                        دویدن صبحگاهی (۹.۲ km · +۳۴ m)
                                       </div>
-                                      <span className="text-[10px] text-amber-300/90 block mt-0.5 truncate">
-                                        ثبت اکتیویتی و دریافت سکه دوپول
+                                      <span className="text-[10px] text-amber-300/90 block mt-0.5">
+                                        ثبت فعالیت و دریافت دوپول
                                       </span>
                                     </div>
                                     <span className="px-2.5 py-1 rounded-lg font-black text-[11px] shrink-0 flex items-center gap-1 bg-amber-400 text-slate-950">
@@ -4779,15 +4778,15 @@ export default function App() {
                                     className="p-3 rounded-xl border text-right cursor-pointer flex items-center justify-between gap-2 transition-all bg-emerald-500/10 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20"
                                   >
                                     <div className="min-w-0">
-                                      <div className="font-bold text-white truncate">
-                                        دویدن استاندارد (۵.۲ کیلومتر · الویشن +۱۹ متر)
+                                      <div className="font-bold text-white text-xs">
+                                        دویدن استاندارد (۵.۲ km · +۱۹ m)
                                       </div>
-                                      <span className="text-[10px] text-slate-400 block mt-0.5 truncate">
-                                        ثبت اکتیویتی جدید
+                                      <span className="text-[10px] text-slate-400 block mt-0.5">
+                                        ثبت فعالیت جدید
                                       </span>
                                     </div>
                                     <span className="text-[11px] font-black px-2.5 py-1 rounded-lg bg-emerald-400 text-slate-950 shrink-0">
-                                      ثبت اکتیویتی
+                                      ثبت فعالیت
                                     </span>
                                   </button>
                                 )}
@@ -4815,9 +4814,9 @@ export default function App() {
                                   className="p-3 rounded-xl border border-sky-500/35 bg-sky-500/10 hover:bg-sky-500/20 text-right cursor-pointer flex items-center justify-between gap-2 transition-all"
                                 >
                                   <div className="min-w-0">
-                                    <div className="font-bold text-white truncate">ثبت سریع دویدن جدید</div>
-                                    <span className="text-[10px] text-slate-400 block mt-0.5 truncate">
-                                      محاسبه خودکار مسافت و الویشن
+                                    <div className="font-bold text-white text-xs">ثبت سریع دویدن</div>
+                                    <span className="text-[10px] text-slate-400 block mt-0.5">
+                                      ثبت خودکار مسافت و الویشن
                                     </span>
                                   </div>
                                   <span className="text-[11px] font-black px-2.5 py-1 rounded-lg bg-sky-400 text-slate-950 shrink-0">
@@ -4832,25 +4831,24 @@ export default function App() {
                     </div>
                   )}
 
-                  {/* DEDICATED SMARTWATCHES & STRAVA CONNECTION TAB (منتقل شده به منوی ۳ خط) */}
+                  {/* DEDICATED SMARTWATCHES & STRAVA CONNECTION TAB (منتقل شده به منوی ۳ خط - بدون نمایش ضرایب پاداش) */}
                   {activeTab === 'watches' && (
                     <div className="space-y-4">
                       {/* Header Banner */}
                       <div className="rounded-3xl p-4 bg-gradient-to-br from-sky-950/60 via-slate-900 to-emerald-950/40 border border-sky-500/35 flex items-center justify-between gap-3">
                         <div className="flex items-center gap-3 min-w-0">
-                          <div className="w-11 h-11 rounded-2xl bg-sky-500/20 border border-sky-500/40 text-sky-400 flex items-center justify-center shrink-0">
+                          <div className="w-10 h-10 rounded-2xl bg-sky-500/20 border border-sky-500/40 text-sky-400 flex items-center justify-center shrink-0">
                             <Watch className="w-5 h-5" />
                           </div>
                           <div className="min-w-0">
-                            <h3 className="text-sm font-black text-white truncate">اتصال به ساعت‌های هوشمند و Strava</h3>
-                            <span className="text-[11px] text-slate-300 block mt-0.5 truncate">
-                              همگام‌سازی خودکار فعالیت‌ها و فعال‌سازی ضریب پاداش ساعت
+                            <h3 className="text-xs font-black text-white">اتصال ساعت هوشمند و Strava</h3>
+                            <span className="text-[10px] text-slate-300 block mt-0.5">
+                              همگام‌سازی مستقیم فعالیت‌های ورزشی
                             </span>
                           </div>
                         </div>
-                        <span className="px-2.5 py-1 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-xs font-mono font-black shrink-0 flex items-center gap-1" dir="ltr">
-                          <Zap className="w-3.5 h-3.5 shrink-0" />
-                          <span>{activeMultiplier}x Boost</span>
+                        <span className="px-2.5 py-1 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-[10px] font-bold shrink-0">
+                          آماده اتصال
                         </span>
                       </div>
 
@@ -4973,8 +4971,8 @@ export default function App() {
                                   </span>
                                 </div>
                                 <div>
-                                  <h5 className="text-xs font-black text-slate-100 truncate">{provider.nameFa}</h5>
-                                  <span className="text-[10px] font-mono text-slate-400 block truncate mt-0.5" dir="ltr">
+                                  <h5 className="text-[11px] font-black text-slate-100 leading-snug">{provider.nameFa}</h5>
+                                  <span className="text-[9.5px] font-mono text-slate-400 block mt-0.5" dir="ltr">
                                     {provider.name}
                                   </span>
                                 </div>
@@ -4984,7 +4982,7 @@ export default function App() {
                                   className="w-full py-1.5 px-2 rounded-xl text-[10px] font-bold bg-slate-800/90 hover:bg-slate-700 text-slate-200 border border-slate-700/60 transition-colors flex items-center justify-center gap-1 cursor-pointer"
                                 >
                                   <Link2 className="w-3 h-3 text-sky-400 shrink-0" />
-                                  <span>{isConnected ? 'مدیریت / سینک' : 'اتصال ساعت'}</span>
+                                  <span>{isConnected ? 'مدیریت' : 'اتصال'}</span>
                                 </button>
                               </div>
                             );
@@ -5006,9 +5004,9 @@ export default function App() {
                               <span className="font-mono font-black text-[9px] leading-none" dir="ltr">+10</span>
                             </div>
                             <div className="min-w-0">
-                              <h3 className="text-xs font-black text-white truncate">جایزه +۱۰ دوپول به ازای هر دعوت موفق</h3>
+                              <h3 className="text-xs font-black text-white">جایزه +۱۰ دوپول برای هر دعوت</h3>
                               <span className="text-[11px] text-slate-300 block mt-0.5">
-                                با اشتراک لینک یا استوری دعوت خود، ۱۰ دوپول هدیه بگیرید.
+                                با اشتراک لینک یا استوری دعوت، ۱۰ دوپول هدیه بگیرید.
                               </span>
                             </div>
                           </div>
@@ -5023,9 +5021,9 @@ export default function App() {
                               <Share2 className="w-4 h-4" />
                             </div>
                             <div className="min-w-0">
-                              <h3 className="text-xs font-black text-white truncate">اشتراک‌گذاری دعوت و معرفی دوپول</h3>
-                              <span className="text-[10px] text-slate-400 block truncate">
-                                ارسال به صورت لینک مستقیم یا عکس سایز استوری اینستاگرام
+                              <h3 className="text-xs font-black text-white">اشتراک‌گذاری دعوت دوستان</h3>
+                              <span className="text-[10px] text-slate-400 block">
+                                لینک دعوت یا تصویر استوری اینستاگرام
                               </span>
                             </div>
                           </div>
@@ -5039,27 +5037,27 @@ export default function App() {
                           <button
                             type="button"
                             onClick={() => setInviteShareMode('link')}
-                            className={`py-2 px-2.5 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                            className={`py-2 px-2 rounded-xl text-[11px] font-black flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
                               inviteShareMode === 'link'
                                 ? 'bg-gradient-to-r from-sky-500 to-emerald-400 text-slate-950 shadow-sm'
                                 : 'text-slate-400 hover:text-white'
                             }`}
                           >
                             <Link2 className="w-3.5 h-3.5 shrink-0" />
-                            <span>به صورت لینک دعوت</span>
+                            <span>لینک دعوت</span>
                           </button>
 
                           <button
                             type="button"
                             onClick={() => setInviteShareMode('story_image')}
-                            className={`py-2 px-2.5 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                            className={`py-2 px-2 rounded-xl text-[11px] font-black flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
                               inviteShareMode === 'story_image'
                                 ? 'bg-gradient-to-r from-amber-400 via-yellow-400 to-emerald-400 text-slate-950 shadow-sm'
                                 : 'text-slate-400 hover:text-white'
                             }`}
                           >
                             <Smartphone className="w-3.5 h-3.5 shrink-0" />
-                            <span>مدل عکس استوری (۹:۱۶)</span>
+                            <span>عکس استوری (۹:۱۶)</span>
                           </button>
                         </div>
 
@@ -5219,8 +5217,8 @@ export default function App() {
                       <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-slate-200/25 to-slate-400/20 border border-slate-300/50 text-slate-200 flex items-center justify-center mb-1 shadow-sm">
                         <Award className="w-4 h-4 text-slate-200" />
                       </div>
-                      <span className="text-[11px] font-bold text-slate-200">نفر دوم (نقره‌ای)</span>
-                      <span className="text-xs font-bold text-white mt-0.5 truncate max-w-[95px]">{leaderboard[1].fullName}</span>
+                      <span className="text-[10px] font-bold text-slate-200">نفر دوم</span>
+                      <span className="text-[11px] font-bold text-white mt-0.5 leading-tight">{leaderboard[1].fullName}</span>
                       <span className="text-xs text-sky-400 font-mono mt-1 font-bold" dir="ltr">{leaderboard[1].totalKm} km</span>
                     </div>
 
@@ -5229,8 +5227,8 @@ export default function App() {
                       <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-amber-300/30 to-yellow-500/25 border border-amber-400/60 text-amber-300 flex items-center justify-center mb-1 shadow-sm">
                         <Award className="w-4 h-4 text-amber-300" />
                       </div>
-                      <span className="text-xs font-black text-amber-400">نفر اول (طلایی)</span>
-                      <span className="text-xs font-black text-white mt-0.5 truncate max-w-[100px]">{leaderboard[0].fullName}</span>
+                      <span className="text-[11px] font-black text-amber-400">نفر اول</span>
+                      <span className="text-[11px] font-black text-white mt-0.5 leading-tight">{leaderboard[0].fullName}</span>
                       <span className="text-xs text-sky-400 font-mono font-black mt-1" dir="ltr">{leaderboard[0].totalKm} km</span>
                     </div>
 
@@ -5239,8 +5237,8 @@ export default function App() {
                       <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-amber-600/25 to-orange-800/25 border border-amber-600/50 text-amber-500 flex items-center justify-center mb-1 shadow-sm">
                         <Award className="w-4 h-4 text-amber-500" />
                       </div>
-                      <span className="text-[11px] font-bold text-amber-500">نفر سوم (برنز)</span>
-                      <span className="text-xs font-bold text-white mt-0.5 truncate max-w-[95px]">{leaderboard[2].fullName}</span>
+                      <span className="text-[10px] font-bold text-amber-500">نفر سوم</span>
+                      <span className="text-[11px] font-bold text-white mt-0.5 leading-tight">{leaderboard[2].fullName}</span>
                       <span className="text-xs text-sky-400 font-mono mt-1 font-bold" dir="ltr">{leaderboard[2].totalKm} km</span>
                     </div>
                   </div>
@@ -5658,39 +5656,6 @@ export default function App() {
                 </div>
               )}
 
-              {/* TAB 5: HISTORY */}
-              {activeTab === 'history' && (
-                <div className="space-y-3.5">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <div className="w-7 h-7 rounded-lg bg-sky-500/15 border border-sky-500/30 text-sky-400 flex items-center justify-center shrink-0">
-                        <Clock className="w-4 h-4" />
-                      </div>
-                      <h3 className="text-xs font-bold text-slate-200">تاریخچه اکتیویتی‌ها</h3>
-                    </div>
-                    <span className="text-[10px] text-slate-400 bg-slate-900 border border-slate-800 px-2 py-0.5 rounded-lg">
-                      {activities.length} اکتیویتی ثبت‌شده
-                    </span>
-                  </div>
-
-                  <div className="space-y-3.5">
-                    {activities.length === 0 ? (
-                      <div className="glass-panel rounded-2xl p-6 text-center text-slate-400 text-xs">
-                        هنوز هیچ فعالیتی ثبت نکرده‌اید. با بارگذاری فایل .fit یا انتخاب سناریوهای تستی در تب اکتیویتی، اولین توکن‌های خود را دشت کنید!
-                      </div>
-                    ) : (
-                      activities.slice(0, 10).map((act) => (
-                        <ActivityVerificationReceiptCard
-                          key={act.id}
-                          activity={act}
-                          onShare={(a) => setStoryModalActivity(a)}
-                        />
-                      ))
-                    )}
-                  </div>
-                </div>
-              )}
-
               {/* TAB 6: SUPPORT (پشتیبانی واتساپ ۰۹۱۵۳۰۰۳۹۰۸) */}
               {activeTab === 'support' && (
                 <div className="space-y-4">
@@ -5799,50 +5764,23 @@ export default function App() {
                       </button>
                     </div>
 
-                    {/* Top Center: User Photo Slot + 10 Minimal Preset Avatars (پلنگ، شیر، میمون، مار، عقاب، تاس، توپ و...) */}
+                    {/* Top Center: User Photo Slot + 10 Minimal Preset Avatars (بدون آپلود از گالری) */}
                     <div className="flex flex-col items-center justify-center pt-1 space-y-3">
-                      <input
-                        ref={profileAvatarInputRef}
-                        type="file"
-                        accept="image/*"
-                        className="hidden"
-                        onChange={(e) => {
-                          const file = e.target.files?.[0];
-                          if (!file) return;
-                          const reader = new FileReader();
-                          reader.onload = () => {
-                            if (typeof reader.result === 'string') {
-                              setUser({ ...user, avatarUrl: reader.result });
-                              triggerToast('عکس پروفایل ثبت شد ✓', 'تصویر کاربری شما بروزرسانی شد.', 'success');
-                            }
-                          };
-                          reader.readAsDataURL(file);
-                        }}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => profileAvatarInputRef.current?.click()}
-                        className="group relative w-24 h-24 rounded-full bg-slate-950 border-2 border-amber-400/60 hover:border-amber-400 flex flex-col items-center justify-center overflow-hidden shadow-lg transition-all cursor-pointer"
-                        title="انتخاب یا تغییر عکس پروفایل"
+                      <div
+                        className="relative w-24 h-24 rounded-full bg-slate-950 border-2 border-amber-400/60 flex flex-col items-center justify-center overflow-hidden shadow-lg"
+                        title="آواتار کاربری"
                       >
                         <img
                           src={user.avatarUrl || getDefaultPresetAvatar(user.username).dataUrl}
                           alt={user.fullName}
                           className="w-full h-full object-cover"
                         />
-                      </button>
+                      </div>
 
                       {/* 10 Preset Avatars Grid (حیوانات و آیتم‌های رندوم - حداکثر ۱۰ عدد) */}
                       <div className="w-full max-w-[320px] space-y-1.5">
-                        <div className="flex items-center justify-between px-1">
+                        <div className="flex items-center justify-center px-1">
                           <span className="text-[10px] text-slate-400 font-bold">انتخاب آواتار (۱۰ طرح):</span>
-                          <button
-                            type="button"
-                            onClick={() => profileAvatarInputRef.current?.click()}
-                            className="text-[10px] font-bold text-amber-400 hover:text-amber-300 transition-colors cursor-pointer"
-                          >
-                            آپلود از گالری
-                          </button>
                         </div>
                         <div className="grid grid-cols-5 gap-2 p-2 rounded-2xl bg-slate-950/70 border border-slate-800/80">
                           {PRESET_USER_AVATARS.map((av) => {
@@ -5864,7 +5802,7 @@ export default function App() {
                                 }`}
                               >
                                 <span className="text-xl leading-none">{av.emoji}</span>
-                                <span className="text-[9px] text-slate-300 font-bold mt-1">{av.label}</span>
+                                <span className="text-[9.5px] text-slate-300 font-bold mt-1 whitespace-nowrap">{av.label}</span>
                               </button>
                             );
                           })}
@@ -6254,111 +6192,74 @@ export default function App() {
           </div>
         )}
 
-        {/* NOTIFICATION CENTER SLIDE-OVER DRAWER */}
+        {/* MINIMAL NOTIFICATION CENTER DRAWER */}
         {showNotifDrawer && (
-          <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm p-0 sm:p-4">
-            <div className="w-full max-w-[480px] max-h-[85vh] bg-[#091122] border-t sm:border border-slate-800 rounded-t-3xl sm:rounded-3xl p-5 flex flex-col shadow-2xl overflow-hidden animate-in slide-in-from-bottom-6">
-              
-              <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+          <div
+            className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm p-0 sm:p-4"
+            onClick={() => setShowNotifDrawer(false)}
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-[440px] max-h-[78vh] bg-[#091122] border-t sm:border border-slate-800 rounded-t-3xl sm:rounded-3xl p-4 flex flex-col shadow-2xl overflow-hidden"
+            >
+              {/* Compact Header */}
+              <div className="flex items-center justify-between pb-3 border-b border-slate-800/80">
                 <div className="flex items-center gap-2">
-                  <div className="p-2 bg-emerald-500/10 text-emerald-400 rounded-xl">
-                    <BellRing className="w-5 h-5" />
+                  <div className="w-8 h-8 bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 rounded-xl flex items-center justify-center shrink-0">
+                    <Bell className="w-4 h-4" />
                   </div>
                   <div>
-                    <h3 className="text-sm font-bold text-white">مرکز اعلان‌ها و رویدادهای زنده</h3>
-                    <span className="text-[11px] text-slate-400">
-                      {unreadCount > 0 ? `${unreadCount} اعلان جدید خوانده نشده` : 'همه پیام‌ها خوانده شده است'}
+                    <h3 className="text-xs font-black text-white">مرکز اعلان‌ها</h3>
+                    <span className="text-[10px] text-slate-400 block">
+                      {unreadCount > 0 ? `${unreadCount} پیام جدید` : 'همه پیام‌ها خوانده شده'}
                     </span>
                   </div>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setShowNotifDrawer(false)}
-                  className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-colors cursor-pointer"
-                >
-                  <X className="w-5 h-5" />
-                </button>
+
+                <div className="flex items-center gap-1.5">
+                  {unreadCount > 0 && (
+                    <button
+                      type="button"
+                      onClick={markAllNotificationsRead}
+                      className="px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-800 text-[10px] font-bold text-slate-300 hover:text-white transition-colors cursor-pointer"
+                    >
+                      خوانده شد
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setShowNotifDrawer(false)}
+                    className="w-8 h-8 text-slate-400 hover:text-white rounded-xl bg-slate-900/80 hover:bg-slate-800 flex items-center justify-center transition-colors cursor-pointer"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
 
-              <div className="mt-3 p-3 rounded-2xl bg-slate-950/80 border border-slate-800/80 flex items-center justify-between gap-2">
+              {/* Minimal 1-Line Push Status Bar */}
+              <div className="mt-2.5 px-3 py-2 rounded-xl bg-slate-950/75 border border-slate-800/80 flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
-                  <Radio className={`w-4 h-4 ${pushPermission === 'granted' ? 'text-emerald-400' : 'text-amber-400 animate-pulse'}`} />
-                  <div>
-                    <span className="text-xs font-bold text-slate-200 block">
-                      {pushPermission === 'granted' ? 'پوش نوتیفیکیشن مرورگر فعال است ✓' : 'فعال‌سازی نوتیفیکیشن روی گوشی'}
-                    </span>
-                    <span className="text-[10px] text-slate-400 block">
-                      {pushPermission === 'granted'
-                        ? 'پیام‌های پاداش و صعود رتبه روی دستگاه شما ارسال می‌شوند.'
-                        : 'برای دریافت آنی پیام پاداش رفرال و رتبه، دسترسی را تایید کنید.'}
-                    </span>
-                  </div>
+                  <Radio className={`w-3.5 h-3.5 shrink-0 ${pushPermission === 'granted' ? 'text-emerald-400' : 'text-amber-400'}`} />
+                  <span className="text-[11px] font-bold text-slate-300">
+                    {pushPermission === 'granted' ? 'اعلان گوشی فعال است ✓' : 'اعلان روی گوشی'}
+                  </span>
                 </div>
                 {pushPermission !== 'granted' && (
                   <button
                     type="button"
                     onClick={requestPushPermission}
-                    className="px-2.5 py-1.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold rounded-lg text-xs whitespace-nowrap transition-colors cursor-pointer"
+                    className="px-2.5 py-1 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black rounded-lg text-[10px] transition-colors cursor-pointer"
                   >
                     فعال‌سازی
                   </button>
                 )}
               </div>
 
-              {/* Push Tester */}
-              <div className="mt-3 p-3 rounded-2xl bg-gradient-to-r from-slate-950 to-[#0c162d] border border-sky-500/20 space-y-2">
-                <div className="flex items-center justify-between text-xs font-bold text-sky-400">
-                  <span className="flex items-center gap-1.5">
-                    <Volume2 className="w-3.5 h-3.5" />
-                    <span>آزمایش سناریوهای اعلان (Interactive Tester):</span>
-                  </span>
-                  <span className="text-[10px] text-slate-400 font-mono">Real-Time</span>
-                </div>
-                <div className="grid grid-cols-3 gap-1.5 text-[11px]">
-                  <button
-                    type="button"
-                    onClick={simulateFriendReferral}
-                    className="p-2 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/20 text-center transition-all cursor-pointer font-medium"
-                  >
-                    <span className="block font-bold">پاداش رفرال</span>
-                    <span className="text-[9px] text-emerald-400/80">+۱۰ دوپول</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={simulateRankUp}
-                    className="p-2 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 hover:bg-amber-500/20 text-center transition-all cursor-pointer font-medium"
-                  >
-                    <span className="block font-bold">صعود رتبه</span>
-                    <span className="text-[9px] text-amber-400/80">Rank Up 🏆</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (!user) return;
-                      const newBal = Math.round((user.lockedPoolBalance + 52.0) * 10) / 10;
-                      setUser({ ...user, lockedPoolBalance: newBal, totalKm: user.totalKm + 5.2 });
-                      dispatchPushNotification({
-                        type: 'TOKEN_AWARD',
-                        title: 'پاداش فعالیت دویدن واریز شد! ⚡',
-                        body: 'فعالیت دویدن ۵.۲ کیلومتری شما تایید شد و ۵۲ سکه دوپول به حساب شما اضافه شد.',
-                        poolAmount: 52,
-                      });
-                    }}
-                    className="p-2 rounded-xl bg-sky-500/10 border border-sky-500/30 text-sky-300 hover:bg-sky-500/20 text-center transition-all cursor-pointer font-medium"
-                  >
-                    <span className="block font-bold">پاداش دویدن</span>
-                    <span className="text-[9px] text-sky-400/80">+۵۲ دوپول</span>
-                  </button>
-                </div>
-              </div>
-
-              {/* Notification List */}
-              <div className="mt-3 flex-1 overflow-y-auto space-y-2 pr-0.5">
+              {/* Minimal Notification List */}
+              <div className="mt-2.5 flex-1 overflow-y-auto space-y-2 pr-0.5">
                 {notifications.length === 0 ? (
                   <div className="text-center py-8 text-slate-500 text-xs">
-                    هیچ اعلانی در حال حاضر ثبت نشده است.
+                    اعلانی وجود ندارد.
                   </div>
                 ) : (
                   notifications.map((n) => (
@@ -6366,43 +6267,43 @@ export default function App() {
                       key={n.id}
                       className={`p-3 rounded-2xl border transition-all ${
                         !n.isRead
-                          ? 'bg-slate-900/90 border-emerald-500/30 shadow-md'
-                          : 'bg-slate-950/40 border-slate-800/60'
+                          ? 'bg-slate-900/90 border-emerald-500/30'
+                          : 'bg-slate-950/50 border-slate-800/70'
                       }`}
                     >
                       <div className="flex items-start gap-2.5">
                         <div
-                          className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 mt-0.5 ${
+                          className={`w-7 h-7 rounded-xl flex items-center justify-center shrink-0 mt-0.5 ${
                             n.type === 'REFERRAL_BONUS'
-                              ? 'bg-emerald-500/20 text-emerald-400'
+                              ? 'bg-emerald-500/15 text-emerald-400'
                               : n.type === 'RANK_UP'
-                              ? 'bg-amber-500/20 text-amber-400'
+                              ? 'bg-amber-500/15 text-amber-400'
                               : n.type === 'TOKEN_AWARD'
-                              ? 'bg-sky-500/20 text-sky-400'
-                              : 'bg-purple-500/20 text-purple-400'
+                              ? 'bg-sky-500/15 text-sky-400'
+                              : 'bg-purple-500/15 text-purple-400'
                           }`}
                         >
                           {n.type === 'REFERRAL_BONUS' ? (
-                            <Gift className="w-4 h-4" />
+                            <Gift className="w-3.5 h-3.5" />
                           ) : n.type === 'RANK_UP' ? (
-                            <Trophy className="w-4 h-4" />
+                            <Trophy className="w-3.5 h-3.5" />
                           ) : n.type === 'TOKEN_AWARD' ? (
-                            <Zap className="w-4 h-4" />
+                            <Zap className="w-3.5 h-3.5" />
                           ) : (
-                            <Bell className="w-4 h-4" />
+                            <Bell className="w-3.5 h-3.5" />
                           )}
                         </div>
-                        <div className="flex-1">
-                          <div className="flex items-center justify-between">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between gap-2">
                             <h4 className="text-xs font-bold text-white flex items-center gap-1.5">
                               <span>{n.title}</span>
                               {!n.isRead && (
-                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
                               )}
                             </h4>
-                            <span className="text-[10px] text-slate-500">{n.createdAt}</span>
+                            <span className="text-[10px] text-slate-500 shrink-0">{n.createdAt}</span>
                           </div>
-                          <p className="text-[11px] text-slate-300 mt-1 leading-relaxed">{n.body}</p>
+                          <p className="text-[11px] text-slate-300 mt-0.5 leading-relaxed">{n.body}</p>
                           {n.poolAmount && n.poolAmount > 0 ? (
                             <div className="mt-1.5 inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 font-mono text-[10px] font-bold">
                               <span>+{n.poolAmount} دوپول</span>
@@ -6414,24 +6315,6 @@ export default function App() {
                   ))
                 )}
               </div>
-
-              <div className="pt-3 mt-2 border-t border-slate-800 flex items-center justify-between">
-                <button
-                  type="button"
-                  onClick={markAllNotificationsRead}
-                  className="text-xs text-slate-400 hover:text-white transition-colors cursor-pointer"
-                >
-                  علامت‌گذاری همه به عنوان خوانده‌شده
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowNotifDrawer(false)}
-                  className="px-4 py-1.5 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-xs font-semibold transition-colors cursor-pointer"
-                >
-                  بستن
-                </button>
-              </div>
-
             </div>
           </div>
         )}
@@ -8141,9 +8024,9 @@ export default function App() {
                         />
                       </div>
                       <div className="min-w-0">
-                        <h3 className="text-sm font-black text-white truncate">منوی امکانات دوپول</h3>
-                        <span className="text-[10px] text-slate-400 block truncate">
-                          پروفایل کاربری، تنظیمات و رتبه‌بندی
+                        <h3 className="text-sm font-black text-white">منوی امکانات</h3>
+                        <span className="text-[10px] text-slate-400 block">
+                          پروفایل، تنظیمات و رتبه‌بندی
                         </span>
                       </div>
                     </div>
@@ -8168,8 +8051,8 @@ export default function App() {
                           />
                         </div>
                         <div className="min-w-0">
-                          <h4 className="text-xs font-black text-white truncate">{user.fullName}</h4>
-                          <span className="text-[10px] font-mono text-sky-400 block truncate" dir="ltr">
+                          <h4 className="text-xs font-black text-white">{user.fullName}</h4>
+                          <span className="text-[10px] font-mono text-sky-400 block" dir="ltr">
                             @{user.username}
                           </span>
                         </div>
@@ -8211,10 +8094,10 @@ export default function App() {
                     </div>
                   </div>
 
-                  {/* Primary Requested Items: Smartwatches (اتصال ساعت هوشمند) & Leaderboard (رتبه‌بندی) */}
+                  {/* Primary Menu Items (بدون تاریخچه و گزارش تایید فعالیت و ضرایب) */}
                   <div className="space-y-2">
                     <span className="text-[10px] font-bold text-slate-400 px-1 block">
-                      بخش‌های اصلی منو
+                      بخش‌های منو
                     </span>
 
                     <button
@@ -8229,19 +8112,19 @@ export default function App() {
                           : 'bg-slate-900/80 hover:bg-slate-900 border-slate-800 text-slate-200'
                       }`}
                     >
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className="w-10 h-10 rounded-xl bg-sky-500/15 border border-sky-500/30 text-sky-400 flex items-center justify-center shrink-0">
-                          <Watch className="w-5 h-5" />
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="w-9 h-9 rounded-xl bg-sky-500/15 border border-sky-500/30 text-sky-400 flex items-center justify-center shrink-0">
+                          <Watch className="w-4 h-4" />
                         </div>
                         <div className="min-w-0">
                           <div className="text-xs font-black text-white flex items-center gap-1.5">
-                            <span className="truncate">اتصال به ساعت‌های هوشمند</span>
+                            <span>اتصال ساعت و استراوا</span>
                             <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-sky-500/20 text-sky-300 shrink-0">
                               {Object.values(user.connectedWatches).filter(Boolean).length} متصل
                             </span>
                           </div>
-                          <span className="text-[10px] text-slate-400 block mt-0.5 truncate">
-                            اتصال Strava، گارمین، اپل واچ، شیائومی و سامسونگ
+                          <span className="text-[10px] text-slate-400 block mt-0.5">
+                            استراوا، گارمین، اپل، شیائومی و سامسونگ
                           </span>
                         </div>
                       </div>
@@ -8260,45 +8143,19 @@ export default function App() {
                           : 'bg-slate-900/80 hover:bg-slate-900 border-slate-800 text-slate-200'
                       }`}
                     >
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className="w-10 h-10 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 flex items-center justify-center shrink-0">
-                          <Trophy className="w-5 h-5" />
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="w-9 h-9 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 flex items-center justify-center shrink-0">
+                          <Trophy className="w-4 h-4" />
                         </div>
                         <div className="min-w-0">
                           <div className="text-xs font-black text-white flex items-center gap-1.5">
-                            <span className="truncate">جدول رتبه‌بندی دوندگان</span>
+                            <span>جدول رتبه‌بندی</span>
                             <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 shrink-0">
                               رتبه #{getUserRank(user.totalKm)}
                             </span>
                           </div>
-                          <span className="text-[10px] text-slate-400 block mt-0.5 truncate">
-                            رده‌بندی انفرادی و برترین‌های ایران
-                          </span>
-                        </div>
-                      </div>
-                      <ChevronRight className="w-4 h-4 text-slate-500 rotate-180 shrink-0" />
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setActiveTab('history');
-                        setShowHamburgerMenu(false);
-                      }}
-                      className={`w-full p-3 rounded-2xl border text-right flex items-center justify-between gap-2 transition-all cursor-pointer ${
-                        activeTab === 'history'
-                          ? 'bg-emerald-500/15 border-emerald-500/45 text-white'
-                          : 'bg-slate-900/80 hover:bg-slate-900 border-slate-800 text-slate-200'
-                      }`}
-                    >
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className="w-10 h-10 rounded-xl bg-purple-500/15 border border-purple-500/30 text-purple-400 flex items-center justify-center shrink-0">
-                          <Clock className="w-5 h-5" />
-                        </div>
-                        <div className="min-w-0">
-                          <div className="text-xs font-black text-white truncate">تاریخچه فعالیت‌ها و رسیدها</div>
-                          <span className="text-[10px] text-slate-400 block mt-0.5 truncate">
-                            مشاهده {activities.length} فعالیت ثبت‌شده و ضرایب
+                          <span className="text-[10px] text-slate-400 block mt-0.5">
+                            رده‌بندی دوندگان برتر
                           </span>
                         </div>
                       </div>
@@ -8317,14 +8174,14 @@ export default function App() {
                           : 'bg-slate-900/80 hover:bg-slate-900 border-slate-800 text-slate-200'
                       }`}
                     >
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className="w-10 h-10 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 flex items-center justify-center shrink-0">
-                          <Phone className="w-5 h-5" />
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="w-9 h-9 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 flex items-center justify-center shrink-0">
+                          <Phone className="w-4 h-4" />
                         </div>
                         <div className="min-w-0">
-                          <div className="text-xs font-black text-white truncate">پشتیبانی واتساپ و تماس</div>
-                          <span className="text-[10px] text-slate-400 block mt-0.5 font-mono truncate" dir="ltr">
-                            0915 300 3908 · پاسخگویی سریع
+                          <div className="text-xs font-black text-white">پشتیبانی واتساپ</div>
+                          <span className="text-[10px] text-slate-400 block mt-0.5 font-mono" dir="ltr">
+                            0915 300 3908
                           </span>
                         </div>
                       </div>
@@ -8335,7 +8192,7 @@ export default function App() {
                   {/* Quick Actions inside 3-line menu */}
                   <div className="pt-2 border-t border-slate-800/80 space-y-2">
                     <span className="text-[10px] font-bold text-slate-400 px-1 block">
-                      ابزارهای سریع
+                      ابزار سریع
                     </span>
 
                     <button
@@ -8351,7 +8208,7 @@ export default function App() {
                         <div className="w-8 h-8 rounded-xl bg-amber-500/20 border border-amber-500/35 text-amber-400 flex items-center justify-center shrink-0">
                           <Sparkles className="w-4 h-4" />
                         </div>
-                        <span className="text-xs font-bold text-white truncate">ساخت استوری اینستاگرام</span>
+                        <span className="text-xs font-bold text-white">ساخت استوری ورزشی</span>
                       </div>
                       <ChevronRight className="w-4 h-4 text-amber-400 rotate-180 shrink-0" />
                     </button>
@@ -8379,14 +8236,14 @@ export default function App() {
           )}
         </AnimatePresence>
 
-        {/* Symmetrical 4-Column Bottom App Navigation Bar (داشبورد | اکتیویتی | چالش و پاداش | دعوت) */}
+        {/* Symmetrical 4-Column Bottom App Navigation Bar (داشبورد | اکتیویتی | چالش‌ها | دعوت) */}
         {user && (
-          <nav className="fixed sm:absolute bottom-0 left-0 right-0 max-w-[480px] mx-auto app-header-bar border-t border-slate-800/80 px-2.5 py-1.5 grid grid-cols-4 gap-1 items-center z-40 transition-colors duration-300">
+          <nav className="fixed sm:absolute bottom-0 left-0 right-0 max-w-[480px] mx-auto app-header-bar border-t border-slate-800/80 px-2 py-1.5 grid grid-cols-4 gap-1 items-center z-40 transition-colors duration-300">
             <button
               type="button"
               onClick={() => setActiveTab('home')}
-              className={`flex flex-col items-center justify-center gap-0.5 py-1 rounded-2xl transition-all cursor-pointer ${
-                activeTab === 'home' ? 'text-emerald-400 font-black' : 'text-slate-400 hover:text-white font-medium'
+              className={`flex flex-col items-center justify-center gap-1 py-1 rounded-2xl transition-all cursor-pointer ${
+                activeTab === 'home' ? 'text-emerald-400 font-black' : 'text-slate-400 hover:text-white font-bold'
               }`}
             >
               <div
@@ -8398,14 +8255,14 @@ export default function App() {
               >
                 <Compass className="w-4 h-4 shrink-0" />
               </div>
-              <span className="text-[10px] leading-tight">داشبورد</span>
+              <span className="text-[11px] leading-none whitespace-nowrap">داشبورد</span>
             </button>
 
             <button
               type="button"
               onClick={() => setActiveTab('sync')}
-              className={`flex flex-col items-center justify-center gap-0.5 py-1 rounded-2xl transition-all cursor-pointer ${
-                activeTab === 'sync' ? 'text-emerald-400 font-black' : 'text-slate-400 hover:text-white font-medium'
+              className={`flex flex-col items-center justify-center gap-1 py-1 rounded-2xl transition-all cursor-pointer ${
+                activeTab === 'sync' ? 'text-emerald-400 font-black' : 'text-slate-400 hover:text-white font-bold'
               }`}
             >
               <div
@@ -8417,14 +8274,14 @@ export default function App() {
               >
                 <Activity className="w-4 h-4 shrink-0" />
               </div>
-              <span className="text-[10px] leading-tight">اکتیویتی</span>
+              <span className="text-[11px] leading-none whitespace-nowrap">اکتیویتی</span>
             </button>
 
             <button
               type="button"
               onClick={() => setActiveTab('store')}
-              className={`flex flex-col items-center justify-center gap-0.5 py-1 rounded-2xl transition-all cursor-pointer relative ${
-                activeTab === 'store' ? 'text-amber-400 font-black' : 'text-slate-400 hover:text-white font-medium'
+              className={`flex flex-col items-center justify-center gap-1 py-1 rounded-2xl transition-all cursor-pointer relative ${
+                activeTab === 'store' ? 'text-amber-400 font-black' : 'text-slate-400 hover:text-white font-bold'
               }`}
             >
               <div
@@ -8440,14 +8297,14 @@ export default function App() {
                   <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-amber-400 ring-2 ring-slate-950" />
                 )}
               </div>
-              <span className="text-[10px] leading-tight">چالش و پاداش</span>
+              <span className="text-[11px] leading-none whitespace-nowrap">چالش‌ها</span>
             </button>
 
             <button
               type="button"
               onClick={() => setActiveTab('invite')}
-              className={`flex flex-col items-center justify-center gap-0.5 py-1 rounded-2xl transition-all cursor-pointer ${
-                activeTab === 'invite' ? 'text-emerald-400 font-black' : 'text-slate-400 hover:text-white font-medium'
+              className={`flex flex-col items-center justify-center gap-1 py-1 rounded-2xl transition-all cursor-pointer ${
+                activeTab === 'invite' ? 'text-emerald-400 font-black' : 'text-slate-400 hover:text-white font-bold'
               }`}
             >
               <div
@@ -8459,7 +8316,7 @@ export default function App() {
               >
                 <Users className="w-4 h-4 shrink-0" />
               </div>
-              <span className="text-[10px] leading-tight">دعوت</span>
+              <span className="text-[11px] leading-none whitespace-nowrap">دعوت</span>
             </button>
           </nav>
         )}
