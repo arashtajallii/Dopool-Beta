@@ -68,9 +68,9 @@ export interface FirestoreErrorInfo {
   };
 }
 
-function isOfflineError(error: unknown): boolean {
+function isOfflineOrExpectedError(error: unknown): boolean {
   const msg = error instanceof Error ? error.message : String(error);
-  return /client is offline|unavailable|network-request-failed|could not reach|failed to get document/i.test(
+  return /client is offline|unavailable|network-request-failed|could not reach|failed to get document|deadline-exceeded|permission-denied|unauthenticated|cancelled|quota-exceeded|internal/i.test(
     msg
   );
 }
@@ -79,7 +79,7 @@ export function handleFirestoreError(
   error: unknown,
   operationType: OperationType,
   path: string | null
-): never {
+): void {
   const errInfo: FirestoreErrorInfo = {
     error: error instanceof Error ? error.message : String(error),
     authInfo: {
@@ -97,10 +97,9 @@ export function handleFirestoreError(
     operationType,
     path,
   };
-  if (!isOfflineError(error)) {
-    console.error('Firestore Error: ', JSON.stringify(errInfo));
+  if (!isOfflineOrExpectedError(error)) {
+    console.warn('Firestore Notice: ', JSON.stringify(errInfo));
   }
-  throw new Error(JSON.stringify(errInfo));
 }
 
 
@@ -200,7 +199,7 @@ export async function loadOrCreateCloudUserVault(
       };
     }
   } catch (error) {
-    if (isOfflineError(error)) {
+    if (isOfflineOrExpectedError(error)) {
       return seed;
     }
     handleFirestoreError(error, OperationType.GET, userPath);
@@ -234,7 +233,7 @@ export async function loadOrCreateCloudUserVault(
   try {
     await setDoc(userRef, createPayload);
   } catch (error) {
-    if (!isOfflineError(error)) {
+    if (!isOfflineOrExpectedError(error)) {
       handleFirestoreError(error, OperationType.CREATE, userPath);
     }
   }
@@ -311,7 +310,7 @@ export async function syncCloudUserVaultUpdate(
       updatedAt: serverTimestamp(),
     });
   } catch (error) {
-    if (!isOfflineError(error)) {
+    if (!isOfflineOrExpectedError(error)) {
       handleFirestoreError(error, OperationType.UPDATE, userPath);
     }
   }

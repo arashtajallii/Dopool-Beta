@@ -123,22 +123,16 @@ const StravaWeeklyChart = memo(function StravaWeeklyChart({
   );
 
   return (
-    <div className="glass-panel rounded-3xl p-4 border border-[#fc4c02]/25 bg-gradient-to-b from-slate-900/95 via-[#111626] to-slate-950/95 shadow-[0_8px_30px_-8px_rgba(252,76,2,0.18)] space-y-3.5 relative overflow-hidden">
-      {/* Subtle Ambient Strava Orange Glow */}
-      <div className="absolute -top-12 -left-12 w-36 h-36 rounded-full bg-[#fc4c02]/10 blur-2xl pointer-events-none" />
-
-      {/* Header */}
+    <div className="glass-panel rounded-3xl p-4 border border-[#fc4c02]/25 bg-gradient-to-b from-slate-900/95 via-[#111626] to-slate-950/95 shadow-[0_8px_24px_-8px_rgba(252,76,2,0.16)] space-y-3.5 relative overflow-hidden">
+      {/* Header (بدون نام استراوا) */}
       <div className="relative z-10 flex items-center justify-between gap-2">
         <div className="flex items-center gap-2.5 min-w-0">
-          <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#fc4c02]/25 to-amber-500/15 border border-[#fc4c02]/45 text-[#fc4c02] flex items-center justify-center shrink-0 shadow-sm shadow-[#fc4c02]/20">
+          <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#fc4c02]/25 to-amber-500/15 border border-[#fc4c02]/45 text-[#fc4c02] flex items-center justify-center shrink-0">
             <TrendingUp className="w-4 h-4" />
           </div>
           <div className="min-w-0">
             <h3 className="text-xs font-black text-white flex items-center gap-1.5">
               <span>{isEn ? 'Weekly Running Chart' : 'نمودار هفتگی دویدن'}</span>
-              <span className="px-1.5 py-0.2 rounded bg-[#fc4c02]/20 text-[#ff6b2b] text-[9px] font-mono font-extrabold uppercase tracking-wider">
-                STRAVA
-              </span>
             </h3>
             <span className="text-[10px] text-slate-400 block mt-0.5">
               @{username} · <strong className="text-slate-200">{activeWeek.label}</strong>
@@ -154,8 +148,8 @@ const StravaWeeklyChart = memo(function StravaWeeklyChart({
         </span>
       </div>
 
-      {/* Selected Week 3-Column Strava Telemetry Strip */}
-      <div className="relative z-10 grid grid-cols-3 gap-2 p-2.5 rounded-2xl bg-slate-950/85 border border-slate-800/90 text-center shadow-inner">
+      {/* Selected Week 3-Column Telemetry Strip */}
+      <div className="relative z-10 grid grid-cols-3 gap-2 p-2.5 rounded-2xl bg-slate-950/85 border border-slate-800/90 text-center">
         <div>
           <span className="text-[10px] text-slate-400 block">
             {isEn ? 'Weekly Distance' : 'مسافت هفته'}
@@ -182,29 +176,26 @@ const StravaWeeklyChart = memo(function StravaWeeklyChart({
         </div>
       </div>
 
-      {/* Interactive SVG Strava Line & Glowing Area Chart */}
+      {/* Interactive SVG Line & Area Chart (GPU-optimized vector glow without feDropShadow filter lag) */}
       <div className="relative z-10 pt-2">
         <svg
           viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT + 20}`}
           className="w-full h-32 overflow-visible select-none"
         >
           <defs>
-            <linearGradient id="stravaAreaGrad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#fc4c02" stopOpacity="0.48" />
+            <linearGradient id="weeklyAreaGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#fc4c02" stopOpacity="0.46" />
               <stop offset="65%" stopColor="#fc4c02" stopOpacity="0.14" />
               <stop offset="100%" stopColor="#fc4c02" stopOpacity="0.0" />
             </linearGradient>
-            <linearGradient id="stravaStrokeGrad" x1="0" y1="0" x2="1" y2="0">
+            <linearGradient id="weeklyStrokeGrad" x1="0" y1="0" x2="1" y2="0">
               <stop offset="0%" stopColor="#fb923c" />
               <stop offset="50%" stopColor="#fc4c02" />
               <stop offset="100%" stopColor="#ff5500" />
             </linearGradient>
-            <filter id="stravaLineGlow" x="-15%" y="-25%" width="130%" height="150%">
-              <feDropShadow dx="0" dy="3" stdDeviation="3.5" floodColor="#fc4c02" floodOpacity="0.45" />
-            </filter>
           </defs>
 
-          {/* Horizontal Dashed Strava Reference Lines */}
+          {/* Horizontal Dashed Reference Lines */}
           {GUIDE_RATIOS.map((ratio, idx) => (
             <line
               key={`h-${idx}`}
@@ -218,7 +209,7 @@ const StravaWeeklyChart = memo(function StravaWeeklyChart({
             />
           ))}
 
-          {/* Subtle Vertical Week Tick Lines (Strava signature weekly columns) */}
+          {/* Subtle Vertical Week Tick Lines */}
           {points.map((pt) => (
             <line
               key={`v-${pt.idx}`}
@@ -247,17 +238,26 @@ const StravaWeeklyChart = memo(function StravaWeeklyChart({
           />
 
           {/* Area Fill Under Curve */}
-          <path d={areaPath} fill="url(#stravaAreaGrad)" />
+          <path d={areaPath} fill="url(#weeklyAreaGrad)" />
 
-          {/* Glowing Strava Progress Polyline */}
+          {/* Lightweight Vector Outer Glow Stroke */}
           <polyline
             fill="none"
-            stroke="url(#stravaStrokeGrad)"
+            stroke="rgba(252, 76, 2, 0.24)"
+            strokeWidth="7"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            points={polylinePoints}
+          />
+
+          {/* Primary Progress Polyline */}
+          <polyline
+            fill="none"
+            stroke="url(#weeklyStrokeGrad)"
             strokeWidth="3"
             strokeLinecap="round"
             strokeLinejoin="round"
             points={polylinePoints}
-            filter="url(#stravaLineGlow)"
           />
 
           {/* Interactive Week Nodes & Floating Active Callout */}

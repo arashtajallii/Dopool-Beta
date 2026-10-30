@@ -399,6 +399,97 @@ interface UserProfile {
   watchAuthDetails?: Record<string, WatchAuthInfo>;
 }
 
+const VALID_APP_TABS = [
+  'home',
+  'sync',
+  'watches',
+  'invite',
+  'crews',
+  'leaderboard',
+  'store',
+  'history',
+  'support',
+  'code',
+  'profile',
+  'settings',
+] as const;
+
+type AppTabType = (typeof VALID_APP_TABS)[number];
+
+function sanitizeUserProfile(raw: any): UserProfile | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const username =
+    typeof raw.username === 'string' && raw.username.trim()
+      ? raw.username.trim()
+      : 'sohrab_run';
+  const fullName =
+    typeof raw.fullName === 'string' && raw.fullName.trim()
+      ? raw.fullName.trim()
+      : 'سهراب مرادی';
+  const cw = raw.connectedWatches && typeof raw.connectedWatches === 'object' ? raw.connectedWatches : {};
+  const fm = raw.firstTimeMilestones && typeof raw.firstTimeMilestones === 'object' ? raw.firstTimeMilestones : {};
+
+  const toFinite = (val: any, fallback: number) => {
+    const n = Number(val);
+    return Number.isFinite(n) ? n : fallback;
+  };
+
+  return {
+    id: toFinite(raw.id, 1),
+    fullName,
+    phone: typeof raw.phone === 'string' && raw.phone.trim() ? raw.phone.trim() : '09121234567',
+    email:
+      typeof raw.email === 'string' && raw.email.trim()
+        ? raw.email.trim()
+        : `${username.toLowerCase()}@dopool.ir`,
+    avatarUrl:
+      typeof raw.avatarUrl === 'string' && raw.avatarUrl.trim()
+        ? raw.avatarUrl
+        : getDefaultPresetAvatar(username).dataUrl,
+    phoneVerified: Boolean(raw.phoneVerified ?? true),
+    emailVerified: Boolean(raw.emailVerified ?? true),
+    username,
+    referralCode:
+      typeof raw.referralCode === 'string' && raw.referralCode.trim()
+        ? raw.referralCode.trim()
+        : 'DP-8834',
+    lockedPoolBalance: Math.max(0, toFinite(raw.lockedPoolBalance, 125.0)),
+    totalKm: Math.max(0, toFinite(raw.totalKm, 12.5)),
+    invitedFriendsCount: Math.max(0, Math.floor(toFinite(raw.invitedFriendsCount, 3))),
+    invitedBy: typeof raw.invitedBy === 'string' ? raw.invitedBy : undefined,
+    dailyEnergyMax: Math.max(1, toFinite(raw.dailyEnergyMax, 20.0)),
+    dailyEnergyCurrent: Math.max(0, toFinite(raw.dailyEnergyCurrent, 16.0)),
+    crewId: toFinite(raw.crewId, 1),
+    crewName:
+      typeof raw.crewName === 'string' && raw.crewName.trim()
+        ? raw.crewName
+        : 'باشگاه انقلاب تهران (Enghelab Crew)',
+    crewBadge: typeof raw.crewBadge === 'string' && raw.crewBadge.trim() ? raw.crewBadge : '🔥',
+    streakDays: Math.max(1, Math.floor(toFinite(raw.streakDays, 4))),
+    battleWins: Math.max(0, Math.floor(toFinite(raw.battleWins, 1))),
+    battleLosses: Math.max(0, Math.floor(toFinite(raw.battleLosses, 1))),
+    battleRating: Math.max(100, Math.floor(toFinite(raw.battleRating, 1240))),
+    lastDailyCheckIn: typeof raw.lastDailyCheckIn === 'string' ? raw.lastDailyCheckIn : undefined,
+    firstTimeMilestones: {
+      firstLogin: Boolean(fm.firstLogin),
+      firstActivity: Boolean(fm.firstActivity),
+      firstInvite: Boolean(fm.firstInvite),
+    },
+    connectedWatches: {
+      strava: Boolean(cw.strava ?? true),
+      garmin: Boolean(cw.garmin ?? true),
+      coros: Boolean(cw.coros ?? false),
+      appleHealth: Boolean(cw.appleHealth ?? false),
+      xiaomi: Boolean(cw.xiaomi ?? false),
+      samsung: Boolean(cw.samsung ?? false),
+    },
+    watchAuthDetails:
+      raw.watchAuthDetails && typeof raw.watchAuthDetails === 'object'
+        ? raw.watchAuthDetails
+        : undefined,
+  };
+}
+
 export interface WelcomeEmailData {
   id: string;
   recipientEmail: string;
@@ -940,8 +1031,19 @@ export default function App() {
     return () => clearTimeout(timer);
   }, [showSplash]);
 
-  // Authentication State
-  const [user, setUser] = useState<UserProfile | null>(null);
+  // Authentication State (Restores active session so the app never resets to login mid-run)
+  const [user, setUser] = useState<UserProfile | null>(() => {
+    try {
+      const sessionRaw = localStorage.getItem('dopool_user_session');
+      if (sessionRaw) {
+        const sanitized = sanitizeUserProfile(JSON.parse(sessionRaw));
+        if (sanitized) return sanitized;
+      }
+    } catch {
+      // Ignore malformed session JSON
+    }
+    return null;
+  });
   const [cloudUid, setCloudUid] = useState<string | null>(null);
   const [isCloudSyncing, setIsCloudSyncing] = useState<boolean>(false);
 
@@ -990,7 +1092,17 @@ export default function App() {
   const [showIOSInstallGuide, setShowIOSInstallGuide] = useState(false);
 
   // Active Tab: 'home' | 'sync' | 'watches' | 'invite' | 'crews' | 'leaderboard' | 'store' | 'history' | 'support' | 'code' | 'profile' | 'settings'
-  const [activeTab, setActiveTab] = useState<'home' | 'sync' | 'watches' | 'invite' | 'crews' | 'leaderboard' | 'store' | 'history' | 'support' | 'code' | 'profile' | 'settings'>('home');
+  const [activeTab, setActiveTab] = useState<AppTabType>(() => {
+    try {
+      const savedTab = sessionStorage.getItem('dopool_active_tab') as AppTabType | null;
+      if (savedTab && (VALID_APP_TABS as readonly string[]).includes(savedTab)) {
+        return savedTab;
+      }
+    } catch {
+      // Ignore storage errors
+    }
+    return 'home';
+  });
   const [showHamburgerMenu, setShowHamburgerMenu] = useState(false);
   const [logoutSecondConfirm, setLogoutSecondConfirm] = useState(false);
 
@@ -1375,20 +1487,45 @@ export default function App() {
 
   const appRootRef = useRef<HTMLDivElement>(null);
   const origTextMapRef = useRef<WeakMap<Node, string>>(new WeakMap());
+  const hasAppliedEnglishRef = useRef<boolean>(false);
+
+  useEffect(() => {
+    try {
+      sessionStorage.setItem('dopool_active_tab', activeTab);
+    } catch {
+      // Ignore storage errors
+    }
+  }, [activeTab]);
 
   useEffect(() => {
     document.documentElement.setAttribute('lang', appLanguage);
     document.documentElement.setAttribute('dir', appLanguage === 'en' ? 'ltr' : 'rtl');
-    localStorage.setItem('dopool_app_lang', appLanguage);
+    try {
+      localStorage.setItem('dopool_app_lang', appLanguage);
+    } catch {
+      // Ignore quota errors
+    }
+
+    // Fast path: if default Persian and English was never applied, skip full DOM TreeWalker scan
+    if (appLanguage === 'fa' && !hasAppliedEnglishRef.current) {
+      return;
+    }
+    if (appLanguage === 'en') {
+      hasAppliedEnglishRef.current = true;
+    }
 
     const root = appRootRef.current;
     if (!root) return;
 
     let isApplying = false;
+    let rafId: number | null = null;
+    let observer: MutationObserver | null = null;
 
     const applyTranslationToTree = (container: HTMLElement) => {
       if (isApplying) return;
       isApplying = true;
+      // Disconnect observer before mutating DOM to prevent self-triggering infinite RAF loops
+      if (observer) observer.disconnect();
       try {
         const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT);
         let currentNode = walker.nextNode();
@@ -1437,24 +1574,35 @@ export default function App() {
             if (origTi) el.setAttribute('title', origTi);
           }
         });
+      } catch {
+        // Ignore transient DOM traversal errors during React unmount/remount
       } finally {
         isApplying = false;
+        if (observer && appLanguage === 'en' && container.isConnected) {
+          observer.observe(container, {
+            childList: true,
+            subtree: true,
+          });
+        }
       }
     };
 
+    if (appLanguage === 'en') {
+      observer = new MutationObserver(() => {
+        if (isApplying || rafId !== null) return;
+        rafId = window.requestAnimationFrame(() => {
+          rafId = null;
+          applyTranslationToTree(root);
+        });
+      });
+    }
+
     applyTranslationToTree(root);
 
-    if (appLanguage === 'en') {
-      const observer = new MutationObserver(() => {
-        applyTranslationToTree(root);
-      });
-      observer.observe(root, {
-        childList: true,
-        subtree: true,
-        characterData: true,
-      });
-      return () => observer.disconnect();
-    }
+    return () => {
+      if (rafId !== null) window.cancelAnimationFrame(rafId);
+      if (observer) observer.disconnect();
+    };
   }, [appLanguage]);
 
   const [pushPermission, setPushPermission] = useState<string>(() => {
@@ -1579,7 +1727,7 @@ export default function App() {
         ctx.clip();
 
         if (showCardBg) {
-          ctx.strokeStyle = 'rgba(148, 163, 184, 0.08)';
+          ctx.strokeStyle = 'rgba(148, 163, 184, 0.07)';
           ctx.lineWidth = 1;
           const stepX = mapW / 6;
           const stepY = mapH / 4;
@@ -1595,20 +1743,10 @@ export default function App() {
             ctx.lineTo(mapX + mapW, gy);
             ctx.stroke();
           }
-
-          ctx.fillStyle = 'rgba(226, 232, 240, 0.9)';
-          ctx.font = 'bold 21px sans-serif';
-          ctx.textAlign = 'right';
-          ctx.fillText(`📍 ${route.routeNameFa}`, mapX + mapW - 28, mapY + 42);
-
-          ctx.fillStyle = 'rgba(56, 189, 248, 0.85)';
-          ctx.font = 'bold 18px monospace';
-          ctx.textAlign = 'left';
-          ctx.fillText(route.coordsText, mapX + 28, mapY + 42);
         }
 
-        const innerPadX = 58;
-        const innerPadY = showCardBg ? 64 : 26;
+        const innerPadX = 64;
+        const innerPadY = 52;
         const drawW = mapW - innerPadX * 2;
         const drawH = mapH - innerPadY * 2;
 
@@ -1625,7 +1763,7 @@ export default function App() {
         });
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
-        ctx.lineWidth = 22;
+        ctx.lineWidth = 24;
         ctx.strokeStyle = 'rgba(251, 191, 36, 0.22)';
         ctx.stroke();
 
@@ -1635,52 +1773,34 @@ export default function App() {
           if (idx === 0) ctx.moveTo(p.x, p.y);
           else ctx.lineTo(p.x, p.y);
         });
-        ctx.lineWidth = 10;
+        ctx.lineWidth = 11;
         const routeGrad = ctx.createLinearGradient(mapX, mapY, mapX + mapW, mapY + mapH);
         routeGrad.addColorStop(0, '#10b981');
         routeGrad.addColorStop(0.5, '#fbbf24');
         routeGrad.addColorStop(1, '#f43f5e');
         ctx.strokeStyle = routeGrad;
         ctx.shadowColor = 'rgba(251, 191, 36, 0.78)';
-        ctx.shadowBlur = 22;
+        ctx.shadowBlur = 24;
         ctx.stroke();
         ctx.shadowBlur = 0;
-
-        // Draw KM Split Markers along the GPS track
-        route.splits.slice(0, 5).forEach((sp) => {
-          const sx = mapX + innerPadX + sp.normX * drawW;
-          const sy = mapY + innerPadY + sp.normY * drawH;
-          ctx.beginPath();
-          ctx.arc(sx, sy, 13, 0, Math.PI * 2);
-          ctx.fillStyle = '#090e1c';
-          ctx.fill();
-          ctx.lineWidth = 2.5;
-          ctx.strokeStyle = '#fbbf24';
-          ctx.stroke();
-
-          ctx.fillStyle = '#fde68a';
-          ctx.font = '900 13px monospace';
-          ctx.textAlign = 'center';
-          ctx.fillText(`${sp.km}`, sx, sy + 4.5);
-        });
 
         // Start Point Pin (Green) & Finish Point Pin (Gold)
         const sPt = canvasPts[0];
         const ePt = canvasPts[canvasPts.length - 1];
         if (sPt && ePt) {
           ctx.beginPath();
-          ctx.arc(sPt.x, sPt.y, 11, 0, Math.PI * 2);
+          ctx.arc(sPt.x, sPt.y, 12, 0, Math.PI * 2);
           ctx.fillStyle = '#10b981';
           ctx.fill();
-          ctx.lineWidth = 3;
+          ctx.lineWidth = 3.5;
           ctx.strokeStyle = '#ffffff';
           ctx.stroke();
 
           ctx.beginPath();
-          ctx.arc(ePt.x, ePt.y, 12, 0, Math.PI * 2);
+          ctx.arc(ePt.x, ePt.y, 13, 0, Math.PI * 2);
           ctx.fillStyle = '#f59e0b';
           ctx.fill();
-          ctx.lineWidth = 3;
+          ctx.lineWidth = 3.5;
           ctx.strokeStyle = '#ffffff';
           ctx.stroke();
         }
@@ -1691,7 +1811,6 @@ export default function App() {
 
       // 1. Background Layer based on selected Aura Model
       if (isPureTransparentSticker) {
-        // Leave canvas 100% transparent so the user gets a true transparent PNG overlay sticker!
         ctx.clearRect(0, 0, W, H);
       } else if (storyTheme === 'transparent' && storyCustomPhoto) {
         try {
@@ -1721,7 +1840,6 @@ export default function App() {
           bgGrad.addColorStop(0.5, '#0f172a');
           bgGrad.addColorStop(1, '#070b14');
         } else {
-          // 'poster' (Aura Magazine)
           bgGrad.addColorStop(0, '#130926');
           bgGrad.addColorStop(0.5, '#0b132b');
           bgGrad.addColorStop(1, '#050814');
@@ -1729,10 +1847,10 @@ export default function App() {
         ctx.fillStyle = bgGrad;
         ctx.fillRect(0, 0, W, H);
 
-        const radGrad = ctx.createRadialGradient(W / 2, H * 0.36, 40, W / 2, H * 0.36, 650);
+        const radGrad = ctx.createRadialGradient(W / 2, H * 0.42, 40, W / 2, H * 0.42, 650);
         const glowColor =
           storyTheme === 'gold'
-            ? 'rgba(245, 158, 11, 0.25)'
+            ? 'rgba(245, 158, 11, 0.24)'
             : storyTheme === 'poster'
             ? 'rgba(168, 85, 247, 0.24)'
             : 'rgba(56, 189, 248, 0.22)';
@@ -1742,118 +1860,82 @@ export default function App() {
         ctx.fillRect(0, 0, W, H);
       }
 
-      // Giant Watermark Distance in Aura Magazine Mode
-      if (storyTheme === 'poster') {
-        ctx.save();
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.04)';
-        ctx.font = '900 390px monospace';
-        ctx.textAlign = 'center';
-        ctx.fillText(`${act.distanceKm.toFixed(1)}`, W / 2, 820);
-        ctx.restore();
-      }
-
-      // 2. Draw Official Transparent Winged Coin Logo at Top
+      // 2. Top: Official Winged Coin Dopool Logo ONLY
       try {
         const logoImg = await loadImg(DOPOOL_LOGO_DARK_URL);
-        const logoW = 350;
+        const logoW = 340;
         const logoH = (logoImg.height / logoImg.width) * logoW;
-        ctx.drawImage(logoImg, (W - logoW) / 2, 64, logoW, logoH);
+        ctx.drawImage(logoImg, (W - logoW) / 2, 110, logoW, logoH);
       } catch {
         ctx.fillStyle = '#fbbf24';
         ctx.font = '900 52px sans-serif';
         ctx.textAlign = 'center';
-        ctx.fillText('DOPOOL | دوپول', W / 2, 135);
+        ctx.fillText('DOPOOL', W / 2, 180);
       }
 
-      // 3. Draw Activity Pace Heatmap GPS Route Map & Core Aura Story Layout (9:16 · 1080x1920)
+      // 3. Center: Activity GPS Route Map
       const isMinimalOrTransparent = storyTheme === 'strava' || storyTheme === 'transparent';
-      drawCanvasHeatmapRoute(80, 330, 920, 440, !isMinimalOrTransparent);
+      drawCanvasHeatmapRoute(100, 420, 880, 540, !isMinimalOrTransparent);
 
+      // 4. Hero Distance (مسافت)
       ctx.save();
       ctx.shadowColor = 'rgba(0, 0, 0, 0.75)';
       ctx.shadowBlur = 18;
+      ctx.direction = 'ltr';
       ctx.fillStyle = '#ffffff';
-      ctx.font = '900 150px monospace';
+      ctx.font = '900 156px monospace';
       ctx.textAlign = 'center';
-      ctx.fillText(`${act.distanceKm.toFixed(2)}`, W / 2, 925);
+      ctx.fillText(`${act.distanceKm.toFixed(2)}`, W / 2, 1155);
 
+      ctx.direction = 'rtl';
       ctx.fillStyle = storyTheme === 'gold' ? '#fbbf24' : '#34d399';
-      ctx.font = '900 36px sans-serif';
-      ctx.fillText('KILOMETERS · کیلومتر دویدن', W / 2, 985);
-
-      ctx.fillStyle = '#e2e8f0';
-      ctx.font = 'bold 30px sans-serif';
-      ctx.fillText(`${b.title} · ${route.routeNameFa}`, W / 2, 1045);
+      ctx.font = '900 36px Vazirmatn, sans-serif';
+      ctx.fillText('مسافت (KM)', W / 2, 1220);
       ctx.restore();
 
-      const metrics = [
-        { label: 'پیس (PACE)', val: b.formattedPace },
-        { label: 'زمان (TIME)', val: b.formattedTime },
-        { label: 'کالری (KCAL)', val: `${caloriesBurned}` },
-        { label: 'ضربان (BPM)', val: `${act.avgHeartRate}` },
+      // 5. Minimal 2-Column Stats: Pace (پیس) & Elevation (الویشن)
+      const statCards = [
+        { label: 'پیس (PACE)', val: `${b.formattedPace} /km`, color: '#38bdf8' },
+        { label: 'الویشن (ELEV)', val: `+${b.elevGainMeters} m`, color: '#fbbf24' },
       ];
-      const boxW = 215;
-      const gap = 20;
-      const startX = (W - (boxW * 4 + gap * 3)) / 2;
-      metrics.forEach((m, idx) => {
-        const x = startX + idx * (boxW + gap);
-        const y = 1115;
-        roundRect(x, y, boxW, 150, 28);
-        ctx.fillStyle = isPureTransparentSticker ? 'rgba(9, 14, 28, 0.55)' : 'rgba(15, 23, 42, 0.84)';
+      const cardW = 420;
+      const cardGap = 40;
+      const startX = (W - (cardW * 2 + cardGap)) / 2;
+      statCards.forEach((st, idx) => {
+        const x = startX + idx * (cardW + cardGap);
+        const y = 1300;
+        roundRect(x, y, cardW, 195, 36);
+        ctx.fillStyle = isPureTransparentSticker ? 'rgba(9, 14, 28, 0.58)' : 'rgba(15, 23, 42, 0.82)';
         ctx.fill();
-        ctx.lineWidth = 2;
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.22)';
+        ctx.lineWidth = 2.5;
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.16)';
         ctx.stroke();
 
-        ctx.fillStyle = '#cbd5e1';
-        ctx.font = 'bold 22px sans-serif';
+        ctx.direction = 'rtl';
+        ctx.fillStyle = '#94a3b8';
+        ctx.font = 'bold 28px Vazirmatn, sans-serif';
         ctx.textAlign = 'center';
-        ctx.fillText(m.label, x + boxW / 2, y + 52);
+        ctx.fillText(st.label, x + cardW / 2, y + 68);
 
-        ctx.fillStyle = '#ffffff';
-        ctx.font = '900 32px monospace';
-        ctx.fillText(m.val, x + boxW / 2, y + 112);
+        ctx.direction = 'ltr';
+        ctx.fillStyle = st.color;
+        ctx.font = '900 48px monospace';
+        ctx.fillText(st.val, x + cardW / 2, y + 145);
       });
 
-      roundRect(80, 1310, 920, 250, 42);
-      const cardGrad = ctx.createLinearGradient(80, 1310, 1000, 1560);
-      cardGrad.addColorStop(0, 'rgba(245, 158, 11, 0.28)');
-      cardGrad.addColorStop(0.5, isPureTransparentSticker ? 'rgba(9, 14, 28, 0.65)' : 'rgba(15, 23, 42, 0.94)');
-      cardGrad.addColorStop(1, 'rgba(16, 185, 129, 0.28)');
-      ctx.fillStyle = cardGrad;
+      // 6. Bottom: Website Address dopool.ir ONLY
+      roundRect(330, 1620, 420, 96, 48);
+      ctx.fillStyle = isPureTransparentSticker ? 'rgba(9, 14, 28, 0.65)' : 'rgba(15, 23, 42, 0.9)';
       ctx.fill();
-      ctx.lineWidth = 3;
-      ctx.strokeStyle = 'rgba(251, 191, 36, 0.7)';
+      ctx.lineWidth = 2.5;
+      ctx.strokeStyle = 'rgba(251, 191, 36, 0.55)';
       ctx.stroke();
 
-      ctx.fillStyle = '#fde68a';
-      ctx.font = 'bold 28px sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText('پاداش ثبت این فعالیت در دوپول', W / 2, 1370);
-
+      ctx.direction = 'ltr';
       ctx.fillStyle = '#fbbf24';
-      ctx.font = '900 84px sans-serif';
-      ctx.fillText(`+${b.earnedCoins} دوپول`, W / 2, 1470);
-
-      ctx.fillStyle = '#34d399';
-      ctx.font = 'bold 30px sans-serif';
-      ctx.fillText(`مسافت: ${act.distanceKm.toFixed(2)} km · الویشن: +${b.elevGainMeters} m`, W / 2, 1532);
-
-      roundRect(80, 1600, 920, 210, 38);
-      ctx.fillStyle = isPureTransparentSticker ? 'rgba(9, 14, 28, 0.65)' : 'rgba(9, 14, 28, 0.92)';
-      ctx.fill();
-      ctx.lineWidth = 2;
-      ctx.strokeStyle = 'rgba(52, 211, 153, 0.45)';
-      ctx.stroke();
-
-      ctx.fillStyle = '#ffffff';
-      ctx.font = 'bold 32px sans-serif';
+      ctx.font = '900 40px monospace';
       ctx.textAlign = 'center';
-      ctx.fillText(activeHook, W / 2, 1675);
-
-      ctx.fillStyle = '#fbbf24';
-      ctx.font = '900 34px monospace';
-      ctx.fillText(`🎁 ۱۰ سکه هدیه شروع با کد دعوت: ${refCode}`, W / 2, 1755);
+      ctx.fillText('dopool.ir', W / 2, 1682);
 
       const blob: Blob | null = await new Promise((res) => canvas.toBlob(res, 'image/png', 0.95));
       if (!blob) throw new Error('Blob creation failed');
@@ -1863,13 +1945,13 @@ export default function App() {
         const file = new File([blob], fileName, { type: 'image/png' });
         if (navigator.canShare({ files: [file] })) {
           await navigator.share({
-            title: 'رکورد دویدن من در دوپول',
-            text: `${activeHook} — کد دعوت من برای ۱۰ سکه هدیه: ${refCode}`,
+            title: 'رکورد دویدن من در دوپول | dopool.ir',
+            text: `رکورد دویدن من: ${act.distanceKm.toFixed(2)} کیلومتر · dopool.ir`,
             files: [file],
           });
           triggerToast(
             'آماده انتشار در استوری! 🚀',
-            'تصویر استوری (9:16) با نقشه هیت‌مپ مسیر به منوی اشتراک‌گذاری ارسال شد.',
+            'تصویر استوری (9:16) به منوی اشتراک‌گذاری ارسال شد.',
             'success'
           );
           setIsExportingStory(false);
@@ -1889,7 +1971,7 @@ export default function App() {
         isPureTransparentSticker ? 'استیکر شفاف PNG دانلود شد! 🔲' : 'تصویر استوری دانلود شد! 📸',
         isPureTransparentSticker
           ? 'فایل PNG بدون پس‌زمینه آماده قرارگیری روی هر عکسی در گالری یا اینستاگرام است.'
-          : 'کارت استوری (1080×1920) با نقشه هیت‌مپ ذخیره شد.',
+          : 'کارت استوری (1080×1920) با موفقیت ذخیره شد.',
         'success'
       );
     } catch {
@@ -1899,17 +1981,70 @@ export default function App() {
     }
   };
 
-  // Helper to deduplicate activities by filename or identical workout telemetry signature
+  // Detect mentioned or tagged activities (جلوگیری از ثبت اکتیویتی منشن شده یا تگ شده)
+  const isMentionedOrTaggedActivity = (
+    title?: string,
+    filename?: string,
+    source?: string,
+    flagged?: boolean
+  ): boolean => {
+    if (flagged) return true;
+    const combined = `${title || ''} ${filename || ''} ${source || ''}`.toLowerCase();
+    return (
+      combined.includes('mention') ||
+      combined.includes('tagged') ||
+      combined.includes('tag_') ||
+      combined.includes('shared_tag') ||
+      combined.includes('with @') ||
+      combined.includes('منشن') ||
+      combined.includes('تگ شده') ||
+      combined.includes('تگ‌') ||
+      combined.includes('مشترک با')
+    );
+  };
+
+  // Helper to deduplicate and sanitize activities and strip mentioned/tagged workouts
   const deduplicateActivitiesList = (list: RunActivity[]): RunActivity[] => {
+    const seenIds = new Set<string>();
     const seenFiles = new Set<string>();
     const seenTelemetry = new Set<string>();
     const result: RunActivity[] = [];
-    for (const item of list) {
-      const normFile = (item.filename || '').trim().toLowerCase();
-      const telemetryKey = `${Number(item.distanceKm).toFixed(2)}_${item.elapsedSeconds}_${item.avgHeartRate}`;
-      if ((normFile && seenFiles.has(normFile)) || seenTelemetry.has(telemetryKey)) {
+    for (const rawItem of list) {
+      if (!rawItem || typeof rawItem !== 'object') continue;
+      const distanceKm = Number.isFinite(Number(rawItem.distanceKm)) ? Math.max(0.1, Number(rawItem.distanceKm)) : 5.0;
+      const elapsedSeconds = Number.isFinite(Number(rawItem.elapsedSeconds)) ? Math.max(30, Number(rawItem.elapsedSeconds)) : 1500;
+      const avgHeartRate = Number.isFinite(Number(rawItem.avgHeartRate)) ? Math.max(60, Number(rawItem.avgHeartRate)) : 145;
+      const paceMinPerKm = Number.isFinite(Number(rawItem.paceMinPerKm)) && Number(rawItem.paceMinPerKm) > 0
+        ? Number(rawItem.paceMinPerKm)
+        : elapsedSeconds / 60 / distanceKm;
+      const poolReward = Number.isFinite(Number(rawItem.poolReward)) ? Math.max(0, Number(rawItem.poolReward)) : 0;
+      const item: RunActivity = {
+        ...rawItem,
+        id: typeof rawItem.id === 'string' && rawItem.id.trim() ? rawItem.id.trim() : `act-${Date.now()}-${result.length}`,
+        filename: typeof rawItem.filename === 'string' && rawItem.filename.trim() ? rawItem.filename.trim() : 'Workout.fit',
+        distanceKm,
+        elapsedSeconds,
+        avgHeartRate,
+        paceMinPerKm,
+        poolReward,
+        status: rawItem.status === 'REJECTED' ? 'REJECTED' : 'ACCEPTED',
+        createdAt: typeof rawItem.createdAt === 'string' ? rawItem.createdAt : 'امروز',
+        source: typeof rawItem.source === 'string' ? rawItem.source : 'Smartwatch',
+      };
+      if (isMentionedOrTaggedActivity(item.title, item.filename, item.source)) {
         continue;
       }
+      const normId = item.id.toLowerCase();
+      const normFile = item.filename.toLowerCase();
+      const telemetryKey = `${item.distanceKm.toFixed(2)}_${item.elapsedSeconds}_${item.avgHeartRate}`;
+      if (
+        (normId && seenIds.has(normId)) ||
+        (normFile && seenFiles.has(normFile)) ||
+        seenTelemetry.has(telemetryKey)
+      ) {
+        continue;
+      }
+      if (normId) seenIds.add(normId);
       if (normFile) seenFiles.add(normFile);
       seenTelemetry.add(telemetryKey);
       result.push(item);
@@ -2079,10 +2214,14 @@ export default function App() {
   const topWalletRef = useRef<HTMLDivElement>(null);
   const heroWalletRef = useRef<HTMLDivElement>(null);
 
-  // Flying Coins Reward Animation State
+  // Flying Coins & Gentle Wallet Glow Animation State
   const [flyingCoins, setFlyingCoins] = useState<CoinParticle[]>([]);
   const [walletPulse, setWalletPulse] = useState(false);
+  const [lastWalletGain, setLastWalletGain] = useState<number | null>(null);
   const [recentRewardGain, setRecentRewardGain] = useState<{ amount: number; id: number } | null>(null);
+  const walletGlowTimerRef = useRef<number | null>(null);
+  const prevBalanceTrackerRef = useRef<{ userId: number; balance: number } | null>(null);
+  const pendingHomeGlowAmountRef = useRef<number | null>(null);
 
   // PvP Battles & Staking Arena State (Option 4)
   const [battles, setBattles] = useState<PvPBattle[]>(() => {
@@ -2178,39 +2317,40 @@ export default function App() {
   const [missionsSubTab, setMissionsSubTab] = useState<'daily' | 'challenges'>('daily');
   const [dailyTasks, setDailyTasks] = useState<DailyTask[]>(() => {
     const today = new Date().toISOString().split('T')[0];
-    const saved = localStorage.getItem('dopool_daily_tasks');
-    const savedDate = localStorage.getItem('dopool_daily_tasks_date');
+    const saved = localStorage.getItem('dopool_daily_tasks_v3');
+    const savedDate = localStorage.getItem('dopool_daily_tasks_date_v3');
     if (saved && savedDate === today) {
       try {
-        return JSON.parse(saved);
+        const parsed: DailyTask[] = JSON.parse(saved);
+        return parsed
+          .filter((t) => t.id !== 'task-login' && t.category !== 'checkin')
+          .map((t) =>
+            t.id === 'task-run'
+              ? {
+                  ...t,
+                  title: 'دویدن حداقل ۵ کیلومتر در روز',
+                  description: 'امروز حداقل ۵ کیلومتر بدوید و فعالیت را با موفقیت تایید کنید.',
+                  target: 5.0,
+                }
+              : t.id === 'task-crew'
+              ? { ...t, isCompleted: false, isClaimed: false }
+              : t
+          );
       } catch {
         // fallback
       }
     }
     return [
       {
-        id: 'task-login',
-        title: 'ورود روزانه به اپلیکیشن',
-        description: 'هر روز با ورود به برنامه، ۱۰ سکه POOL به عنوان تشویق دریافت کنید.',
-        rewardPool: 10,
-        icon: 'Gift',
-        isCompleted: false,
-        isClaimed: false,
-        progress: 0,
-        target: 1,
-        unit: 'ورود',
-        category: 'checkin',
-      },
-      {
         id: 'task-run',
-        title: 'دویدن حداقل ۱ کیلومتر در روز',
-        description: 'امروز حداقل ۱ کیلومتر بدوید و فعالیت را با موفقیت تایید کنید.',
+        title: 'دویدن حداقل ۵ کیلومتر در روز',
+        description: 'امروز حداقل ۵ کیلومتر بدوید و فعالیت را با موفقیت تایید کنید.',
         rewardPool: 5,
         icon: 'Activity',
         isCompleted: false,
         isClaimed: false,
         progress: 0,
-        target: 1.0,
+        target: 5.0,
         unit: 'km',
         category: 'running',
       },
@@ -2279,8 +2419,12 @@ export default function App() {
   useEffect(() => {
     const t = setTimeout(() => {
       if (user) {
-        localStorage.setItem('dopool_user_session', JSON.stringify(user));
-        localStorage.setItem('dopool_saved_profile', JSON.stringify(user));
+        try {
+          localStorage.setItem('dopool_user_session', JSON.stringify(user));
+          localStorage.setItem('dopool_saved_profile', JSON.stringify(user));
+        } catch {
+          // Ignore storage quota errors
+        }
         setLeaderboard((prev) =>
           prev.map((item) =>
             item.username.toLowerCase() === user.username.toLowerCase()
@@ -2308,8 +2452,6 @@ export default function App() {
             firstInvite: Boolean(user.firstTimeMilestones?.firstInvite),
           }).catch(() => {});
         }
-      } else {
-        localStorage.removeItem('dopool_user_session');
       }
     }, 100);
     return () => clearTimeout(t);
@@ -2317,37 +2459,57 @@ export default function App() {
 
   useEffect(() => {
     const t = setTimeout(() => {
-      localStorage.setItem('dopool_activities_v2', JSON.stringify(activities));
+      try {
+        localStorage.setItem('dopool_activities_v2', JSON.stringify(activities));
+      } catch {
+        // Ignore storage quota errors
+      }
     }, 100);
     return () => clearTimeout(t);
   }, [activities]);
 
   useEffect(() => {
     const t = setTimeout(() => {
-      localStorage.setItem('dopool_notifications', JSON.stringify(notifications));
+      try {
+        localStorage.setItem('dopool_notifications', JSON.stringify(notifications));
+      } catch {
+        // Ignore storage quota errors
+      }
     }, 100);
     return () => clearTimeout(t);
   }, [notifications]);
 
   useEffect(() => {
     const t = setTimeout(() => {
-      localStorage.setItem('dopool_battles', JSON.stringify(battles));
+      try {
+        localStorage.setItem('dopool_battles', JSON.stringify(battles));
+      } catch {
+        // Ignore storage quota errors
+      }
     }, 100);
     return () => clearTimeout(t);
   }, [battles]);
 
   useEffect(() => {
     const t = setTimeout(() => {
-      localStorage.setItem('dopool_cashouts', JSON.stringify(cashoutHistory));
+      try {
+        localStorage.setItem('dopool_cashouts', JSON.stringify(cashoutHistory));
+      } catch {
+        // Ignore storage quota errors
+      }
     }, 100);
     return () => clearTimeout(t);
   }, [cashoutHistory]);
 
   useEffect(() => {
     const t = setTimeout(() => {
-      const today = new Date().toISOString().split('T')[0];
-      localStorage.setItem('dopool_daily_tasks', JSON.stringify(dailyTasks));
-      localStorage.setItem('dopool_daily_tasks_date', today);
+      try {
+        const today = new Date().toISOString().split('T')[0];
+        localStorage.setItem('dopool_daily_tasks_v3', JSON.stringify(dailyTasks));
+        localStorage.setItem('dopool_daily_tasks_date_v3', today);
+      } catch {
+        // Ignore storage quota errors
+      }
     }, 100);
     return () => clearTimeout(t);
   }, [dailyTasks]);
@@ -2471,10 +2633,16 @@ export default function App() {
         }
       }
 
-      // Target: Top Wallet Pill in header
+      // Target: Main Wallet Card on Home if visible, otherwise Top Header
       let targetX = window.innerWidth - 75;
       let targetY = 32;
-      if (topWalletRef.current) {
+      if (heroWalletRef.current) {
+        const hRect = heroWalletRef.current.getBoundingClientRect();
+        if (hRect.width > 0 && hRect.height > 0) {
+          targetX = hRect.left + hRect.width * 0.25;
+          targetY = hRect.top + hRect.height * 0.45;
+        }
+      } else if (topWalletRef.current) {
         const tRect = topWalletRef.current.getBoundingClientRect();
         targetX = tRect.left + tRect.width / 2;
         targetY = tRect.top + tRect.height / 2;
@@ -2507,10 +2675,8 @@ export default function App() {
       setRecentRewardGain({ amount, id: Date.now() });
 
       setTimeout(() => {
-        setWalletPulse(true);
         playChime('bonus');
-        setTimeout(() => setWalletPulse(false), 300);
-      }, 380);
+      }, 340);
 
       setTimeout(() => {
         setFlyingCoins([]);
@@ -2522,6 +2688,65 @@ export default function App() {
       console.error('Error triggering coin animation', e);
     }
   };
+
+  // Trigger Gentle Glow & Shimmer on the Wallet Balance Display Section
+  const triggerWalletGentleGlow = useCallback(
+    (gainAmount: number) => {
+      const roundedGain = Math.round(gainAmount * 10) / 10;
+      if (roundedGain <= 0) return;
+
+      if (activeTab !== 'home') {
+        pendingHomeGlowAmountRef.current =
+          Math.round(((pendingHomeGlowAmountRef.current || 0) + roundedGain) * 10) / 10;
+      }
+
+      setLastWalletGain(roundedGain);
+      setWalletPulse(false);
+      requestAnimationFrame(() => {
+        setWalletPulse(true);
+      });
+
+      if (walletGlowTimerRef.current) {
+        window.clearTimeout(walletGlowTimerRef.current);
+      }
+      walletGlowTimerRef.current = window.setTimeout(() => {
+        setWalletPulse(false);
+        setLastWalletGain(null);
+      }, 2150);
+    },
+    [activeTab]
+  );
+
+  // Automatically detect any wallet balance increase from tasks, activities, or bonuses
+  useEffect(() => {
+    if (!user) {
+      prevBalanceTrackerRef.current = null;
+      return;
+    }
+    const prev = prevBalanceTrackerRef.current;
+    if (prev && prev.userId === user.id && user.lockedPoolBalance > prev.balance) {
+      const diff = Math.round((user.lockedPoolBalance - prev.balance) * 10) / 10;
+      if (diff > 0) {
+        triggerWalletGentleGlow(diff);
+      }
+    }
+    prevBalanceTrackerRef.current = {
+      userId: user.id,
+      balance: user.lockedPoolBalance,
+    };
+  }, [user?.id, user?.lockedPoolBalance, triggerWalletGentleGlow]);
+
+  // Replay gentle wallet glow when returning to Home tab after earning coins in Missions or Activities tab
+  useEffect(() => {
+    if (activeTab === 'home' && pendingHomeGlowAmountRef.current && pendingHomeGlowAmountRef.current > 0) {
+      const pendingGain = pendingHomeGlowAmountRef.current;
+      pendingHomeGlowAmountRef.current = null;
+      const timer = window.setTimeout(() => {
+        triggerWalletGentleGlow(pendingGain);
+      }, 120);
+      return () => window.clearTimeout(timer);
+    }
+  }, [activeTab, triggerWalletGentleGlow]);
 
   // Dispatch Push Notification (Supports Mobile Service Worker + Desktop + Haptic Vibration)
   const dispatchPushNotification = ({
@@ -2749,6 +2974,17 @@ export default function App() {
     setSelectedStravaWeekIdx(idx);
   }, []);
 
+  const handleShareActivityStory = useCallback(
+    (act: { id: string }) => {
+      const found =
+        activities.find((a) => a.id === act.id) ||
+        activities.find((a) => a.status === 'ACCEPTED') ||
+        activities[0];
+      if (found) setStoryModalActivity(found);
+    },
+    [activities]
+  );
+
   // Anti-Cheat Engine (Proof of Human) Verification
   const verifyAntiCheat = (distanceKm: number, avgHr: number, paceMinPerKm: number) => {
     const reasons: string[] = [];
@@ -2792,7 +3028,7 @@ export default function App() {
     );
   };
 
-  // Process a verified run with Proof of Human, Anti-Duplicate Check & Multi-Factor Reward Breakdown
+  // Process a verified run with Proof of Human, Anti-Duplicate & Anti-Mention/Tag Check
   const handleProcessRun = (
     distanceKm: number,
     elapsedSec: number,
@@ -2805,18 +3041,26 @@ export default function App() {
       cadenceScore?: number;
       proofOfHumanScore?: number;
       overrideMultiplier?: number;
+      isMentionedOrTagged?: boolean;
     }
   ): boolean => {
     if (!user) return false;
 
-    // 1. Anti-Duplicate Activity Check (جلوگیری از ثبت تکراری اکتیویتی)
+    // 1. Silent Background Anti-Mention / Anti-Tag Activity Check
+    if (
+      isMentionedOrTaggedActivity(
+        customMeta?.title,
+        filename,
+        source,
+        customMeta?.isMentionedOrTagged
+      )
+    ) {
+      return false;
+    }
+
+    // 2. Silent Background Anti-Duplicate Activity Check
     const existingDuplicate = findExistingDuplicateActivity(filename, distanceKm, elapsedSec, avgHr);
     if (existingDuplicate) {
-      triggerToast(
-        'خطای ثبت تکراری اکتیویتی ⚠️',
-        `این فعالیت (${existingDuplicate.title || existingDuplicate.filename} · ${existingDuplicate.distanceKm} km) قبلاً در سیستم ثبت شده و امکان دریافت سکه مجدد وجود ندارد.`,
-        'error'
-      );
       return false;
     }
 
@@ -2886,7 +3130,11 @@ export default function App() {
     if (isValid) {
       const oldRank = getUserRank(user.totalKm);
       const newTotalKm = Math.round((user.totalKm + distanceKm) * 10) / 10;
-      const newPoolBal = Math.round((user.lockedPoolBalance + totalEarned) * 10) / 10;
+      const runTaskNow = dailyTasks.find((t) => t.id === 'task-run');
+      const autoCompleteFiveKmBonus =
+        distanceKm >= 5.0 && runTaskNow && !runTaskNow.isClaimed ? runTaskNow.rewardPool : 0;
+      const newPoolBal =
+        Math.round((user.lockedPoolBalance + totalEarned + autoCompleteFiveKmBonus) * 10) / 10;
 
       setUser((prev) => {
         if (!prev) return null;
@@ -2902,7 +3150,28 @@ export default function App() {
         };
       });
 
-      triggerCoinReward(totalEarned, topWalletRef.current);
+      triggerCoinReward(totalEarned + autoCompleteFiveKmBonus, topWalletRef.current);
+
+      // Automatically tick 5 km Daily Running Mission if synced run >= 5 km
+      setDailyTasks((prev) =>
+        prev.map((t) => {
+          if (t.id === 'task-run') {
+            const nextProg = Math.min(5.0, Math.round((t.progress + distanceKm) * 10) / 10);
+            const reachedFiveKm = distanceKm >= 5.0 || nextProg >= 5.0 || t.isCompleted;
+            return {
+              ...t,
+              progress: reachedFiveKm ? 5.0 : nextProg,
+              target: 5.0,
+              isCompleted: reachedFiveKm,
+              isClaimed: reachedFiveKm ? true : t.isClaimed,
+            };
+          }
+          if (t.id === 'task-sync') {
+            return { ...t, progress: 1, isCompleted: true };
+          }
+          return t;
+        })
+      );
 
       // Update Crew total & weekly km if user is in a crew
       if (user.crewId) {
@@ -3365,14 +3634,9 @@ export default function App() {
     const randPace = 4.8 + (file.size % 15) / 10;
     const elapsed = Math.round(randDist * randPace * 60);
 
-    // Immediate anti-duplicate check before parsing
+    // Silent background anti-duplicate check before parsing
     const existingDup = findExistingDuplicateActivity(file.name, randDist, elapsed, randHr);
     if (existingDup) {
-      triggerToast(
-        'خطای فایل تکراری ⚠️',
-        `فایل «${file.name}» قبلاً در سیستم ثبت شده و پاداش آن دریافت گردیده است.`,
-        'error'
-      );
       return;
     }
 
@@ -3567,12 +3831,6 @@ export default function App() {
           },
         };
       });
-
-      triggerToast(
-        'همگام‌سازی موفق ⚡',
-        `یک فعالیت ${dist} کیلومتری با موفقیت از ${providerName} دریافت و پاداش دوپول به کیف پول واریز شد!`,
-        'success'
-      );
     }, 450);
   };
 
@@ -3817,23 +4075,21 @@ export default function App() {
     const savedRaw = localStorage.getItem('dopool_saved_profile') || localStorage.getItem('dopool_user_session');
     if (savedRaw) {
       try {
-        const parsed = JSON.parse(savedRaw) as UserProfile;
+        const parsed = sanitizeUserProfile(JSON.parse(savedRaw));
         if (parsed && (!isDemoSohrab || parsed.username?.toLowerCase() === 'sohrab_run')) {
-          const updatedUser: UserProfile = {
-            ...parsed,
-            firstTimeMilestones: {
-              firstLogin: parsed.firstTimeMilestones?.firstLogin || false,
-              firstActivity: parsed.firstTimeMilestones?.firstActivity || false,
-              firstInvite: parsed.firstTimeMilestones?.firstInvite || false,
-            },
-          };
-          setSplashSubtitle(`خوش آمدید ${updatedUser.fullName} · در حال ورود به دوپول...`);
+          try {
+            localStorage.setItem('dopool_user_session', JSON.stringify(parsed));
+            localStorage.setItem('dopool_saved_profile', JSON.stringify(parsed));
+          } catch {
+            // Ignore storage errors
+          }
+          setSplashSubtitle(`خوش آمدید ${parsed.fullName} · در حال ورود به دوپول...`);
           setShowSplash(true);
-          setUser(updatedUser);
+          setUser(parsed);
           setActiveTab('home');
           setTimeout(() => {
             triggerCoinReward(10, topWalletRef.current);
-            triggerToast('خوش آمدید 👋', `${updatedUser.fullName} عزیز، با موفقیت وارد کیف پول ورزشی شدید.`, 'success');
+            triggerToast('خوش آمدید 👋', `${parsed.fullName} عزیز، با موفقیت وارد کیف پول ورزشی شدید.`, 'success');
           }, 600);
           return;
         }
@@ -4512,15 +4768,39 @@ export default function App() {
                   {/* TAB 0: MINIMAL MAIN MENU (منو اصلی ساده و مینیمال) */}
                   {activeTab === 'home' && (
                     <div className="space-y-4">
-                      {/* 1. Minimal & Optimized Wallet Balance Card (با ۴ شاخص: مسافت کل، تعداد فعالیت، دعوت موفق، رتبه شما) */}
+                      {/* 1. Minimal & Optimized Wallet Balance Card (با انیمیشن درخشش ملایم هنگام دریافت سکه‌های جدید) */}
                       <div
                         ref={heroWalletRef}
-                        className="rounded-2xl p-3.5 bg-slate-900/90 border border-slate-800/90 space-y-3 relative overflow-hidden shadow-lg"
+                        className={`rounded-2xl p-3.5 bg-slate-900/90 border space-y-3 relative overflow-hidden shadow-lg transition-colors duration-500 ${
+                          walletPulse
+                            ? 'wallet-gentle-glow-card border-emerald-400/60'
+                            : 'border-slate-800/90'
+                        }`}
                       >
+                        {/* Gentle Radial Aura & Sweeping Shimmer Overlay when receiving new coins */}
+                        {walletPulse && (
+                          <>
+                            <div
+                              className="pointer-events-none absolute inset-0 rounded-2xl transition-opacity duration-500"
+                              style={{
+                                background:
+                                  'radial-gradient(circle at 22% 35%, rgba(79, 209, 190, 0.14) 0%, rgba(244, 178, 92, 0.09) 42%, transparent 78%)',
+                              }}
+                            />
+                            <div className="pointer-events-none absolute inset-0 wallet-shimmer-sweep" />
+                          </>
+                        )}
+
                         {/* Compact Balance Row */}
-                        <div className="flex items-center justify-between gap-3 px-1">
+                        <div className="relative z-10 flex items-center justify-between gap-3 px-1">
                           <div className="flex items-center gap-2.5 min-w-0">
-                            <div className="w-9 h-9 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center shrink-0">
+                            <div
+                              className={`w-9 h-9 rounded-xl bg-amber-500/15 border flex items-center justify-center shrink-0 transition-colors duration-500 ${
+                                walletPulse
+                                  ? 'wallet-coin-halo border-amber-300/70 bg-amber-400/25'
+                                  : 'border-amber-500/30'
+                              }`}
+                            >
                               <img
                                 src={DOPOOL_COIN_URL}
                                 alt="دوپول"
@@ -4537,13 +4817,33 @@ export default function App() {
                             </div>
                           </div>
 
-                          <div className="text-left shrink-0 flex items-baseline gap-1.5">
-                            <span className="text-2xl sm:text-3xl font-black text-emerald-400 font-mono tracking-tight">
-                              {user.lockedPoolBalance.toFixed(1)}
-                            </span>
-                            <span className="text-xs font-black text-amber-400">
-                              دوپول
-                            </span>
+                          <div className="text-left shrink-0 flex items-center gap-2">
+                            {walletPulse && lastWalletGain && lastWalletGain > 0 && (
+                              <span
+                                className="px-2 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-400/45 text-emerald-300 text-[11px] font-black font-mono shadow-xs animate-fade-in"
+                                dir="ltr"
+                              >
+                                +{lastWalletGain} ✨
+                              </span>
+                            )}
+                            <div className="flex items-baseline gap-1.5">
+                              <span
+                                className={`text-2xl sm:text-3xl font-black font-mono tracking-tight transition-colors duration-300 ${
+                                  walletPulse
+                                    ? 'wallet-balance-glow-text text-emerald-300'
+                                    : 'text-emerald-400'
+                                }`}
+                              >
+                                {user.lockedPoolBalance.toFixed(1)}
+                              </span>
+                              <span
+                                className={`text-xs font-black transition-colors duration-300 ${
+                                  walletPulse ? 'text-amber-300' : 'text-amber-400'
+                                }`}
+                              >
+                                دوپول
+                              </span>
+                            </div>
                           </div>
                         </div>
 
@@ -4595,7 +4895,7 @@ export default function App() {
                         </div>
                       </div>
 
-                      {/* 2. Three Animated 10-Coin Starter Milestones (حذف خودکار هر جایزه پس از دریافت و حذف کل باکس پس از دریافت هر ۳ جایزه) */}
+                      {/* 2. Three 10-Coin Starter Milestones (بدون انیمیشن‌های بی‌وقفه سنگین برای اجرای روان) */}
                       <AnimatePresence>
                         {(!user.firstTimeMilestones?.firstLogin ||
                           !user.firstTimeMilestones?.firstActivity ||
@@ -4605,18 +4905,14 @@ export default function App() {
                             initial={{ opacity: 0, y: 8 }}
                             animate={{ opacity: 1, y: 0 }}
                             exit={{ opacity: 0, scale: 0.95, height: 0, marginBottom: 0 }}
-                            transition={{ duration: 0.25 }}
+                            transition={{ duration: 0.2 }}
                             className="rounded-3xl p-4 bg-gradient-to-br from-slate-900/90 via-slate-900/80 to-amber-950/20 border border-amber-500/35 space-y-3 relative overflow-hidden"
                           >
                             <div className="flex items-center justify-between gap-2">
                               <div className="flex items-center gap-2.5 min-w-0">
-                                <motion.div
-                                  animate={{ y: [0, -4, 0], rotate: [0, 5, -5, 0] }}
-                                  transition={{ duration: 2.6, repeat: Infinity, ease: 'easeInOut' }}
-                                  className="w-10 h-10 rounded-2xl bg-amber-500/20 border border-amber-400/40 flex items-center justify-center shrink-0 shadow-md shadow-amber-500/20"
-                                >
+                                <div className="w-10 h-10 rounded-2xl bg-amber-500/20 border border-amber-400/40 flex items-center justify-center shrink-0 shadow-sm">
                                   <img src={DOPOOL_COIN_URL} alt="POOL Coin" className="w-8 h-7 object-contain" />
-                                </motion.div>
+                                </div>
                                 <div className="min-w-0">
                                   <h3 className="text-xs font-black text-white flex items-center gap-1.5 flex-wrap">
                                     <span>جوایز شروع</span>
@@ -4637,190 +4933,125 @@ export default function App() {
                             </div>
 
                             <div className="space-y-2.5">
-                              <AnimatePresence mode="popLayout">
-                                {/* Milestone 1: First Login (اولین لاگین - ۱۰ سکه) */}
-                                {!user.firstTimeMilestones?.firstLogin && (
-                                  <motion.div
-                                    key="milestone-first-login"
-                                    layout
-                                    initial={{ opacity: 0, scale: 0.95 }}
-                                    animate={{ opacity: 1, scale: 1 }}
-                                    exit={{ opacity: 0, x: 40, scale: 0.9 }}
-                                    transition={{ duration: 0.22 }}
-                                    whileHover={{ scale: 1.01 }}
-                                    className="p-3 rounded-2xl bg-slate-950/85 border border-emerald-500/30 flex items-center justify-between gap-2"
-                                  >
-                                    <div className="flex items-center gap-2.5 min-w-0">
-                                      <motion.div
-                                        animate={{ scale: [1, 1.1, 1] }}
-                                        transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
-                                        className="w-10 h-10 rounded-2xl bg-gradient-to-br from-amber-500/25 to-emerald-500/20 border border-amber-400/40 flex flex-col items-center justify-center shrink-0"
-                                      >
-                                        <img src={DOPOOL_COIN_URL} alt="coin" className="w-6 h-5 object-contain" />
-                                        <span className="text-[9px] font-mono font-black text-amber-300" dir="ltr">+10</span>
-                                      </motion.div>
-                                      <div className="min-w-0">
-                                        <h4 className="text-xs font-bold text-white">هدیه اولین ورود</h4>
-                                        <span className="text-[10px] text-slate-400 block">
-                                          ۱۰ سکه هدیه ورود به برنامه
-                                        </span>
-                                      </div>
+                              {/* Milestone 1: First Login (اولین لاگین - ۱۰ سکه) */}
+                              {!user.firstTimeMilestones?.firstLogin && (
+                                <div className="p-3 rounded-2xl bg-slate-950/85 border border-emerald-500/30 flex items-center justify-between gap-2">
+                                  <div className="flex items-center gap-2.5 min-w-0">
+                                    <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-amber-500/25 to-emerald-500/20 border border-amber-400/40 flex flex-col items-center justify-center shrink-0">
+                                      <img src={DOPOOL_COIN_URL} alt="coin" className="w-6 h-5 object-contain" />
+                                      <span className="text-[9px] font-mono font-black text-amber-300" dir="ltr">+10</span>
                                     </div>
-                                    <motion.button
+                                    <div className="min-w-0">
+                                      <h4 className="text-xs font-bold text-white">هدیه اولین ورود</h4>
+                                      <span className="text-[10px] text-slate-400 block">
+                                        ۱۰ سکه هدیه ورود به برنامه
+                                      </span>
+                                    </div>
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={(e) => handleClaimFirstMilestone('firstLogin', e)}
+                                    className="px-2.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-400 to-emerald-400 text-slate-950 font-black text-[11px] shadow-sm inline-flex items-center gap-1 cursor-pointer shrink-0 active:scale-95 transition-transform"
+                                  >
+                                    <Coins className="w-3.5 h-3.5 shrink-0" />
+                                    <span>دریافت +۱۰</span>
+                                  </button>
+                                </div>
+                              )}
+
+                              {/* Milestone 2: First Activity (اولین اکتیویتی - ۱۰ سکه) */}
+                              {!user.firstTimeMilestones?.firstActivity && (
+                                <div className="p-3 rounded-2xl bg-slate-950/85 border border-sky-500/30 flex items-center justify-between gap-2">
+                                  <div className="flex items-center gap-2.5 min-w-0">
+                                    <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-amber-500/25 to-sky-500/20 border border-amber-400/40 flex flex-col items-center justify-center shrink-0">
+                                      <img src={DOPOOL_COIN_URL} alt="coin" className="w-6 h-5 object-contain" />
+                                      <span className="text-[9px] font-mono font-black text-amber-300" dir="ltr">+10</span>
+                                    </div>
+                                    <div className="min-w-0">
+                                      <h4 className="text-xs font-bold text-white">هدیه اولین فعالیت</h4>
+                                      <span className="text-[10px] text-slate-400 block">
+                                        ۱۰ سکه ثبت اولین دویدن
+                                      </span>
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center gap-1.5 shrink-0">
+                                    <button
                                       type="button"
-                                      whileHover={{ scale: 1.05 }}
-                                      whileTap={{ scale: 0.93 }}
-                                      onClick={(e) => handleClaimFirstMilestone('firstLogin', e)}
-                                      className="px-2.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-400 to-emerald-400 text-slate-950 font-black text-[11px] shadow-md shadow-amber-500/20 inline-flex items-center gap-1 cursor-pointer shrink-0 animate-shimmer"
+                                      onClick={() => setActiveTab('sync')}
+                                      className="px-2 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-[11px] font-bold cursor-pointer"
+                                    >
+                                      اکتیویتی
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={(e) => handleClaimFirstMilestone('firstActivity', e)}
+                                      className="px-2.5 py-1.5 rounded-xl bg-gradient-to-r from-sky-400 to-emerald-400 text-slate-950 font-black text-[11px] shadow-sm inline-flex items-center gap-1 cursor-pointer active:scale-95 transition-transform"
                                     >
                                       <Coins className="w-3.5 h-3.5 shrink-0" />
                                       <span>دریافت +۱۰</span>
-                                    </motion.button>
-                                  </motion.div>
-                                )}
+                                    </button>
+                                  </div>
+                                </div>
+                              )}
 
-                                {/* Milestone 2: First Activity (اولین اکتیویتی - ۱۰ سکه) */}
-                                {!user.firstTimeMilestones?.firstActivity && (
-                                  <motion.div
-                                    key="milestone-first-activity"
-                                    layout
-                                    initial={{ opacity: 0, scale: 0.95 }}
-                                    animate={{ opacity: 1, scale: 1 }}
-                                    exit={{ opacity: 0, x: 40, scale: 0.9 }}
-                                    transition={{ duration: 0.22 }}
-                                    whileHover={{ scale: 1.01 }}
-                                    className="p-3 rounded-2xl bg-slate-950/85 border border-sky-500/30 flex items-center justify-between gap-2"
-                                  >
-                                    <div className="flex items-center gap-2.5 min-w-0">
-                                      <motion.div
-                                        animate={{ scale: [1, 1.1, 1] }}
-                                        transition={{ duration: 2.2, delay: 0.3, repeat: Infinity, ease: 'easeInOut' }}
-                                        className="w-10 h-10 rounded-2xl bg-gradient-to-br from-amber-500/25 to-sky-500/20 border border-amber-400/40 flex flex-col items-center justify-center shrink-0"
-                                      >
-                                        <img src={DOPOOL_COIN_URL} alt="coin" className="w-6 h-5 object-contain" />
-                                        <span className="text-[9px] font-mono font-black text-amber-300" dir="ltr">+10</span>
-                                      </motion.div>
-                                      <div className="min-w-0">
-                                        <h4 className="text-xs font-bold text-white">هدیه اولین فعالیت</h4>
-                                        <span className="text-[10px] text-slate-400 block">
-                                          ۱۰ سکه ثبت اولین دویدن
-                                        </span>
-                                      </div>
+                              {/* Milestone 3: First Invite (اولین دعوت - ۱۰ سکه) */}
+                              {!user.firstTimeMilestones?.firstInvite && (
+                                <div className="p-3 rounded-2xl bg-slate-950/85 border border-amber-500/30 flex items-center justify-between gap-2">
+                                  <div className="flex items-center gap-2.5 min-w-0">
+                                    <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-amber-500/30 to-yellow-500/20 border border-amber-400/45 flex flex-col items-center justify-center shrink-0">
+                                      <img src={DOPOOL_COIN_URL} alt="coin" className="w-6 h-5 object-contain" />
+                                      <span className="text-[9px] font-mono font-black text-amber-300" dir="ltr">+10</span>
                                     </div>
-                                    <div className="flex items-center gap-1.5 shrink-0">
-                                      <button
-                                        type="button"
-                                        onClick={() => setActiveTab('sync')}
-                                        className="px-2 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-[11px] font-bold cursor-pointer"
-                                      >
-                                        اکتیویتی
-                                      </button>
-                                      <motion.button
-                                        type="button"
-                                        whileHover={{ scale: 1.05 }}
-                                        whileTap={{ scale: 0.93 }}
-                                        onClick={(e) => handleClaimFirstMilestone('firstActivity', e)}
-                                        className="px-2.5 py-1.5 rounded-xl bg-gradient-to-r from-sky-400 to-emerald-400 text-slate-950 font-black text-[11px] shadow-md shadow-sky-500/20 inline-flex items-center gap-1 cursor-pointer animate-shimmer"
-                                      >
-                                        <Coins className="w-3.5 h-3.5 shrink-0" />
-                                        <span>دریافت +۱۰</span>
-                                      </motion.button>
+                                    <div className="min-w-0">
+                                      <h4 className="text-xs font-bold text-white">هدیه اولین دعوت</h4>
+                                      <span className="text-[10px] text-slate-400 block">
+                                        ۱۰ سکه دعوت از دوستان
+                                      </span>
                                     </div>
-                                  </motion.div>
-                                )}
-
-                                {/* Milestone 3: First Invite (اولین دعوت - ۱۰ سکه) */}
-                                {!user.firstTimeMilestones?.firstInvite && (
-                                  <motion.div
-                                    key="milestone-first-invite"
-                                    layout
-                                    initial={{ opacity: 0, scale: 0.95 }}
-                                    animate={{ opacity: 1, scale: 1 }}
-                                    exit={{ opacity: 0, x: 40, scale: 0.9 }}
-                                    transition={{ duration: 0.22 }}
-                                    whileHover={{ scale: 1.01 }}
-                                    className="p-3 rounded-2xl bg-slate-950/85 border border-amber-500/30 flex items-center justify-between gap-2"
-                                  >
-                                    <div className="flex items-center gap-2.5 min-w-0">
-                                      <motion.div
-                                        animate={{ scale: [1, 1.1, 1] }}
-                                        transition={{ duration: 2.4, delay: 0.6, repeat: Infinity, ease: 'easeInOut' }}
-                                        className="w-10 h-10 rounded-2xl bg-gradient-to-br from-amber-500/30 to-yellow-500/20 border border-amber-400/45 flex flex-col items-center justify-center shrink-0"
-                                      >
-                                        <img src={DOPOOL_COIN_URL} alt="coin" className="w-6 h-5 object-contain" />
-                                        <span className="text-[9px] font-mono font-black text-amber-300" dir="ltr">+10</span>
-                                      </motion.div>
-                                      <div className="min-w-0">
-                                        <h4 className="text-xs font-bold text-white">هدیه اولین دعوت</h4>
-                                        <span className="text-[10px] text-slate-400 block">
-                                          ۱۰ سکه دعوت از دوستان
-                                        </span>
-                                      </div>
-                                    </div>
-                                    <div className="flex items-center gap-1.5 shrink-0">
-                                      <button
-                                        type="button"
-                                        onClick={() => setActiveTab('invite')}
-                                        className="px-2 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-[11px] font-bold cursor-pointer"
-                                      >
-                                        دعوت
-                                      </button>
-                                      <motion.button
-                                        type="button"
-                                        whileHover={{ scale: 1.05 }}
-                                        whileTap={{ scale: 0.93 }}
-                                        onClick={(e) => handleClaimFirstMilestone('firstInvite', e)}
-                                        className="px-2.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-400 to-yellow-300 text-slate-950 font-black text-[11px] shadow-md shadow-amber-500/25 inline-flex items-center gap-1 cursor-pointer animate-shimmer"
-                                      >
-                                        <Coins className="w-3.5 h-3.5 shrink-0" />
-                                        <span>دریافت +۱۰</span>
-                                      </motion.button>
-                                    </div>
-                                  </motion.div>
-                                )}
-                              </AnimatePresence>
+                                  </div>
+                                  <div className="flex items-center gap-1.5 shrink-0">
+                                    <button
+                                      type="button"
+                                      onClick={() => setActiveTab('invite')}
+                                      className="px-2 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-[11px] font-bold cursor-pointer"
+                                    >
+                                      دعوت
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={(e) => handleClaimFirstMilestone('firstInvite', e)}
+                                      className="px-2.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-400 to-yellow-300 text-slate-950 font-black text-[11px] shadow-sm inline-flex items-center gap-1 cursor-pointer active:scale-95 transition-transform"
+                                    >
+                                      <Coins className="w-3.5 h-3.5 shrink-0" />
+                                      <span>دریافت +۱۰</span>
+                                    </button>
+                                  </div>
+                                </div>
+                              )}
                             </div>
                           </motion.div>
                         )}
                       </AnimatePresence>
 
-                      {/* 2.5 Lazy-Loaded & Memoized Strava-Style Personal Weekly Running Chart */}
-                      <Suspense
-                        fallback={
-                          <div className="glass-panel rounded-2xl p-4 border border-slate-800/90 h-52 animate-pulse bg-slate-900/50" />
-                        }
-                      >
-                        <LazyStravaWeeklyChart
-                          username={user.username}
-                          totalKm={user.totalKm}
-                          acceptedElevGain={acceptedTotalElevGain}
-                          selectedWeekIdx={selectedStravaWeekIdx}
-                          onSelectWeek={handleSelectStravaWeek}
-                          lang={appLanguage}
-                        />
-                      </Suspense>
+                      {/* 2.5 Memoized Personal Weekly Running Chart */}
+                      <LazyStravaWeeklyChart
+                        username={user.username}
+                        totalKm={user.totalKm}
+                        acceptedElevGain={acceptedTotalElevGain}
+                        selectedWeekIdx={selectedStravaWeekIdx}
+                        onSelectWeek={handleSelectStravaWeek}
+                        lang={appLanguage}
+                      />
                     </div>
                   )}
 
-                  {/* TAB 1: LAZY-LOADED & MEMOIZED ACTIVITY SECTION (همگام‌سازی خودکار در پس‌زمینه بدون کارت اضافی) */}
+                  {/* TAB 1: MEMOIZED ACTIVITY SECTION */}
                   {activeTab === 'sync' && (
-                    <Suspense
-                      fallback={
-                        <div className="glass-panel rounded-2xl p-4 border border-slate-800/90 h-44 animate-pulse bg-slate-900/50" />
-                      }
-                    >
-                      <LazyActivitySyncSection
-                        activities={activities}
-                        onShareStory={(act) => {
-                          const found =
-                            activities.find((a) => a.id === act.id) ||
-                            activities.find((a) => a.status === 'ACCEPTED') ||
-                            activities[0];
-                          if (found) setStoryModalActivity(found);
-                        }}
-                        lang={appLanguage}
-                      />
-                    </Suspense>
+                    <LazyActivitySyncSection
+                      activities={activities}
+                      onShareStory={handleShareActivityStory}
+                      lang={appLanguage}
+                    />
                   )}
 
                   {/* DEDICATED SMARTWATCHES & STRAVA CONNECTION TAB (منتقل شده به منوی ۳ خط - بدون نمایش ضرایب پاداش) */}
@@ -5180,20 +5411,14 @@ export default function App() {
                     </div>
                   )}
 
-              {/* TAB 3: LAZY-LOADED & MEMOIZED LEADERBOARD */}
+              {/* TAB 3: MEMOIZED LEADERBOARD */}
               {activeTab === 'leaderboard' && (
-                <Suspense
-                  fallback={
-                    <div className="glass-panel rounded-2xl p-4 border border-slate-800/90 h-64 animate-pulse bg-slate-900/50" />
-                  }
-                >
-                  <LazyLeaderboardSection
-                    leaderboard={leaderboard}
-                    currentUsername={user.username}
-                    coinLogoUrl={DOPOOL_COIN_URL}
-                    lang={appLanguage}
-                  />
-                </Suspense>
+                <LazyLeaderboardSection
+                  leaderboard={leaderboard}
+                  currentUsername={user.username}
+                  coinLogoUrl={DOPOOL_COIN_URL}
+                  lang={appLanguage}
+                />
               )}
 
               {/* TAB 4: MINIMAL DAILY MISSIONS + CHALLENGES & REWARDS */}
@@ -5228,45 +5453,10 @@ export default function App() {
                     </button>
                   </div>
 
-                  {/* SECTION 1: MINIMAL DAILY MISSIONS (ماموریت روزانه بدون وضعیت پیشرفت و شلوغی) */}
+                  {/* SECTION 1: MINIMAL DAILY MISSIONS (ماموریت روزانه بدون ورود روزانه و با چراغ خاموش برای ارسال پیام تشویقی) */}
                   {missionsSubTab === 'daily' && (
                     <div className="space-y-3">
-                      {/* Minimal Daily Check-In Card */}
-                      <div className="p-3.5 rounded-2xl bg-slate-900/90 border border-slate-800/90 flex items-center justify-between gap-3">
-                        <div className="flex items-center gap-2.5 min-w-0">
-                          <div className="w-9 h-9 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-400 flex items-center justify-center shrink-0">
-                            <Calendar className="w-4 h-4" />
-                          </div>
-                          <div className="min-w-0">
-                            <div className="flex items-center gap-1.5">
-                              <h4 className="text-xs font-black text-white">هدیه ورود روزانه</h4>
-                              <span className="text-[10px] text-amber-300 font-mono font-bold bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20">
-                                {user ? user.streakDays : 1} روز متوالی
-                              </span>
-                            </div>
-                            <span className="text-[11px] text-slate-400 block mt-0.5">
-                              هر روز ورود به برنامه +۱۰ دوپول
-                            </span>
-                          </div>
-                        </div>
-
-                        {canClaimCheckInToday ? (
-                          <button
-                            type="button"
-                            onClick={(e) => handleClaimDailyCheckIn(e)}
-                            className="px-3 py-2 bg-amber-400 hover:bg-amber-300 text-slate-950 font-black rounded-xl text-xs shrink-0 cursor-pointer transition-colors"
-                          >
-                            دریافت +۱۰
-                          </button>
-                        ) : (
-                          <span className="px-2.5 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/25 text-emerald-400 text-[11px] font-bold flex items-center gap-1 shrink-0">
-                            <Check className="w-3.5 h-3.5 shrink-0" />
-                            <span>دریافت شد</span>
-                          </span>
-                        )}
-                      </div>
-
-                      {/* Minimal Daily Tasks List (بدون نوار وضعیت پیشرفت) */}
+                      {/* Minimal Daily Tasks List */}
                       <div className="glass-panel rounded-2xl p-3.5 border border-slate-800/90 space-y-2.5">
                         <div className="flex items-center justify-between px-0.5">
                           <h3 className="text-xs font-black text-slate-200">ماموریت‌های امروز</h3>
@@ -5275,16 +5465,33 @@ export default function App() {
 
                         <div className="space-y-2">
                           {dailyTasks
-                            .filter((task) => task.category !== 'battle')
+                            .filter(
+                              (task) =>
+                                task.category !== 'battle' &&
+                                task.category !== 'checkin' &&
+                                task.id !== 'task-login'
+                            )
                             .map((task) => {
-                              const isCompleted = task.isCompleted;
-                              const isClaimed = task.isClaimed;
+                              const isCrewDisabled = task.id === 'task-crew' || task.category === 'social';
+                              const isAutoRunTask = task.id === 'task-run' || task.category === 'running';
+                              const hasSyncedFiveKm =
+                                isAutoRunTask &&
+                                (task.isCompleted ||
+                                  activities.some(
+                                    (a) => a.status === 'ACCEPTED' && a.distanceKm >= 5.0
+                                  ));
+                              const isCompleted = !isCrewDisabled && (hasSyncedFiveKm || task.isCompleted);
+                              const isClaimed = !isCrewDisabled && (hasSyncedFiveKm || task.isClaimed);
 
                               return (
                                 <div
                                   key={task.id}
                                   className={`p-3 rounded-xl border transition-all flex items-center justify-between gap-2.5 ${
-                                    isClaimed
+                                    isCrewDisabled
+                                      ? 'bg-slate-950/40 border-slate-800/50 opacity-55 select-none'
+                                      : isAutoRunTask && hasSyncedFiveKm
+                                      ? 'bg-emerald-950/20 border-emerald-500/35'
+                                      : isClaimed
                                       ? 'bg-slate-950/40 border-slate-800/60 opacity-65'
                                       : isCompleted
                                       ? 'bg-emerald-950/20 border-emerald-500/35'
@@ -5292,27 +5499,69 @@ export default function App() {
                                   }`}
                                 >
                                   <div className="flex items-center gap-2.5 min-w-0">
-                                    <div className="w-8 h-8 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-center shrink-0">
-                                      {task.category === 'checkin' ? (
-                                        <Gift className="w-4 h-4 text-amber-400" />
-                                      ) : task.category === 'running' ? (
+                                    <div className="relative w-8 h-8 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-center shrink-0">
+                                      {task.category === 'running' ? (
                                         <Activity className="w-4 h-4 text-emerald-400" />
                                       ) : task.category === 'hardware' ? (
                                         <Watch className="w-4 h-4 text-sky-400" />
                                       ) : (
-                                        <Users className="w-4 h-4 text-purple-400" />
+                                        <Users className="w-4 h-4 text-slate-500" />
                                       )}
+                                      {/* Status Indicator Light (چراغ وضعیت: خاموش برای ارسال پیام تشویقی) */}
+                                      <span
+                                        className={`absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full ring-2 ring-slate-950 ${
+                                          isCrewDisabled
+                                            ? 'bg-slate-600'
+                                            : 'bg-emerald-400 shadow-[0_0_6px_rgba(16,185,129,0.85)]'
+                                        }`}
+                                      />
                                     </div>
                                     <div className="min-w-0">
-                                      <h5 className="text-xs font-bold text-white truncate">{task.title}</h5>
-                                      <span className="text-[10px] font-bold text-amber-300 block mt-0.5">
+                                      <h5
+                                        className={`text-xs font-bold truncate ${
+                                          isCrewDisabled ? 'text-slate-400' : 'text-white'
+                                        }`}
+                                      >
+                                        {task.title}
+                                      </h5>
+                                      <span
+                                        className={`text-[10px] font-bold block mt-0.5 ${
+                                          isCrewDisabled ? 'text-slate-500' : 'text-amber-300'
+                                        }`}
+                                      >
                                         پاداش: +{task.rewardPool} دوپول
                                       </span>
                                     </div>
                                   </div>
 
                                   <div className="shrink-0">
-                                    {isClaimed ? (
+                                    {isCrewDisabled ? (
+                                      <button
+                                        type="button"
+                                        disabled
+                                        className="py-1.5 px-3 bg-slate-900/80 text-slate-500 rounded-xl text-[11px] font-bold border border-slate-800 cursor-not-allowed flex items-center gap-1.5"
+                                      >
+                                        <span className="w-1.5 h-1.5 rounded-full bg-slate-600 shrink-0" />
+                                        <span>غیرفعال</span>
+                                      </button>
+                                    ) : isAutoRunTask ? (
+                                      /* چالش دویدن ۵ کیلومتر بدون دکمه - تیک خودکار با همگام‌سازی */
+                                      hasSyncedFiveKm ? (
+                                        <div
+                                          className="w-8 h-8 rounded-xl bg-emerald-500/15 border border-emerald-500/35 text-emerald-400 flex items-center justify-center"
+                                          title="تایید خودکار همگام‌سازی بالای ۵ کیلومتر"
+                                        >
+                                          <Check className="w-4 h-4 stroke-[2.5] shrink-0" />
+                                        </div>
+                                      ) : (
+                                        <div
+                                          className="w-8 h-8 rounded-xl bg-slate-900/90 border border-slate-800 text-slate-600 flex items-center justify-center"
+                                          title="در انتظار همگام‌سازی دویدن بالای ۵ کیلومتر"
+                                        >
+                                          <div className="w-3.5 h-3.5 rounded-md border border-slate-700" />
+                                        </div>
+                                      )
+                                    ) : isClaimed ? (
                                       <span className="text-[10px] text-emerald-400 bg-emerald-500/10 px-2.5 py-1.5 rounded-xl border border-emerald-500/20 flex items-center gap-1 font-bold">
                                         <Check className="w-3 h-3 shrink-0" />
                                         <span>دریافت شد</span>
@@ -5329,12 +5578,8 @@ export default function App() {
                                       <button
                                         type="button"
                                         onClick={() => {
-                                          if (task.category === 'checkin') {
-                                            handleClaimDailyCheckIn();
-                                          } else if (task.category === 'running' || task.category === 'hardware') {
+                                          if (task.category === 'hardware') {
                                             setActiveTab('sync');
-                                          } else if (task.category === 'social') {
-                                            setActiveTab('crews');
                                           }
                                         }}
                                         className="py-1.5 px-3 bg-slate-900 hover:bg-slate-800 text-slate-200 rounded-xl text-[11px] font-bold border border-slate-700/80 transition-colors cursor-pointer"
@@ -5351,36 +5596,36 @@ export default function App() {
                     </div>
                   )}
 
-                  {/* SECTION 2: MINIMAL CHALLENGES & REWARDS (چالش و پاداش به صورت ساده و خلوت) */}
+                  {/* SECTION 2: MINIMAL CHALLENGES & REWARDS (چالش و پاداش - فعلاً غیرفعال جلوی آیتم‌ها) */}
                   {missionsSubTab === 'challenges' && (
                     <div className="space-y-3">
                       {/* Running Challenges */}
                       <div className="glass-panel rounded-2xl p-3.5 border border-slate-800/90 space-y-2.5">
                         <div className="flex items-center justify-between px-0.5">
                           <h3 className="text-xs font-black text-slate-200">چالش‌های دویدن</h3>
-                          <span className="text-[10px] text-amber-400 font-bold">جایزه ویژه</span>
+                          <span className="text-[10px] text-slate-500 font-bold">غیرفعال</span>
                         </div>
 
                         <div className="space-y-2">
                           {challenges.map((ch) => (
                             <div
                               key={ch.id}
-                              className="p-3 rounded-xl bg-slate-950/75 border border-slate-800/80 flex items-center justify-between gap-2.5"
+                              className="p-3 rounded-xl bg-slate-950/60 border border-slate-800/70 flex items-center justify-between gap-2.5 opacity-75"
                             >
                               <div className="min-w-0">
-                                <h4 className="text-xs font-bold text-white truncate">{ch.title}</h4>
+                                <h4 className="text-xs font-bold text-slate-200 truncate">{ch.title}</h4>
                                 <div className="flex items-center gap-2 text-[10px] text-slate-400 mt-1">
-                                  <span className="text-amber-300 font-bold">جایزه: {ch.prizePool}</span>
+                                  <span className="text-amber-300/80 font-bold">جایزه: {ch.prizePool}</span>
                                   <span>·</span>
                                   <span>{ch.daysLeft} روز مهلت</span>
                                 </div>
                               </div>
                               <button
                                 type="button"
-                                onClick={() => handleJoinChallenge(ch)}
-                                className="px-3 py-1.5 bg-amber-400 hover:bg-amber-300 text-slate-950 font-black rounded-xl text-[11px] shrink-0 cursor-pointer transition-colors"
+                                disabled
+                                className="px-3 py-1.5 bg-slate-900/90 text-slate-400 border border-slate-800 font-bold rounded-xl text-[11px] shrink-0 cursor-not-allowed"
                               >
-                                ورود ({ch.entryFeePool} دوپول)
+                                غیرفعال
                               </button>
                             </div>
                           ))}
@@ -5391,28 +5636,28 @@ export default function App() {
                       <div className="glass-panel rounded-2xl p-3.5 border border-slate-800/90 space-y-2.5">
                         <div className="flex items-center justify-between px-0.5">
                           <h3 className="text-xs font-black text-slate-200">کوپن‌های تخفیف ورزشی</h3>
-                          <span className="text-[10px] text-emerald-400 font-bold">تحویل آنی</span>
+                          <span className="text-[10px] text-slate-500 font-bold">غیرفعال</span>
                         </div>
 
                         <div className="space-y-2">
                           {vouchers.map((v) => (
                             <div
                               key={v.id}
-                              className="p-3 rounded-xl bg-slate-950/75 border border-slate-800/80 flex items-center justify-between gap-2.5"
+                              className="p-3 rounded-xl bg-slate-950/60 border border-slate-800/70 flex items-center justify-between gap-2.5 opacity-75"
                             >
                               <div className="min-w-0">
                                 <div className="flex items-center gap-1.5">
-                                  <h4 className="text-xs font-bold text-white truncate">{v.title}</h4>
-                                  <span className="text-[10px] text-sky-400 font-bold shrink-0">({v.discount})</span>
+                                  <h4 className="text-xs font-bold text-slate-200 truncate">{v.title}</h4>
+                                  <span className="text-[10px] text-sky-400/80 font-bold shrink-0">({v.discount})</span>
                                 </div>
                                 <span className="text-[10px] text-slate-400 block mt-0.5">{v.brand}</span>
                               </div>
                               <button
                                 type="button"
-                                onClick={() => handleRedeemVoucher(v)}
-                                className="px-3 py-1.5 bg-emerald-400 hover:bg-emerald-300 text-slate-950 font-black rounded-xl text-[11px] shrink-0 cursor-pointer transition-colors"
+                                disabled
+                                className="px-3 py-1.5 bg-slate-900/90 text-slate-400 border border-slate-800 font-bold rounded-xl text-[11px] shrink-0 cursor-not-allowed"
                               >
-                                {v.costPool} دوپول
+                                غیرفعال
                               </button>
                             </div>
                           ))}
@@ -5903,6 +6148,97 @@ export default function App() {
                         </div>
                         <ChevronRight className={`w-4 h-4 text-slate-500 shrink-0 ${appLanguage === 'en' ? '' : 'rotate-180'}`} />
                       </button>
+
+                      {/* Backup Section: Full Source ZIP + User Data JSON */}
+                      <div className="pt-2 border-t border-slate-800/80 space-y-2">
+                        <span className="text-[10px] font-bold text-emerald-400 px-1 block">
+                          {appLanguage === 'en' ? 'Project & Data Backup' : 'نسخه پشتیبان (بکاپ کامل تا این مرحله)'}
+                        </span>
+
+                        <a
+                          href="/dopool-full-source-backup.zip"
+                          download="dopool-full-source-backup.zip"
+                          onClick={() => {
+                            triggerToast(
+                              'دانلود بکاپ کامل پروژه آغاز شد 📦',
+                              'فایل فشرده (ZIP) شامل تمام کدهای سورس و فایل‌های پروژه در حال دریافت است.',
+                              'success'
+                            );
+                          }}
+                          className="w-full p-3.5 rounded-2xl bg-gradient-to-r from-emerald-500/15 via-teal-500/10 to-sky-500/15 hover:from-emerald-500/25 hover:to-sky-500/25 border border-emerald-500/40 flex items-center justify-between gap-3 cursor-pointer transition-all"
+                        >
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className="w-9 h-9 rounded-xl bg-emerald-500/20 border border-emerald-400/40 text-emerald-300 flex items-center justify-center shrink-0">
+                              <Download className="w-4 h-4" />
+                            </div>
+                            <div className="text-right min-w-0">
+                              <span className="text-xs font-black text-white block">
+                                دانلود بکاپ کامل سورس‌پروژه (ZIP)
+                              </span>
+                              <span className="text-[10px] text-slate-300 block mt-0.5">
+                                شامل تمام کدهای برنامه، استایل‌ها و تنظیمات تا این لحظه
+                              </span>
+                            </div>
+                          </div>
+                          <span className="px-2 py-1 rounded-lg bg-emerald-500 text-slate-950 font-mono font-black text-[10px] shrink-0">
+                            ZIP
+                          </span>
+                        </a>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            try {
+                              const payload = {
+                                exportedAt: new Date().toISOString(),
+                                appVersion: 'Dopool v1.0',
+                                user,
+                                activities,
+                                dailyTasks,
+                                notifications,
+                                battles,
+                                cashoutHistory,
+                              };
+                              const blob = new Blob([JSON.stringify(payload, null, 2)], {
+                                type: 'application/json;charset=utf-8',
+                              });
+                              const url = URL.createObjectURL(blob);
+                              const link = document.createElement('a');
+                              link.href = url;
+                              link.download = `dopool-data-backup-${new Date().toISOString().split('T')[0]}.json`;
+                              document.body.appendChild(link);
+                              link.click();
+                              document.body.removeChild(link);
+                              URL.revokeObjectURL(url);
+                              triggerToast(
+                                'فایل بکاپ اطلاعات ذخیره شد ✓',
+                                'اطلاعات حساب، موجودی کیف پول و فعالیت‌های شما در قالب فایل JSON دانلود شد.',
+                                'success'
+                              );
+                            } catch {
+                              triggerToast('خطا در ساخت بکاپ', 'امکان ایجاد فایل پشتیبان وجود نداشت.', 'error');
+                            }
+                          }}
+                          className="w-full p-3 rounded-2xl bg-slate-950/85 hover:bg-slate-900 border border-slate-800 flex items-center justify-between gap-3 cursor-pointer transition-all"
+                        >
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className="w-9 h-9 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-400 flex items-center justify-center shrink-0">
+                              <Download className="w-4 h-4" />
+                            </div>
+                            <div className="text-right min-w-0">
+                              <span className="text-xs font-black text-white block">
+                                دانلود بکاپ اطلاعات و کیف‌پول (JSON)
+                              </span>
+                              <span className="text-[10px] text-slate-400 block mt-0.5">
+                                ذخیره موجودی سکه‌ها، رکوردهای دویدن و پروفایل کاربری
+                              </span>
+                            </div>
+                          </div>
+                          <span className="px-2 py-1 rounded-lg bg-amber-500/20 border border-amber-500/40 text-amber-300 font-mono font-black text-[10px] shrink-0">
+                            JSON
+                          </span>
+                        </button>
+                      </div>
 
                       {/* Row 6: Sign Out */}
                       <div className="pt-1.5">
@@ -7103,7 +7439,7 @@ export default function App() {
           );
         })()}
 
-        {/* DAILY TASKS & 7-DAY CHECK-IN MODAL */}
+        {/* DAILY TASKS MODAL */}
         {showDailyTasksModal && (
           <div className="fixed inset-0 bg-[#060913]/90 backdrop-blur-xl z-50 flex items-center justify-center p-4">
             <div className="w-full max-w-[460px] glass-panel-glow rounded-3xl p-5 border border-amber-500/40 relative shadow-2xl animate-fade-in space-y-4 max-h-[92vh] overflow-y-auto">
@@ -7115,13 +7451,10 @@ export default function App() {
                   </div>
                   <div>
                     <h3 className="text-sm font-black text-white flex items-center gap-1.5">
-                      <span>تسک‌ها و پاداش ورود روزانه</span>
-                      <span className="text-[10px] px-1.5 py-0.5 rounded font-mono font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
-                        Daily Hub
-                      </span>
+                      <span>ماموریت‌های روزانه</span>
                     </h3>
                     <span className="text-[10px] text-slate-400 block mt-0.5">
-                      ورود روزانه و انجام ماموریت‌ها برای کسب سکه‌های POOL
+                      انجام ماموریت‌ها برای کسب سکه‌های دوپول
                     </span>
                   </div>
                 </div>
@@ -7134,78 +7467,6 @@ export default function App() {
                 </button>
               </div>
 
-              {/* 7-Day Streak Calendar */}
-              <div className="p-3.5 rounded-2xl bg-slate-950/70 border border-slate-800/80 space-y-2.5">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="font-bold text-white flex items-center gap-1.5">
-                    <Calendar className="w-4 h-4 text-amber-400" />
-                    <span>تقویم پاداش ورود متوالی (۷ روزه)</span>
-                  </span>
-                  <span className="text-[10px] text-amber-400 font-bold bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20 font-mono">
-                    استریک: {user ? user.streakDays : 0} روز
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-7 gap-1.5 text-center">
-                  {[
-                    { day: 1, reward: 10, label: 'روز ۱' },
-                    { day: 2, reward: 10, label: 'روز ۲' },
-                    { day: 3, reward: 15, label: 'روز ۳' },
-                    { day: 4, reward: 10, label: 'روز ۴' },
-                    { day: 5, reward: 15, label: 'روز ۵' },
-                    { day: 6, reward: 20, label: 'روز ۶' },
-                    { day: 7, reward: 35, label: 'روز ۷', isMega: true },
-                  ].map((d) => {
-                    const currentStreak = user?.streakDays || 1;
-                    const isPassed = d.day < currentStreak || (!canClaimCheckInToday && d.day === currentStreak);
-                    const isToday = canClaimCheckInToday && d.day === (currentStreak > 7 ? ((currentStreak - 1) % 7) + 1 : currentStreak);
-
-                    return (
-                      <div
-                        key={d.day}
-                        className={`p-2 rounded-xl border flex flex-col items-center justify-between gap-1 transition-all ${
-                          isToday
-                            ? 'bg-amber-500/20 border-amber-400 shadow-md shadow-amber-500/20 scale-105'
-                            : isPassed
-                            ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
-                            : 'bg-slate-900/60 border-slate-800 text-slate-400'
-                        }`}
-                      >
-                        <span className="text-[9px] font-bold block">{d.label}</span>
-                        <div className="w-5 h-5 rounded-full flex items-center justify-center font-black text-[10px]">
-                          {isPassed ? (
-                            <Check className="w-3.5 h-3.5 text-emerald-400" />
-                          ) : (
-                            <span>{d.isMega ? '🏆' : '🪙'}</span>
-                          )}
-                        </div>
-                        <span className="text-[10px] font-mono font-bold text-white">+{d.reward}</span>
-                      </div>
-                    );
-                  })}
-                </div>
-
-                {/* Instant Check-in Action in Modal */}
-                {canClaimCheckInToday ? (
-                  <motion.button
-                    type="button"
-                    whileTap={{ scale: 0.96 }}
-                    onClick={(e) => {
-                      handleClaimDailyCheckIn(e);
-                    }}
-                    className="w-full py-2.5 bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-500 text-amber-950 font-black rounded-xl text-xs shadow-lg shadow-amber-500/25 transition-all flex items-center justify-center gap-1.5 cursor-pointer animate-pulse"
-                  >
-                    <Sparkles className="w-4 h-4" />
-                    <span>دریافت ۱۰ سکه هدیه امروز (Claim Daily Check-In)</span>
-                  </motion.button>
-                ) : (
-                  <div className="p-2 rounded-xl bg-emerald-500/10 border border-emerald-500/25 text-center text-xs text-emerald-300 font-bold flex items-center justify-center gap-1.5">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                    <span>پاداش ۱۰ سکه امروز با موفقیت دریافت گردید! فردا بازگردید.</span>
-                  </div>
-                )}
-              </div>
-
               {/* Daily Tasks List */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
@@ -7213,77 +7474,135 @@ export default function App() {
                     <CheckSquare className="w-4 h-4 text-sky-400" />
                     <span>ماموریت‌های ورزشی امروز:</span>
                   </h4>
-                  <span className="text-[10px] text-slate-400">ریست روزانه: ساعت ۰۰:۰۰ بامداد</span>
+                  <span className="text-[10px] text-slate-400">روزانه</span>
                 </div>
 
                 <div className="space-y-2">
-                  {dailyTasks.filter((task) => task.category !== 'battle').map((task) => {
-                    const isCompleted = task.isCompleted;
-                    const isClaimed = task.isClaimed;
+                  {dailyTasks
+                    .filter(
+                      (task) =>
+                        task.category !== 'battle' &&
+                        task.category !== 'checkin' &&
+                        task.id !== 'task-login'
+                    )
+                    .map((task) => {
+                      const isCrewDisabled = task.id === 'task-crew' || task.category === 'social';
+                      const isAutoRunTask = task.id === 'task-run' || task.category === 'running';
+                      const hasSyncedFiveKm =
+                        isAutoRunTask &&
+                        (task.isCompleted ||
+                          activities.some(
+                            (a) => a.status === 'ACCEPTED' && a.distanceKm >= 5.0
+                          ));
+                      const isCompleted = !isCrewDisabled && (hasSyncedFiveKm || task.isCompleted);
+                      const isClaimed = !isCrewDisabled && (hasSyncedFiveKm || task.isClaimed);
 
-                    return (
-                      <div
-                        key={task.id}
-                        className={`p-3 rounded-2xl border transition-all flex items-center justify-between gap-2.5 ${
-                          isClaimed
-                            ? 'bg-slate-950/40 border-slate-800/60 opacity-70'
-                            : isCompleted
-                            ? 'bg-emerald-950/20 border-emerald-500/40 shadow-sm'
-                            : 'bg-slate-950/80 border-slate-800'
-                        }`}
-                      >
-                        <div className="flex items-center gap-2.5 min-w-0">
-                          <div className="w-8 h-8 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-center text-amber-400 text-xs shrink-0">
-                            {task.category === 'checkin' ? (
-                              <Gift className="w-4 h-4" />
-                            ) : task.category === 'running' ? (
-                              <Activity className="w-4 h-4" />
-                            ) : task.category === 'hardware' ? (
-                              <Watch className="w-4 h-4" />
+                      return (
+                        <div
+                          key={task.id}
+                          className={`p-3 rounded-2xl border transition-all flex items-center justify-between gap-2.5 ${
+                            isCrewDisabled
+                              ? 'bg-slate-950/40 border-slate-800/50 opacity-55 select-none'
+                              : isAutoRunTask && hasSyncedFiveKm
+                              ? 'bg-emerald-950/20 border-emerald-500/40 shadow-sm'
+                              : isClaimed
+                              ? 'bg-slate-950/40 border-slate-800/60 opacity-70'
+                              : isCompleted
+                              ? 'bg-emerald-950/20 border-emerald-500/40 shadow-sm'
+                              : 'bg-slate-950/80 border-slate-800'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <div className="relative w-8 h-8 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-center text-amber-400 text-xs shrink-0">
+                              {task.category === 'running' ? (
+                                <Activity className="w-4 h-4 text-emerald-400" />
+                              ) : task.category === 'hardware' ? (
+                                <Watch className="w-4 h-4 text-sky-400" />
+                              ) : (
+                                <Users className="w-4 h-4 text-slate-500" />
+                              )}
+                              <span
+                                className={`absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full ring-2 ring-slate-950 ${
+                                  isCrewDisabled
+                                    ? 'bg-slate-600'
+                                    : 'bg-emerald-400 shadow-[0_0_6px_rgba(16,185,129,0.85)]'
+                                }`}
+                              />
+                            </div>
+                            <div className="min-w-0">
+                              <h5
+                                className={`text-xs font-bold truncate ${
+                                  isCrewDisabled ? 'text-slate-400' : 'text-white'
+                                }`}
+                              >
+                                {task.title}
+                              </h5>
+                              <span
+                                className={`text-[10px] font-bold block mt-0.5 ${
+                                  isCrewDisabled ? 'text-slate-500' : 'text-emerald-400'
+                                }`}
+                              >
+                                +{task.rewardPool} دوپول
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Claim / Action Button */}
+                          <div className="shrink-0">
+                            {isCrewDisabled ? (
+                              <button
+                                type="button"
+                                disabled
+                                className="py-1.5 px-3 bg-slate-900/80 text-slate-500 rounded-xl text-[11px] font-bold border border-slate-800 cursor-not-allowed flex items-center gap-1.5"
+                              >
+                                <span className="w-1.5 h-1.5 rounded-full bg-slate-600 shrink-0" />
+                                <span>غیرفعال</span>
+                              </button>
+                            ) : isAutoRunTask ? (
+                              hasSyncedFiveKm ? (
+                                <div
+                                  className="w-8 h-8 rounded-xl bg-emerald-500/15 border border-emerald-500/35 text-emerald-400 flex items-center justify-center"
+                                  title="تایید خودکار همگام‌سازی بالای ۵ کیلومتر"
+                                >
+                                  <Check className="w-4 h-4 stroke-[2.5] shrink-0" />
+                                </div>
+                              ) : (
+                                <div
+                                  className="w-8 h-8 rounded-xl bg-slate-900/90 border border-slate-800 text-slate-600 flex items-center justify-center"
+                                  title="در انتظار همگام‌سازی دویدن بالای ۵ کیلومتر"
+                                >
+                                  <div className="w-3.5 h-3.5 rounded-md border border-slate-700" />
+                                </div>
+                              )
+                            ) : isClaimed ? (
+                              <span className="text-[10px] text-slate-500 bg-slate-900 px-2.5 py-1 rounded-lg border border-slate-800 flex items-center gap-1 font-bold">
+                                <Check className="w-3 h-3 text-emerald-400" />
+                                <span>دریافت شد</span>
+                              </span>
+                            ) : isCompleted ? (
+                              <button
+                                type="button"
+                                onClick={(e) => handleClaimTaskReward(task.id, e)}
+                                className="py-1.5 px-3 bg-emerald-400 hover:bg-emerald-300 text-slate-950 font-black rounded-xl text-xs transition-all cursor-pointer"
+                              >
+                                دریافت پاداش
+                              </button>
                             ) : (
-                              <Users className="w-4 h-4" />
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setShowDailyTasksModal(false);
+                                  if (task.category === 'hardware') setActiveTab('sync');
+                                }}
+                                className="py-1.5 px-3 bg-slate-900 hover:bg-slate-800 text-slate-200 rounded-xl text-[11px] font-bold border border-slate-800 transition-colors cursor-pointer"
+                              >
+                                انجام
+                              </button>
                             )}
                           </div>
-                          <div className="min-w-0">
-                            <h5 className="text-xs font-bold text-white truncate">{task.title}</h5>
-                            <span className="text-[10px] font-bold text-emerald-400 block mt-0.5">
-                              +{task.rewardPool} دوپول
-                            </span>
-                          </div>
                         </div>
-
-                        {/* Claim / Action Button */}
-                        <div className="shrink-0">
-                          {isClaimed ? (
-                            <span className="text-[10px] text-slate-500 bg-slate-900 px-2.5 py-1 rounded-lg border border-slate-800 flex items-center gap-1 font-bold">
-                              <Check className="w-3 h-3 text-emerald-400" />
-                              <span>دریافت شد</span>
-                            </span>
-                          ) : isCompleted ? (
-                            <button
-                              type="button"
-                              onClick={(e) => handleClaimTaskReward(task.id, e)}
-                              className="py-1.5 px-3 bg-emerald-400 hover:bg-emerald-300 text-slate-950 font-black rounded-xl text-xs transition-all cursor-pointer"
-                            >
-                              دریافت پاداش
-                            </button>
-                          ) : (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setShowDailyTasksModal(false);
-                                if (task.category === 'running' || task.category === 'hardware') setActiveTab('sync');
-                                else if (task.category === 'social') setActiveTab('crews');
-                              }}
-                              className="py-1.5 px-3 bg-slate-900 hover:bg-slate-800 text-slate-200 rounded-xl text-[11px] font-bold border border-slate-800 transition-colors cursor-pointer"
-                            >
-                              انجام
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
                 </div>
               </div>
             </div>
@@ -7379,6 +7698,12 @@ export default function App() {
                       type="button"
                       onClick={() => {
                         signOutCloud().catch(() => {});
+                        try {
+                          localStorage.removeItem('dopool_user_session');
+                          sessionStorage.removeItem('dopool_active_tab');
+                        } catch {
+                          // Ignore storage errors
+                        }
                         setLogoutSecondConfirm(false);
                         setShowLogoutConfirmModal(false);
                         setUser(null);
@@ -7805,6 +8130,12 @@ export default function App() {
                   type="button"
                   onClick={() => {
                     const refCode = user?.referralCode || 'DP-8834';
+                    try {
+                      localStorage.removeItem('dopool_user_session');
+                      sessionStorage.removeItem('dopool_active_tab');
+                    } catch {
+                      // Ignore storage errors
+                    }
                     setShowTesterShareModal(false);
                     setUser(null);
                     setAuthMode('register');
@@ -7819,55 +8150,140 @@ export default function App() {
           </div>
         )}
 
-        {/* SMALL MINIMAL AUTO-CLOSING ACTIVITY POPUP (نمایش فقط برای چند ثانیه در پنجره کوچک مینیمال) */}
+        {/* SLEEK, MINIMAL & CLASSY AUTO-CLOSING SYNCED ACTIVITY POPUP */}
         <AnimatePresence>
-          {selectedReceiptActivity && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
+          {selectedReceiptActivity && (() => {
+            const paceVal = selectedReceiptActivity.paceMinPerKm || 5.0;
+            const paceMin = Math.floor(paceVal);
+            const paceSec = Math.round((paceVal - paceMin) * 60);
+            const formattedPace = `${paceMin}'${String(paceSec === 60 ? 59 : paceSec).padStart(2, '0')}"`;
+            const elevMeters =
+              selectedReceiptActivity.elevGainMeters ??
+              Math.max(12, Math.round(selectedReceiptActivity.distanceKm * 3.7));
+
+            return (
               <motion.div
-                initial={{ opacity: 0, scale: 0.9, y: 12 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.9, y: -10 }}
-                transition={{ duration: 0.18 }}
-                className="pointer-events-auto w-full max-w-[290px] rounded-2xl bg-slate-900/95 backdrop-blur-md border border-emerald-500/45 p-4 shadow-2xl space-y-3 text-center"
+                key={selectedReceiptActivity.id}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                onClick={() => setSelectedReceiptActivity(null)}
+                className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/45 backdrop-blur-[3px]"
               >
-                <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-black text-emerald-400 flex items-center gap-1">
-                    <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
-                    <span>اکتیویتی ثبت شد</span>
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setSelectedReceiptActivity(null)}
-                    className="text-slate-400 hover:text-white p-0.5 cursor-pointer"
-                  >
-                    <X className="w-3.5 h-3.5" />
-                  </button>
-                </div>
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.93, y: 14 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.95, y: 8 }}
+                  transition={{ type: 'spring', stiffness: 340, damping: 26 }}
+                  onClick={(e) => e.stopPropagation()}
+                  className="relative w-full max-w-[310px] rounded-[26px] bg-gradient-to-b from-slate-900/95 via-[#131b2e]/98 to-slate-950/98 border border-white/12 px-5 pt-4 pb-4 shadow-[0_24px_60px_-12px_rgba(0,0,0,0.8),0_0_36px_-10px_rgba(43,181,160,0.22)] overflow-hidden"
+                >
+                  {/* Top Specular Hairline & Soft Ambient Glow */}
+                  <div className="pointer-events-none absolute inset-x-8 top-0 h-[1px] bg-gradient-to-r from-transparent via-emerald-300/50 to-transparent" />
+                  <div
+                    className="pointer-events-none absolute -top-12 left-1/2 -translate-x-1/2 w-48 h-28 rounded-full opacity-80"
+                    style={{
+                      background:
+                        'radial-gradient(circle, rgba(79, 209, 190, 0.18) 0%, rgba(244, 178, 92, 0.08) 50%, transparent 75%)',
+                    }}
+                  />
 
-                <div className="grid grid-cols-2 gap-2 text-center bg-slate-950/80 rounded-xl p-2.5 border border-slate-800">
-                  <div>
-                    <span className="text-[10px] text-slate-400 block">کیلومتر</span>
-                    <span className="text-sm font-black font-mono text-white" dir="ltr">
-                      {selectedReceiptActivity.distanceKm.toFixed(2)} km
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-[10px] text-slate-400 block">الویشن</span>
-                    <span className="text-sm font-black font-mono text-sky-400" dir="ltr">
-                      +{selectedReceiptActivity.elevGainMeters ?? Math.max(12, Math.round(selectedReceiptActivity.distanceKm * 3.7))} m
-                    </span>
-                  </div>
-                </div>
+                  {/* Minimal Header Row */}
+                  <div className="relative z-10 flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="w-7 h-7 rounded-full bg-emerald-500/15 border border-emerald-400/35 text-emerald-400 flex items-center justify-center shrink-0 shadow-[0_0_14px_rgba(43,181,160,0.25)]">
+                        <Check className="w-3.5 h-3.5 stroke-[2.75]" />
+                      </div>
+                      <div className="text-right min-w-0">
+                        <span className="text-xs font-black text-white block leading-tight">
+                          فعالیت همگام‌سازی شد
+                        </span>
+                        <span className="text-[10px] text-slate-400 block truncate mt-0.5">
+                          {selectedReceiptActivity.title || 'دویدن تاییدشده'}
+                        </span>
+                      </div>
+                    </div>
 
-                <div className="py-1.5 px-3 rounded-xl bg-amber-500/15 border border-amber-400/35 flex items-center justify-center gap-1.5">
-                  <img src={DOPOOL_COIN_URL} alt="coin" className="w-5 h-4 object-contain" />
-                  <span className="text-xs font-black text-amber-300 font-mono">
-                    +{selectedReceiptActivity.poolReward} دوپول
-                  </span>
-                </div>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedReceiptActivity(null)}
+                      className="w-7 h-7 rounded-full text-slate-400 hover:text-white hover:bg-white/5 flex items-center justify-center transition-colors cursor-pointer shrink-0"
+                      aria-label="بستن"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+
+                  {/* Clean Editorial Telemetry Row (Distance · Pace · Elevation without boxy borders) */}
+                  <div className="relative z-10 flex items-center justify-between py-4 my-3 border-y border-white/8 text-center">
+                    <div className="flex-1">
+                      <span className="text-[10px] text-slate-400 block mb-1">مسافت</span>
+                      <div className="flex items-baseline justify-center gap-1" dir="ltr">
+                        <span className="text-xl font-black font-mono text-white tracking-tight">
+                          {selectedReceiptActivity.distanceKm.toFixed(2)}
+                        </span>
+                        <span className="text-[10px] font-bold text-emerald-400 font-mono">km</span>
+                      </div>
+                    </div>
+
+                    <div className="w-px h-8 bg-white/10 shrink-0" />
+
+                    <div className="flex-1">
+                      <span className="text-[10px] text-slate-400 block mb-1">پیس</span>
+                      <div className="flex items-baseline justify-center gap-0.5" dir="ltr">
+                        <span className="text-sm font-black font-mono text-slate-100">
+                          {formattedPace}
+                        </span>
+                        <span className="text-[9px] text-slate-400 font-mono">/km</span>
+                      </div>
+                    </div>
+
+                    <div className="w-px h-8 bg-white/10 shrink-0" />
+
+                    <div className="flex-1">
+                      <span className="text-[10px] text-slate-400 block mb-1">ارتفاع</span>
+                      <div className="flex items-baseline justify-center gap-0.5" dir="ltr">
+                        <span className="text-sm font-black font-mono text-sky-300">
+                          +{elevMeters}
+                        </span>
+                        <span className="text-[9px] text-slate-400 font-mono">m</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Refined Reward Footer */}
+                  <div className="relative z-10 flex items-center justify-between px-0.5">
+                    <span className="text-[11px] text-slate-400 font-medium">
+                      پاداش واریزشده به کیف پول
+                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <img
+                        src={DOPOOL_COIN_URL}
+                        alt="دوپول"
+                        className="w-5 h-4 object-contain drop-shadow-[0_2px_8px_rgba(244,178,92,0.45)]"
+                      />
+                      <span className="text-base font-black text-amber-300 font-mono tracking-tight" dir="ltr">
+                        +{selectedReceiptActivity.poolReward}
+                      </span>
+                      <span className="text-[11px] font-bold text-amber-400/90">
+                        دوپول
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Ultra-Thin Auto-Dismiss Progress Line */}
+                  <motion.div
+                    initial={{ scaleX: 1 }}
+                    animate={{ scaleX: 0 }}
+                    transition={{ duration: 3.15, ease: 'linear' }}
+                    style={{ transformOrigin: 'right' }}
+                    className="pointer-events-none absolute bottom-0 inset-x-0 h-[2px] bg-gradient-to-l from-emerald-400/80 via-teal-300/70 to-amber-300/80"
+                  />
+                </motion.div>
               </motion.div>
-            </div>
-          )}
+            );
+          })()}
         </AnimatePresence>
 
         {/* VIRAL AURA INSTAGRAM STORY STUDIO MODAL (9:16 Story Only + Pace Heatmap Only + 4 Models: Gold, Minimal, Magazine, Transparent Photo Overlay) */}
@@ -7967,52 +8383,38 @@ export default function App() {
                   </div>
                 )}
 
-                {/* Route Switcher & Viral Hook Selector */}
-                <div className="flex flex-wrap items-center justify-between gap-1.5 px-0.5">
-                  <div className="flex items-center gap-1.5">
-                    <button
-                      type="button"
-                      onClick={() => setStoryHookIndex((prev) => (prev + 1) % storyViralHooks.length)}
-                      className="text-[10px] px-2 py-1 rounded-lg bg-amber-500/15 border border-amber-500/30 text-amber-300 hover:bg-amber-500/25 font-bold flex items-center gap-1 cursor-pointer"
-                    >
-                      <RefreshCw className="w-3 h-3 shrink-0" />
-                      <span>شعار ({storyHookIndex + 1}/4)</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => setStoryRouteVariant((prev) => prev + 1)}
-                      className="text-[10px] px-2 py-1 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/25 font-bold flex items-center gap-1 cursor-pointer"
-                      title="تغییر زاویه هیت‌مپ مسیر"
-                    >
-                      <MapPin className="w-3 h-3 shrink-0" />
-                      <span>زاویه هیت‌مپ</span>
-                    </button>
-                  </div>
+                {/* Route Variant Switcher */}
+                <div className="flex items-center justify-end px-0.5">
+                  <button
+                    type="button"
+                    onClick={() => setStoryRouteVariant((prev) => prev + 1)}
+                    className="text-[10px] px-2.5 py-1 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/25 font-bold flex items-center gap-1 cursor-pointer"
+                    title="تغییر زاویه نقشه مسیر"
+                  >
+                    <MapPin className="w-3 h-3 shrink-0" />
+                    <span>تغییر نمای نقشه مسیر</span>
+                  </button>
                 </div>
               </div>
 
-              {/* LIVE 9:16 INSTAGRAM STORY PREVIEW (Always Pace Heatmap GPS Route) */}
+              {/* LIVE 9:16 INSTAGRAM STORY PREVIEW (فقط لوگو، مپ اکتیویتی، مسافت، پیس، الویشن و dopool.ir) */}
               {(() => {
                 const b = computeActivityRewardBreakdown(storyModalActivity);
                 const route = getActivityGpsRoute(storyModalActivity, storyRouteVariant);
-                const caloriesBurned = Math.max(65, Math.round(storyModalActivity.distanceKm * 68));
-                const refCode = user?.referralCode || 'DP-8834';
-                const activeHook = storyViralHooks[storyHookIndex] || storyViralHooks[0];
                 const isMinimalOrTransparent = storyTheme === 'strava' || storyTheme === 'transparent';
 
-                // Activity Pace Heatmap GPS Route SVG
-                const renderPaceHeatmapSvg = (compact = false) => (
+                // Clean Minimal Activity GPS Route Map SVG
+                const renderPaceHeatmapSvg = () => (
                   <div
                     className={`relative w-full overflow-hidden rounded-2xl transition-all ${
                       isMinimalOrTransparent
-                        ? 'bg-transparent py-1'
-                        : 'bg-[#060b17]/80 border border-white/10 backdrop-blur-md p-2.5 shadow-inner'
+                        ? 'bg-transparent py-2'
+                        : 'bg-[#060b17]/75 border border-white/10 backdrop-blur-md p-3 shadow-inner'
                     }`}
                   >
                     {!isMinimalOrTransparent && (
                       <div
-                        className="absolute inset-0 pointer-events-none opacity-25"
+                        className="absolute inset-0 pointer-events-none opacity-20"
                         style={{
                           backgroundImage:
                             'linear-gradient(to right, rgba(148,163,184,0.12) 1px, transparent 1px), linear-gradient(to bottom, rgba(148,163,184,0.12) 1px, transparent 1px)',
@@ -8021,19 +8423,9 @@ export default function App() {
                       />
                     )}
 
-                    <div className="relative z-10 flex items-center justify-between text-[8px] font-bold text-slate-300 mb-1 px-0.5">
-                      <span className="flex items-center gap-1 truncate drop-shadow">
-                        <MapPin className="w-2.5 h-2.5 text-emerald-400 shrink-0" />
-                        <span>{route.routeNameFa}</span>
-                      </span>
-                      <span className="font-mono text-sky-400 drop-shadow" dir="ltr">
-                        {route.coordsText}
-                      </span>
-                    </div>
-
                     <svg
                       viewBox="0 0 260 145"
-                      className={`w-full ${compact ? 'h-22' : 'h-28'} overflow-visible mx-auto`}
+                      className="w-full h-32 overflow-visible mx-auto"
                       fill="none"
                     >
                       <defs>
@@ -8048,7 +8440,7 @@ export default function App() {
                       <path
                         d={route.svgPath}
                         stroke="url(#storyPaceHeatmapGrad)"
-                        strokeWidth="9"
+                        strokeWidth="10"
                         strokeLinecap="round"
                         strokeLinejoin="round"
                         opacity="0.26"
@@ -8058,38 +8450,13 @@ export default function App() {
                       <path
                         d={route.svgPath}
                         stroke="url(#storyPaceHeatmapGrad)"
-                        strokeWidth="4"
+                        strokeWidth="4.2"
                         strokeLinecap="round"
                         strokeLinejoin="round"
                         style={{
                           filter: 'drop-shadow(0 0 8px rgba(245,158,11,0.75))',
                         }}
                       />
-
-                      {/* KM Split Markers */}
-                      {route.splits.slice(0, 5).map((sp) => (
-                        <g key={sp.km}>
-                          <circle
-                            cx={sp.x}
-                            cy={sp.y}
-                            r="5.2"
-                            fill="#090e1c"
-                            stroke="#fbbf24"
-                            strokeWidth="1.4"
-                          />
-                          <text
-                            x={sp.x}
-                            y={sp.y + 2.2}
-                            textAnchor="middle"
-                            fill="#fde68a"
-                            fontSize="6.2"
-                            fontWeight="900"
-                            fontFamily="monospace"
-                          >
-                            {sp.km}
-                          </text>
-                        </g>
-                      ))}
 
                       {/* Start Beacon (Emerald) & Finish Beacon (Amber Gold) */}
                       <circle
@@ -8109,27 +8476,12 @@ export default function App() {
                         strokeWidth="1.5"
                       />
                     </svg>
-
-                    <div className="relative z-10 flex items-center justify-between text-[7.5px] text-slate-300 pt-0.5 px-1 drop-shadow">
-                      <span className="flex items-center gap-1">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block" />
-                        استارت نرمال
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <span className="w-1.5 h-1.5 rounded-full bg-amber-400 inline-block" />
-                        پیس میانی ({b.formattedPace})
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <span className="w-1.5 h-1.5 rounded-full bg-rose-500 inline-block" />
-                        فینیش سرعتی
-                      </span>
-                    </div>
                   </div>
                 );
 
                 return (
                   <div
-                    className={`relative mx-auto w-full max-w-[330px] aspect-[9/16] rounded-3xl overflow-hidden border shadow-2xl flex flex-col justify-between p-3.5 select-none transition-all duration-300 ${
+                    className={`relative mx-auto w-full max-w-[320px] aspect-[9/16] rounded-3xl overflow-hidden border shadow-2xl flex flex-col justify-between p-5 select-none transition-all duration-300 ${
                       storyTheme === 'gold'
                         ? 'bg-gradient-to-b from-[#060913] via-[#101829] to-[#1d1406] border-amber-500/45'
                         : storyTheme === 'strava'
@@ -8157,24 +8509,14 @@ export default function App() {
                           alt="Runner Backdrop"
                           className="absolute inset-0 w-full h-full object-cover"
                         />
-                        <div className="absolute inset-0 bg-gradient-to-b from-[#060913]/75 via-[#060913]/15 to-[#060913]/90" />
+                        <div className="absolute inset-0 bg-gradient-to-b from-[#060913]/75 via-[#060913]/20 to-[#060913]/90" />
                       </>
-                    )}
-
-                    {/* Giant Watermark Number for Aura Magazine Mode */}
-                    {storyTheme === 'poster' && (
-                      <div
-                        className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 text-[115px] font-black font-mono text-white/[0.04] pointer-events-none select-none"
-                        dir="ltr"
-                      >
-                        {storyModalActivity.distanceKm.toFixed(1)}
-                      </div>
                     )}
 
                     {/* Ambient Glow */}
                     {storyTheme !== 'transparent' && (
                       <div
-                        className={`absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-56 h-56 rounded-full blur-3xl pointer-events-none ${
+                        className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-56 h-56 rounded-full blur-3xl pointer-events-none ${
                           storyTheme === 'gold'
                             ? 'bg-amber-500/20'
                             : storyTheme === 'poster'
@@ -8184,123 +8526,68 @@ export default function App() {
                       />
                     )}
 
-                    {/* 1. Top Section: Official Winged Coin Dopool Logo */}
-                    <div className="relative z-10 flex items-center justify-between px-1">
-                      <span className="text-[8px] font-mono uppercase tracking-widest text-slate-300 drop-shadow">
-                        {storyTheme === 'transparent' ? 'TRANSPARENT' : 'IG STORY · 9:16'}
-                      </span>
+                    {/* 1. Top: Official Dopool Logo ONLY */}
+                    <div className="relative z-10 flex items-center justify-center pt-1">
                       <img
                         src={DOPOOL_LOGO_DARK_URL}
                         alt="Dopool"
                         className="w-28 h-20 object-contain drop-shadow-[0_8px_22px_rgba(245,158,11,0.48)]"
                       />
-                      <span className="text-[8px] font-mono uppercase tracking-widest text-emerald-400 drop-shadow">
-                        HEATMAP GPS
-                      </span>
                     </div>
 
-                    {/* 2. Center Section: Aura Model Showcase + Pace Heatmap Route */}
-                    <div className="relative z-10 flex flex-col items-center text-center my-auto w-full space-y-1.5">
-                      {isMinimalOrTransparent ? (
-                        /* Aura Minimal & Transparent Overlay: Floating Heatmap Route + Clean Aura Stack */
-                        <div className="w-full space-y-1.5 py-0.5">
-                          {renderPaceHeatmapSvg(true)}
-                          <div className="grid grid-cols-3 gap-1 pt-1.5 border-t border-white/15">
-                            <div>
-                              <span className="text-[8px] font-bold tracking-widest text-slate-300 uppercase block drop-shadow">
-                                DISTANCE
-                              </span>
-                              <div className="text-xl font-black text-white font-mono drop-shadow" dir="ltr">
-                                {storyModalActivity.distanceKm.toFixed(2)}
-                                <span className="text-[10px] text-amber-400 ml-0.5">km</span>
-                              </div>
-                            </div>
-                            <div>
-                              <span className="text-[8px] font-bold tracking-widest text-slate-300 uppercase block drop-shadow">
-                                AVG PACE
-                              </span>
-                              <div className="text-xl font-black text-sky-400 font-mono drop-shadow" dir="ltr">
-                                {b.formattedPace}
-                              </div>
-                            </div>
-                            <div>
-                              <span className="text-[8px] font-bold tracking-widest text-slate-300 uppercase block drop-shadow">
-                                TIME
-                              </span>
-                              <div className="text-xl font-black text-emerald-400 font-mono drop-shadow" dir="ltr">
-                                {b.formattedTime}
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      ) : (
-                        /* Aura Gold & Aura Magazine: Framed Pace Heatmap Route + Giant Distance */
-                        <div className="w-full space-y-1.5 flex flex-col items-center">
-                          {renderPaceHeatmapSvg(false)}
-                          <div className="pt-0.5">
-                            <div
-                              className="text-4xl font-black text-white font-mono tracking-tighter leading-none drop-shadow-[0_4px_16px_rgba(0,0,0,0.65)]"
-                              dir="ltr"
-                            >
-                              {storyModalActivity.distanceKm.toFixed(2)}{' '}
-                              <span className="text-base font-bold text-amber-400">KM</span>
-                            </div>
-                            <span className="text-[10px] text-slate-300 font-bold block mt-0.5">
-                              {b.title}
-                            </span>
-                          </div>
-                        </div>
-                      )}
-                    </div>
+                    {/* 2. Middle: Activity GPS Map + Hero Distance + Pace & Elevation */}
+                    <div className="relative z-10 flex flex-col items-center text-center my-auto w-full space-y-4">
+                      {renderPaceHeatmapSvg()}
 
-                    {/* 3. Bottom Section: Telemetry + POOL Reward + Viral Hook */}
-                    <div className="relative z-10 space-y-1.5">
-                      <div className="grid grid-cols-4 gap-1 text-center">
-                        <div className="p-1 rounded-xl bg-slate-950/75 border border-white/15 backdrop-blur-md">
-                          <span className="text-[7.5px] text-slate-300 block">پیس (PACE)</span>
-                          <span className="text-[9.5px] font-black text-white font-mono mt-0.5 block" dir="ltr">
-                            {b.formattedPace}
-                          </span>
+                      {/* المسافت (Distance) */}
+                      <div>
+                        <div
+                          className="text-4xl font-black text-white font-mono tracking-tight leading-none drop-shadow-[0_4px_16px_rgba(0,0,0,0.65)]"
+                          dir="ltr"
+                        >
+                          {storyModalActivity.distanceKm.toFixed(2)}{' '}
+                          <span className="text-sm font-black text-amber-400">KM</span>
                         </div>
-                        <div className="p-1 rounded-xl bg-slate-950/75 border border-white/15 backdrop-blur-md">
-                          <span className="text-[7.5px] text-slate-300 block">زمان (TIME)</span>
-                          <span className="text-[9.5px] font-black text-white font-mono mt-0.5 block" dir="ltr">
-                            {b.formattedTime}
-                          </span>
-                        </div>
-                        <div className="p-1 rounded-xl bg-slate-950/75 border border-white/15 backdrop-blur-md">
-                          <span className="text-[7.5px] text-slate-300 block">کالری (KCAL)</span>
-                          <span className="text-[9.5px] font-black text-orange-400 font-mono mt-0.5 block" dir="ltr">
-                            {caloriesBurned}
-                          </span>
-                        </div>
-                        <div className="p-1 rounded-xl bg-slate-950/75 border border-white/15 backdrop-blur-md">
-                          <span className="text-[7.5px] text-slate-300 block">ضربان (BPM)</span>
-                          <span className="text-[9.5px] font-black text-rose-400 font-mono mt-0.5 block" dir="ltr">
-                            {storyModalActivity.avgHeartRate}
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="py-1.5 px-2.5 rounded-2xl bg-gradient-to-r from-amber-500/25 via-slate-950/85 to-emerald-500/20 border border-amber-400/50 flex items-center justify-between backdrop-blur-md shadow-lg">
-                        <div className="flex items-center gap-1.5">
-                          <img src={DOPOOL_COIN_URL} alt="coin" className="w-5 h-4 object-contain" />
-                          <span className="text-base font-black text-amber-400 tracking-tight">
-                            +{b.earnedCoins} دوپول
-                          </span>
-                        </div>
-                        <span className="text-[10px] font-black text-emerald-400" dir="ltr">
-                          +{b.elevGainMeters}m Elev
+                        <span className="text-[10px] font-bold text-slate-300 block mt-1">
+                          مسافت
                         </span>
                       </div>
 
-                      <div className="px-2.5 py-1.5 rounded-2xl bg-slate-950/85 border border-emerald-500/40 text-center space-y-0.5 backdrop-blur-md shadow-md">
-                        <p className="text-[9.5px] font-black text-white leading-snug truncate">
-                          {activeHook}
-                        </p>
-                        <div className="text-[9px] font-mono font-black text-amber-300">
-                          🎁 ۱۰ سکه هدیه شروع با کد دعوت: {refCode}
+                      {/* پیس و الویشن (Pace & Elevation) */}
+                      <div className="w-full grid grid-cols-2 gap-2.5">
+                        <div className="py-2.5 px-3 rounded-2xl bg-slate-950/75 border border-white/15 backdrop-blur-md text-center shadow-md">
+                          <span className="text-[9.5px] font-bold text-slate-400 block">
+                            پیس (PACE)
+                          </span>
+                          <span
+                            className="text-sm font-black text-sky-400 font-mono mt-0.5 block"
+                            dir="ltr"
+                          >
+                            {b.formattedPace} <span className="text-[10px] font-normal">/km</span>
+                          </span>
                         </div>
+
+                        <div className="py-2.5 px-3 rounded-2xl bg-slate-950/75 border border-white/15 backdrop-blur-md text-center shadow-md">
+                          <span className="text-[9.5px] font-bold text-slate-400 block">
+                            الویشن (ELEV)
+                          </span>
+                          <span
+                            className="text-sm font-black text-amber-400 font-mono mt-0.5 block"
+                            dir="ltr"
+                          >
+                            +{b.elevGainMeters} m
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* 3. Bottom: Website Address dopool.ir ONLY */}
+                    <div className="relative z-10 flex items-center justify-center pb-1">
+                      <div
+                        className="px-5 py-1.5 rounded-full bg-slate-950/85 border border-amber-400/45 text-amber-300 font-mono font-black text-xs tracking-wider shadow-lg backdrop-blur-md"
+                        dir="ltr"
+                      >
+                        dopool.ir
                       </div>
                     </div>
                   </div>
@@ -8523,6 +8810,37 @@ export default function App() {
                       </div>
                       <ChevronRight className="w-4 h-4 text-amber-400 rotate-180 shrink-0" />
                     </button>
+
+                    <a
+                      href="/dopool-full-source-backup.zip"
+                      download="dopool-full-source-backup.zip"
+                      onClick={() => {
+                        setShowHamburgerMenu(false);
+                        triggerToast(
+                          'دانلود بکاپ کامل پروژه آغاز شد 📦',
+                          'فایل فشرده (ZIP) شامل تمام کدهای برنامه در حال دریافت است.',
+                          'success'
+                        );
+                      }}
+                      className="w-full p-2.5 rounded-2xl bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/40 text-right flex items-center justify-between gap-2 cursor-pointer transition-colors"
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="w-8 h-8 rounded-xl bg-emerald-500/20 border border-emerald-400/40 text-emerald-300 flex items-center justify-center shrink-0">
+                          <Download className="w-4 h-4" />
+                        </div>
+                        <div className="min-w-0">
+                          <span className="text-xs font-black text-white block truncate">
+                            دانلود فایل بکاپ پروژه (ZIP)
+                          </span>
+                          <span className="text-[9.5px] text-emerald-300/90 block truncate">
+                            سورس کامل برنامه تا این مرحله
+                          </span>
+                        </div>
+                      </div>
+                      <span className="px-2 py-0.5 rounded-lg bg-emerald-500 text-slate-950 font-mono font-black text-[10px] shrink-0">
+                        ZIP
+                      </span>
+                    </a>
                   </div>
                 </div>
 
@@ -8607,8 +8925,16 @@ export default function App() {
                 }`}
               >
                 <Gift className="w-4 h-4 shrink-0" />
-                {(canClaimCheckInToday ||
-                  dailyTasks.some((t) => t.category !== 'battle' && t.isCompleted && !t.isClaimed)) && (
+                {dailyTasks.some(
+                  (t) =>
+                    t.category !== 'battle' &&
+                    t.category !== 'checkin' &&
+                    t.category !== 'social' &&
+                    t.id !== 'task-login' &&
+                    t.id !== 'task-crew' &&
+                    t.isCompleted &&
+                    !t.isClaimed
+                ) && (
                   <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-amber-400 ring-2 ring-slate-950" />
                 )}
               </div>
@@ -8673,7 +8999,7 @@ export default function App() {
 
         {/* ANIMATED COIN REWARD CELEBRATION BANNER + FLYING COINS OVERLAY */}
         <AnimatePresence>
-          {recentRewardGain && (
+          {recentRewardGain && !selectedReceiptActivity && (
             <motion.div
               key={recentRewardGain.id}
               initial={{ opacity: 0, y: -40, scale: 0.7 }}

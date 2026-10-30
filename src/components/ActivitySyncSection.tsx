@@ -147,14 +147,31 @@ const ActivitySyncSection = memo(function ActivitySyncSection({
   lang = 'fa',
 }: ActivitySyncSectionProps) {
   const isEn = lang === 'en';
-  const acceptedActivities = useMemo(
-    () => activities.filter((a) => a.status !== 'REJECTED'),
-    [activities]
-  );
+  const acceptedActivities = useMemo(() => {
+    const seenKeys = new Set<string>();
+    return activities.filter((a) => {
+      if (a.status === 'REJECTED') return false;
+      const rawText = `${a.title || ''} ${a.filename || ''} ${a.source || ''}`.toLowerCase();
+      if (
+        rawText.includes('mention') ||
+        rawText.includes('tagged') ||
+        rawText.includes('tag_') ||
+        rawText.includes('منشن') ||
+        rawText.includes('تگ شده') ||
+        rawText.includes('تگ‌')
+      ) {
+        return false;
+      }
+      const key = `${(a.filename || '').trim().toLowerCase()}|${Number(a.distanceKm).toFixed(2)}_${a.elapsedSeconds}`;
+      if (seenKeys.has(key)) return false;
+      seenKeys.add(key);
+      return true;
+    });
+  }, [activities]);
 
   return (
     <div className="space-y-2.5">
-      <div className="flex items-center justify-between px-1">
+      <div className="flex items-center justify-between gap-2 px-1">
         <h3 className="text-xs font-black text-slate-200 flex items-center gap-1.5">
           <Activity className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
           <span>
