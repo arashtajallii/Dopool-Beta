@@ -128,6 +128,32 @@
     -webkit-font-smoothing: antialiased;
     transition: background-color 0.25s ease, color 0.25s ease;
   }
+
+  /* Eliminate 300ms mobile tap delay & ensure instant single-tap button response */
+  button,
+  a,
+  [role="button"],
+  [role="switch"],
+  input,
+  select,
+  textarea {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  button,
+  [role="button"],
+  [role="switch"] {
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  /* Ensure clicks on icons inside buttons always hit the button directly */
+  button svg,
+  a svg,
+  [role="button"] svg {
+    pointer-events: none;
+  }
 }
 
 /* Eye-comfort theme container helpers */
@@ -138,12 +164,32 @@
 
 .app-canvas-shell {
   background-color: var(--app-bg-canvas);
+  transform: translateZ(0);
 }
 
 .app-header-bar {
   background-color: var(--app-bg-header);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
+  transform: translateZ(0);
+  will-change: transform;
+}
+
+/* Smooth GPU-accelerated tab & sub-menu entry transition */
+@keyframes tabViewEnter {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 6px, 0) scale(0.992);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+.tab-view-enter {
+  animation: tabViewEnter 0.18s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  will-change: transform, opacity;
 }
 
 /* Custom ergonomic glass styles (GPU-optimized without stacked backdrop-filter lag) */
@@ -151,12 +197,14 @@
   background: var(--app-card-bg);
   border: 1px solid var(--app-border);
   box-shadow: 0 4px 16px -4px rgba(0, 0, 0, 0.14);
+  transform: translateZ(0);
 }
 
 .glass-panel-glow {
   background: var(--app-card-glow-bg);
   border: 1px solid var(--app-border-accent);
   box-shadow: 0 6px 20px -6px rgba(43, 181, 160, 0.14);
+  transform: translateZ(0);
 }
 
 .glass-card {

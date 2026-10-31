@@ -20,6 +20,7 @@ export interface ActivitySyncItem {
 interface ActivitySyncSectionProps {
   activities: ActivitySyncItem[];
   onShareStory: (activity: ActivitySyncItem) => void;
+  onViewReceipt?: (activity: ActivitySyncItem) => void;
   lang?: 'fa' | 'en';
 }
 
@@ -41,10 +42,12 @@ const formatPace = (distanceKm: number, elapsedSeconds: number): string => {
 const SyncedActivityCard = memo(function SyncedActivityCard({
   activity,
   onShareStory,
+  onViewReceipt,
   isEn,
 }: {
   activity: ActivitySyncItem;
   onShareStory: (act: ActivitySyncItem) => void;
+  onViewReceipt?: (act: ActivitySyncItem) => void;
   isEn: boolean;
 }) {
   const elev =
@@ -64,7 +67,10 @@ const SyncedActivityCard = memo(function SyncedActivityCard({
     : '';
 
   return (
-    <div className="p-3.5 rounded-2xl bg-slate-900/80 border border-slate-800/90 space-y-2.5 transition-colors hover:border-slate-700/80">
+    <div
+      onClick={() => onViewReceipt?.(activity)}
+      className="p-3.5 rounded-2xl bg-slate-900/80 border border-slate-800/90 space-y-2.5 transition-all hover:border-slate-700/80 active:scale-[0.99] cursor-pointer"
+    >
       <div className="flex items-start justify-between gap-2">
         <div className="flex items-center gap-2.5 min-w-0">
           <div className="w-9 h-9 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 flex items-center justify-center shrink-0">
@@ -126,11 +132,28 @@ const SyncedActivityCard = memo(function SyncedActivityCard({
         </div>
       </div>
 
-      {/* Story Share Action */}
-      <div className="flex items-center justify-end pt-0.5">
+      {/* Receipt & Story Share Actions */}
+      <div className="flex items-center justify-between gap-2 pt-0.5">
+        {onViewReceipt ? (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onViewReceipt(activity);
+            }}
+            className="px-2.5 py-1.5 rounded-xl bg-slate-950/80 hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-white font-bold text-[10px] flex items-center gap-1 cursor-pointer transition-colors"
+          >
+            <Activity className="w-3 h-3 text-emerald-400 shrink-0" />
+            <span>{isEn ? 'Activity Receipt' : 'رسید اکتیویتی'}</span>
+          </button>
+        ) : <span />}
+
         <button
           type="button"
-          onClick={() => onShareStory(activity)}
+          onClick={(e) => {
+            e.stopPropagation();
+            onShareStory(activity);
+          }}
           className="px-3 py-1.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/35 text-amber-300 font-bold text-[10px] flex items-center gap-1.5 cursor-pointer transition-colors"
         >
           <Share2 className="w-3 h-3 shrink-0" />
@@ -144,6 +167,7 @@ const SyncedActivityCard = memo(function SyncedActivityCard({
 const ActivitySyncSection = memo(function ActivitySyncSection({
   activities,
   onShareStory,
+  onViewReceipt,
   lang = 'fa',
 }: ActivitySyncSectionProps) {
   const isEn = lang === 'en';
@@ -196,6 +220,7 @@ const ActivitySyncSection = memo(function ActivitySyncSection({
               key={act.id}
               activity={act}
               onShareStory={onShareStory}
+              onViewReceipt={onViewReceipt}
               isEn={isEn}
             />
           ))}

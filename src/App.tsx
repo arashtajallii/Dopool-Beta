@@ -85,6 +85,44 @@ const LazyStravaWeeklyChart = StravaWeeklyChart;
 const LazyActivitySyncSection = ActivitySyncSection;
 const LazyLeaderboardSection = LeaderboardSection;
 
+const POPUP_BACKDROP_MOTION = {
+  initial: { opacity: 0 },
+  animate: { opacity: 1 },
+  exit: { opacity: 0, pointerEvents: 'none' as const },
+  transition: { duration: 0.22, ease: [0.22, 1, 0.36, 1] as const },
+};
+
+const POPUP_CARD_MOTION = {
+  initial: { opacity: 0, scale: 0.92, y: 10 },
+  animate: { opacity: 1, scale: 1, y: 0 },
+  exit: { opacity: 0, scale: 0.95, y: 6, pointerEvents: 'none' as const },
+  transition: {
+    type: 'spring' as const,
+    stiffness: 360,
+    damping: 28,
+    mass: 0.82,
+  },
+};
+
+// پاداش اولین‌ها: هر کدام دقیقاً ۱۰ سکه و یک‌بار مصرف (بعد از دریافت تمام می‌شود)
+export const FIRST_TIME_REWARD_COINS = 10;
+
+// ترکیب‌بندی ۱ (تجمعی ۳۰ روزه): روز اول ۱ سکه و مجموع کل ۳۰ روز = دقیقاً ۵۰ سکه
+// دهه اول (روز ۱ تا ۱۰) = ۱۲ سکه | دهه دوم (روز ۱۱ تا ۲۰) = ۱۶ سکه (جمع ۲۸) | دهه سوم (روز ۲۱ تا ۳۰) = ۲۲ سکه (جمع کل = ۵۰ سکه)
+export const DAILY_COINS_CUMULATIVE_30: readonly number[] = [
+  1, 1, 1, 1, 1, 1, 2, 1, 1, 2, // روز ۱ تا ۱۰ (جمع = ۱۲)
+  1, 1, 2, 2, 2, 1, 2, 1, 2, 2, // روز ۱۱ تا ۲۰ (جمع = ۱۶ | تجمعی = ۲۸)
+  3, 2, 2, 2, 2, 2, 2, 2, 2, 3, // روز ۲۱ تا ۳۰ (جمع = ۲۲ | تجمعی در روز ۳۰ = ۵۰ سکه)
+];
+
+// ترکیب‌بندی ۲ (پله‌ای ۳۰ روزه): روز اول ۱ سکه و افزایش پله‌ای تا روز سی‌ام = ۵۰ سکه
+export const DAILY_COINS_ESCALATING_30: readonly number[] = [
+  1, 2, 3, 4, 5, 6, 8,          // هفته اول: روز ۱ = ۱ سکه ... روز ۷ = ۸ سکه
+  9, 11, 12, 14, 15, 17, 20,    // هفته دوم: روز ۸ = ۹ سکه ... روز ۱۴ = ۲۰ سکه
+  21, 23, 25, 27, 29, 31, 34,   // هفته سوم: روز ۱۵ = ۲۱ سکه ... روز ۲۱ = ۳۴ سکه
+  36, 37, 39, 41, 43, 45, 47, 48, 50, // هفته چهارم و پایان ماه: روز ۲۲ = ۳۶ سکه ... روز ۳۰ = ۵۰ سکه
+];
+
 interface CoinParticle {
   id: string;
   startX: number;
@@ -387,6 +425,7 @@ interface UserProfile {
     firstLogin: boolean;
     firstActivity: boolean;
     firstInvite: boolean;
+    firstWatchSync?: boolean;
   };
   connectedWatches: {
     strava: boolean;
@@ -474,6 +513,7 @@ function sanitizeUserProfile(raw: any): UserProfile | null {
       firstLogin: Boolean(fm.firstLogin),
       firstActivity: Boolean(fm.firstActivity),
       firstInvite: Boolean(fm.firstInvite),
+      firstWatchSync: Boolean(fm.firstWatchSync),
     },
     connectedWatches: {
       strava: Boolean(cw.strava ?? true),
@@ -1022,13 +1062,16 @@ export default function App() {
   // Login Logo Loading Animation State (فقط هنگام ورود یا ثبت‌نام نمایش داده می‌شود)
   const [showSplash, setShowSplash] = useState<boolean>(false);
   const [splashSubtitle, setSplashSubtitle] = useState<string>('در حال ورود به دوپول...');
+  const mainScrollRef = useRef<HTMLElement | null>(null);
+  const toastTimerRef = useRef<number | null>(null);
+  const receiptTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (!showSplash) return;
-    const timer = setTimeout(() => {
+    const timer = window.setTimeout(() => {
       setShowSplash(false);
-    }, 850);
-    return () => clearTimeout(timer);
+    }, 650);
+    return () => window.clearTimeout(timer);
   }, [showSplash]);
 
   // Authentication State (Restores active session so the app never resets to login mid-run)
@@ -2139,76 +2182,81 @@ export default function App() {
     { rank: 7, fullName: 'مریم اکبری', username: 'maryam_trail', totalKm: 52.8, poolBalance: 528.0 },
   ]);
 
-  // Vouchers
-  const vouchers: VoucherItem[] = [
-    {
-      id: 'nike_kish_30',
-      brand: 'Nike Kish Official',
-      title: 'کد تخفیف ۳۰٪ نایکی کیش',
-      subtitle: 'خرید انواع کفش‌های مسابقه‌ای ZoomX Vaporfly و رانینگ Pegasus',
-      costPool: 80,
-      discount: '۳۰ درصد تخفیف',
-      badge: 'پرفروش‌ترین',
-    },
-    {
-      id: 'majid_merooj_50',
-      brand: 'Merooj (Majid)',
-      title: 'کوپن ۱۰۰,۰۰۰ تومانی برند مجید',
-      subtitle: 'خرید تیشرت‌های ضدتعریق رانینگ، لگ و ساق ورزشی مروژ',
-      costPool: 50,
-      discount: '۱۰۰ هزار تومان',
-      badge: 'برند ملی',
-    },
-    {
-      id: 'digikala_running',
-      brand: 'Digikala Sport',
-      title: 'تخفیف ۴۰٪ اکسسوری و تغذیه دوندگان',
-      subtitle: 'شیکر، ژل‌های انرژی ایزوتونیک، کمربند بطری‌دار و جوراب ضدتاول',
-      costPool: 60,
-      discount: '۴۰ درصد تخفیف',
-      badge: 'ارسال فوری',
-    },
-    {
-      id: 'snappfood_fit',
-      brand: 'SnappFood Diet',
-      title: 'تخفیف ۲۵٪ سالادبار و غذای رژیمی',
-      subtitle: 'سفارش پروتئین بار و وعده‌های ریکاوری استاندارد بعد از دویدن',
-      costPool: 40,
-      discount: '۲۵ درصد تخفیف',
-      badge: 'تغذیه ورزشکاران',
-    },
-  ];
+  // Memoized Vouchers & Challenges to prevent re-allocations on every render
+  const vouchers = useMemo<VoucherItem[]>(
+    () => [
+      {
+        id: 'nike_kish_30',
+        brand: 'Nike Kish Official',
+        title: 'کد تخفیف ۳۰٪ نایکی کیش',
+        subtitle: 'خرید انواع کفش‌های مسابقه‌ای ZoomX Vaporfly و رانینگ Pegasus',
+        costPool: 80,
+        discount: '۳۰ درصد تخفیف',
+        badge: 'پرفروش‌ترین',
+      },
+      {
+        id: 'majid_merooj_50',
+        brand: 'Merooj (Majid)',
+        title: 'کوپن ۱۰۰,۰۰۰ تومانی برند مجید',
+        subtitle: 'خرید تیشرت‌های ضدتعریق رانینگ، لگ و ساق ورزشی مروژ',
+        costPool: 50,
+        discount: '۱۰۰ هزار تومان',
+        badge: 'برند ملی',
+      },
+      {
+        id: 'digikala_running',
+        brand: 'Digikala Sport',
+        title: 'تخفیف ۴۰٪ اکسسوری و تغذیه دوندگان',
+        subtitle: 'شیکر، ژل‌های انرژی ایزوتونیک، کمربند بطری‌دار و جوراب ضدتاول',
+        costPool: 60,
+        discount: '۴۰ درصد تخفیف',
+        badge: 'ارسال فوری',
+      },
+      {
+        id: 'snappfood_fit',
+        brand: 'SnappFood Diet',
+        title: 'تخفیف ۲۵٪ سالادبار و غذای رژیمی',
+        subtitle: 'سفارش پروتئین بار و وعده‌های ریکاوری استاندارد بعد از دویدن',
+        costPool: 40,
+        discount: '۲۵ درصد تخفیف',
+        badge: 'تغذیه ورزشکاران',
+      },
+    ],
+    []
+  );
 
-  // Challenges
-  const challenges: ChallengeItem[] = [
-    {
-      id: 'tehran_virtual_10k',
-      title: 'چالش ۱۰ کیلومتر هفتگی پایتخت',
-      subtitle: 'تکمیل ۱۰ کیلومتر دویدن در طول هفته و قرعه‌کشی ساعت ورزشی Garmin Forerunner',
-      entryFeePool: 20,
-      prizePool: '۵,۰۰۰ دوپول + ساعت گارمین',
-      participants: 512,
-      daysLeft: 4,
-    },
-    {
-      id: 'bam_morning_speed',
-      title: 'چالش صعود سرعتی بام تهران',
-      subtitle: 'دویدن در شیب با میانگین ضربان قلب بالاتر از ۱۵۰ bpm و ثبت عملکرد برتر',
-      entryFeePool: 15,
-      prizePool: '۲,۵۰۰ دوپول',
-      participants: 340,
-      daysLeft: 2,
-    },
-    {
-      id: 'persian_gulf_marathon',
-      title: 'نیم ماراتن مجازی خلیج فارس (۲۱K)',
-      subtitle: 'پیمایش مسافت ۲۱.۱ کیلومتر طی حداکثر ۳ روز و دریافت مدال فلزی ارسالی به آدرس',
-      entryFeePool: 35,
-      prizePool: '۱۰,۰۰۰ دوپول + مدال یادبود',
-      participants: 680,
-      daysLeft: 9,
-    },
-  ];
+  const challenges = useMemo<ChallengeItem[]>(
+    () => [
+      {
+        id: 'tehran_virtual_10k',
+        title: 'چالش ۱۰ کیلومتر هفتگی پایتخت',
+        subtitle: 'تکمیل ۱۰ کیلومتر دویدن در طول هفته و قرعه‌کشی ساعت ورزشی Garmin Forerunner',
+        entryFeePool: 20,
+        prizePool: '۵,۰۰۰ دوپول + ساعت گارمین',
+        participants: 512,
+        daysLeft: 4,
+      },
+      {
+        id: 'bam_morning_speed',
+        title: 'چالش صعود سرعتی بام تهران',
+        subtitle: 'دویدن در شیب با میانگین ضربان قلب بالاتر از ۱۵۰ bpm و ثبت عملکرد برتر',
+        entryFeePool: 15,
+        prizePool: '۲,۵۰۰ دوپول',
+        participants: 340,
+        daysLeft: 2,
+      },
+      {
+        id: 'persian_gulf_marathon',
+        title: 'نیم ماراتن مجازی خلیج فارس (۲۱K)',
+        subtitle: 'پیمایش مسافت ۲۱.۱ کیلومتر طی حداکثر ۳ روز و دریافت مدال فلزی ارسالی به آدرس',
+        entryFeePool: 35,
+        prizePool: '۱۰,۰۰۰ دوپول + مدال یادبود',
+        participants: 680,
+        daysLeft: 9,
+      },
+    ],
+    []
+  );
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const topWalletRef = useRef<HTMLDivElement>(null);
@@ -2222,6 +2270,8 @@ export default function App() {
   const walletGlowTimerRef = useRef<number | null>(null);
   const prevBalanceTrackerRef = useRef<{ userId: number; balance: number } | null>(null);
   const pendingHomeGlowAmountRef = useRef<number | null>(null);
+  const activeTabRef = useRef<AppTabType>(activeTab);
+  activeTabRef.current = activeTab;
 
   // PvP Battles & Staking Arena State (Option 4)
   const [battles, setBattles] = useState<PvPBattle[]>(() => {
@@ -2312,18 +2362,58 @@ export default function App() {
   const [copiedLink, setCopiedLink] = useState(false);
   const [isSyncingFromProvider, setIsSyncingFromProvider] = useState(false);
 
-  // Daily Tasks & Daily Check-in State + Unified Tab Top Switcher ('daily' | 'challenges')
+  // Daily Tasks & 30-Day Daily Coin Schedule State + Unified Tab Top Switcher ('daily' | 'challenges')
   const [showDailyTasksModal, setShowDailyTasksModal] = useState(false);
   const [missionsSubTab, setMissionsSubTab] = useState<'daily' | 'challenges'>('daily');
+  const [dailyCoinPlanMode, setDailyCoinPlanMode] = useState<'cumulative50' | 'escalating50'>(() => {
+    const savedMode = localStorage.getItem('dopool_daily_coin_plan_mode');
+    return savedMode === 'escalating50' ? 'escalating50' : 'cumulative50';
+  });
+  const [showFull30DayGrid, setShowFull30DayGrid] = useState<boolean>(false);
+  const [dailyCoinProgress, setDailyCoinProgress] = useState<{
+    claimedDays: number;
+    lastClaimDate: string | null;
+  }>(() => {
+    try {
+      const saved = localStorage.getItem('dopool_daily_coin_30_v1');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return {
+          claimedDays: Math.min(30, Math.max(0, Number(parsed.claimedDays) || 0)),
+          lastClaimDate: typeof parsed.lastClaimDate === 'string' ? parsed.lastClaimDate : null,
+        };
+      }
+    } catch {
+      // ignore
+    }
+    return { claimedDays: 0, lastClaimDate: null };
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('dopool_daily_coin_plan_mode', dailyCoinPlanMode);
+    } catch {
+      // ignore
+    }
+  }, [dailyCoinPlanMode]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('dopool_daily_coin_30_v1', JSON.stringify(dailyCoinProgress));
+    } catch {
+      // ignore
+    }
+  }, [dailyCoinProgress]);
+
   const [dailyTasks, setDailyTasks] = useState<DailyTask[]>(() => {
     const today = new Date().toISOString().split('T')[0];
-    const saved = localStorage.getItem('dopool_daily_tasks_v3');
-    const savedDate = localStorage.getItem('dopool_daily_tasks_date_v3');
+    const saved = localStorage.getItem('dopool_daily_tasks_v4');
+    const savedDate = localStorage.getItem('dopool_daily_tasks_date_v4');
     if (saved && savedDate === today) {
       try {
         const parsed: DailyTask[] = JSON.parse(saved);
         return parsed
-          .filter((t) => t.id !== 'task-login' && t.category !== 'checkin')
+          .filter((t) => t.id !== 'task-login' && t.id !== 'task-sync' && t.category !== 'checkin')
           .map((t) =>
             t.id === 'task-run'
               ? {
@@ -2353,19 +2443,6 @@ export default function App() {
         target: 5.0,
         unit: 'km',
         category: 'running',
-      },
-      {
-        id: 'task-sync',
-        title: 'همگام‌سازی ساعت ورزشی یا Strava',
-        description: 'ساعت هوشمند خود را متصل کرده یا یک فعالیت را همگام‌سازی کنید.',
-        rewardPool: 5,
-        icon: 'Watch',
-        isCompleted: true,
-        isClaimed: false,
-        progress: 1,
-        target: 1,
-        unit: 'سینک',
-        category: 'hardware',
       },
       {
         id: 'task-crew',
@@ -2420,18 +2497,26 @@ export default function App() {
     const t = setTimeout(() => {
       if (user) {
         try {
-          localStorage.setItem('dopool_user_session', JSON.stringify(user));
-          localStorage.setItem('dopool_saved_profile', JSON.stringify(user));
+          const serializedUser = JSON.stringify(user);
+          localStorage.setItem('dopool_user_session', serializedUser);
+          localStorage.setItem('dopool_saved_profile', serializedUser);
         } catch {
           // Ignore storage quota errors
         }
-        setLeaderboard((prev) =>
-          prev.map((item) =>
-            item.username.toLowerCase() === user.username.toLowerCase()
+        setLeaderboard((prev) => {
+          const targetUname = user.username.toLowerCase();
+          const hasChanged = prev.some(
+            (item) =>
+              item.username.toLowerCase() === targetUname &&
+              (item.totalKm !== user.totalKm || item.poolBalance !== user.lockedPoolBalance)
+          );
+          if (!hasChanged) return prev;
+          return prev.map((item) =>
+            item.username.toLowerCase() === targetUname
               ? { ...item, totalKm: user.totalKm, poolBalance: user.lockedPoolBalance }
               : item
-          )
-        );
+          );
+        });
 
         if (cloudUid && auth.currentUser?.emailVerified) {
           syncCloudUserVaultUpdate({
@@ -2453,7 +2538,7 @@ export default function App() {
           }).catch(() => {});
         }
       }
-    }, 100);
+    }, 250);
     return () => clearTimeout(t);
   }, [user, cloudUid]);
 
@@ -2464,7 +2549,7 @@ export default function App() {
       } catch {
         // Ignore storage quota errors
       }
-    }, 100);
+    }, 250);
     return () => clearTimeout(t);
   }, [activities]);
 
@@ -2475,7 +2560,7 @@ export default function App() {
       } catch {
         // Ignore storage quota errors
       }
-    }, 100);
+    }, 250);
     return () => clearTimeout(t);
   }, [notifications]);
 
@@ -2486,7 +2571,7 @@ export default function App() {
       } catch {
         // Ignore storage quota errors
       }
-    }, 100);
+    }, 250);
     return () => clearTimeout(t);
   }, [battles]);
 
@@ -2497,7 +2582,7 @@ export default function App() {
       } catch {
         // Ignore storage quota errors
       }
-    }, 100);
+    }, 250);
     return () => clearTimeout(t);
   }, [cashoutHistory]);
 
@@ -2505,12 +2590,12 @@ export default function App() {
     const t = setTimeout(() => {
       try {
         const today = new Date().toISOString().split('T')[0];
-        localStorage.setItem('dopool_daily_tasks_v3', JSON.stringify(dailyTasks));
-        localStorage.setItem('dopool_daily_tasks_date_v3', today);
+        localStorage.setItem('dopool_daily_tasks_v4', JSON.stringify(dailyTasks));
+        localStorage.setItem('dopool_daily_tasks_date_v4', today);
       } catch {
         // Ignore storage quota errors
       }
-    }, 100);
+    }, 250);
     return () => clearTimeout(t);
   }, [dailyTasks]);
 
@@ -2689,33 +2774,27 @@ export default function App() {
     }
   };
 
-  // Trigger Gentle Glow & Shimmer on the Wallet Balance Display Section
-  const triggerWalletGentleGlow = useCallback(
-    (gainAmount: number) => {
-      const roundedGain = Math.round(gainAmount * 10) / 10;
-      if (roundedGain <= 0) return;
+  // Trigger Gentle Glow & Shimmer on the Wallet Balance Display Section (Zero-dependency callback so tab switches never re-trigger effects)
+  const triggerWalletGentleGlow = useCallback((gainAmount: number) => {
+    const roundedGain = Math.round(gainAmount * 10) / 10;
+    if (roundedGain <= 0) return;
 
-      if (activeTab !== 'home') {
-        pendingHomeGlowAmountRef.current =
-          Math.round(((pendingHomeGlowAmountRef.current || 0) + roundedGain) * 10) / 10;
-      }
+    if (activeTabRef.current !== 'home') {
+      pendingHomeGlowAmountRef.current =
+        Math.round(((pendingHomeGlowAmountRef.current || 0) + roundedGain) * 10) / 10;
+    }
 
-      setLastWalletGain(roundedGain);
+    setLastWalletGain(roundedGain);
+    setWalletPulse(true);
+
+    if (walletGlowTimerRef.current) {
+      window.clearTimeout(walletGlowTimerRef.current);
+    }
+    walletGlowTimerRef.current = window.setTimeout(() => {
       setWalletPulse(false);
-      requestAnimationFrame(() => {
-        setWalletPulse(true);
-      });
-
-      if (walletGlowTimerRef.current) {
-        window.clearTimeout(walletGlowTimerRef.current);
-      }
-      walletGlowTimerRef.current = window.setTimeout(() => {
-        setWalletPulse(false);
-        setLastWalletGain(null);
-      }, 2150);
-    },
-    [activeTab]
-  );
+      setLastWalletGain(null);
+    }, 2150);
+  }, []);
 
   // Automatically detect any wallet balance increase from tasks, activities, or bonuses
   useEffect(() => {
@@ -2747,6 +2826,32 @@ export default function App() {
       return () => window.clearTimeout(timer);
     }
   }, [activeTab, triggerWalletGentleGlow]);
+
+  // Instant, single-tap navigation helper that closes any open drawers/popups and scrolls cleanly to top
+  const navigateToTab = useCallback(
+    (
+      targetTab: AppTabType,
+      subTab?: 'menu' | 'language' | 'privacy' | 'appearance' | 'support' | 'contact'
+    ) => {
+      setShowHamburgerMenu(false);
+      setShowNotifDrawer(false);
+      setSelectedReceiptActivity(null);
+      setShowDailyTasksModal(false);
+      setStoryModalActivity(null);
+      setAuthWatchModal((prev) => (prev.isOpen ? { ...prev, isOpen: false } : prev));
+      if (targetTab === 'settings') {
+        setSettingsSubTab(subTab || 'menu');
+      }
+      setActiveTab(targetTab);
+      if (mainScrollRef.current) {
+        mainScrollRef.current.scrollTop = 0;
+      }
+      if (typeof window !== 'undefined') {
+        window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
+      }
+    },
+    []
+  );
 
   // Dispatch Push Notification (Supports Mobile Service Worker + Desktop + Haptic Vibration)
   const dispatchPushNotification = ({
@@ -2845,48 +2950,88 @@ export default function App() {
     }
   };
 
-  // Claim Daily Login Check-in Bonus (10 POOL)
+  const activeDailyCoinsArray =
+    dailyCoinPlanMode === 'escalating50' ? DAILY_COINS_ESCALATING_30 : DAILY_COINS_CUMULATIVE_30;
+
+  const currentDailyCoinDayIndex = Math.min(29, dailyCoinProgress.claimedDays); // 0..29 (روز ۱ تا ۳۰)
+  const currentDailyCoinDayNumber = currentDailyCoinDayIndex + 1;
+  const is30DayCycleFinished = dailyCoinProgress.claimedDays >= 30;
+  const hasClaimedDailyCoinToday = dailyCoinProgress.lastClaimDate === todayDateStr;
+  const todayDailyCoinReward = is30DayCycleFinished ? 0 : activeDailyCoinsArray[currentDailyCoinDayIndex];
+  const cumulativeEarnedIn30Days = activeDailyCoinsArray
+    .slice(0, dailyCoinProgress.claimedDays)
+    .reduce((sum, val) => sum + val, 0);
+
+  // Claim 30-Day Daily Coin Bonus (Day 1 = 1 coin -> up to Day 30 = 50 coins)
   const handleClaimDailyCheckIn = (e?: React.MouseEvent) => {
     if (!user) return;
     const today = new Date().toISOString().split('T')[0];
-    if (user.lastDailyCheckIn === today) {
-      triggerToast('قبلاً دریافت شده', 'شما پاداش ورود ۱۰ سکه‌ای امروز را دریافت کرده‌اید. فردا دوباره سر بزنید!', 'info');
+
+    if (dailyCoinProgress.claimedDays >= 30) {
+      triggerToast(
+        'دوره ۳۰ روزه تکمیل شد! 🏆',
+        'شما هر ۳۰ روز سکه‌های روزانه این دوره را به طور کامل دریافت کرده‌اید.',
+        'info'
+      );
       return;
     }
 
-    const rewardAmount = 10;
+    if (dailyCoinProgress.lastClaimDate === today) {
+      triggerToast(
+        'سکه امروز دریافت شده ✓',
+        `سکه روز ${dailyCoinProgress.claimedDays} دریافت شده است. فردا برای سکه روز ${Math.min(
+          30,
+          dailyCoinProgress.claimedDays + 1
+        )} سر بزنید!`,
+        'info'
+      );
+      return;
+    }
+
+    const dayIdx = dailyCoinProgress.claimedDays;
+    const dayNum = dayIdx + 1;
+    const rewardAmount = activeDailyCoinsArray[dayIdx] ?? 1;
     const newBalance = Math.round((user.lockedPoolBalance + rewardAmount) * 10) / 10;
-    const newStreak = (user.streakDays || 0) + 1;
+    const nextClaimedDays = dayNum;
+    const newCumulative = activeDailyCoinsArray
+      .slice(0, nextClaimedDays)
+      .reduce((sum, v) => sum + v, 0);
+
+    setDailyCoinProgress({
+      claimedDays: nextClaimedDays,
+      lastClaimDate: today,
+    });
 
     setUser((prev) => {
       if (!prev) return null;
       return {
         ...prev,
         lockedPoolBalance: newBalance,
-        streakDays: newStreak,
+        streakDays: nextClaimedDays,
         lastDailyCheckIn: today,
       };
     });
 
-    // Mark task-login as completed and claimed
-    setDailyTasks((prev) =>
-      prev.map((t) => (t.id === 'task-login' ? { ...t, isCompleted: true, isClaimed: true, progress: 1 } : t))
-    );
-
     localStorage.setItem('dopool_daily_checkin_date', today);
 
-    // Trigger visual coins flying to the top wallet!
     const targetElement = (e?.currentTarget as HTMLElement) || heroWalletRef.current;
     triggerCoinReward(rewardAmount, targetElement);
 
     dispatchPushNotification({
       type: 'TOKEN_AWARD',
-      title: 'پاداش ورود روزانه دریافت شد! 🎁⚡',
-      body: `۱۰ سکه POOL به مناسبت ورود روزانه به اپلیکیشن به حساب شما افزوده شد. استریک شما به ${newStreak} روز رسید!`,
+      title: `سکه روز ${dayNum} (+${rewardAmount} دوپول) دریافت شد! 🪙⚡`,
+      body:
+        dailyCoinPlanMode === 'cumulative50'
+          ? `پاداش روز ${dayNum} از ۳۰ به کیف پول شما اضافه شد (مجموع دریافتی تا امروز: ${newCumulative} از ۵۰ سکه).`
+          : `پاداش پله‌ای روز ${dayNum} از ۳۰ (+${rewardAmount} سکه) به کیف پول شما اضافه گردید!`,
       poolAmount: rewardAmount,
     });
 
-    triggerToast('پاداش ورود دریافت شد! 🎉', `۱۰ سکه POOL تشویقی به کیف پول شما اضافه گردید.`, 'success');
+    triggerToast(
+      `سکه روز ${dayNum} دریافت شد! 🎉`,
+      `+${rewardAmount} سکه دوپول به کیف پول شما اضافه گردید.`,
+      'success'
+    );
   };
 
   // Claim Daily Task Reward
@@ -2931,13 +3076,19 @@ export default function App() {
     triggerToast('ماموریت تکمیل شد! ⭐', `${rewardAmount} سکه POOL به کیف پول شما واریز گردید.`, 'success');
   };
 
-  // Show Toast
-  const triggerToast = (message: string, detail?: string, type: 'success' | 'warning' | 'error' | 'info' = 'info') => {
-    setToast({ message, detail, type });
-    setTimeout(() => {
-      setToast(null);
-    }, 4500);
-  };
+  // Show Toast (non-blocking, timer-safe)
+  const triggerToast = useCallback(
+    (message: string, detail?: string, type: 'success' | 'warning' | 'error' | 'info' = 'info') => {
+      if (toastTimerRef.current) {
+        window.clearTimeout(toastTimerRef.current);
+      }
+      setToast({ message, detail, type });
+      toastTimerRef.current = window.setTimeout(() => {
+        setToast(null);
+      }, 2600);
+    },
+    []
+  );
 
   // Calculate user rank on leaderboard
   const getUserRank = useCallback(
@@ -2981,6 +3132,21 @@ export default function App() {
         activities.find((a) => a.status === 'ACCEPTED') ||
         activities[0];
       if (found) setStoryModalActivity(found);
+    },
+    [activities]
+  );
+
+  const handleViewActivityReceipt = useCallback(
+    (act: { id: string }) => {
+      const found = activities.find((a) => a.id === act.id);
+      if (!found) return;
+      if (receiptTimerRef.current) {
+        window.clearTimeout(receiptTimerRef.current);
+      }
+      setSelectedReceiptActivity(found);
+      receiptTimerRef.current = window.setTimeout(() => {
+        setSelectedReceiptActivity((curr) => (curr?.id === found.id ? null : curr));
+      }, 3600);
     },
     [activities]
   );
@@ -3068,7 +3234,7 @@ export default function App() {
     const { isValid, reason } = verifyAntiCheat(distanceKm, avgHr, pace);
 
     const isFirstActivityBonus = isValid && !user.firstTimeMilestones?.firstActivity;
-    const firstActivityBonusAmount = isFirstActivityBonus ? 10 : 0;
+    const firstActivityBonusAmount = isFirstActivityBonus ? FIRST_TIME_REWARD_COINS : 0;
     const mult = customMeta?.overrideMultiplier ?? activeMultiplier;
 
     const draftActivity: RunActivity = {
@@ -3107,9 +3273,12 @@ export default function App() {
     };
 
     setActivities((prev) => deduplicateActivitiesList([newActivity, ...prev]));
-    // Show small minimal popup for 3 seconds and auto-close
+    // Show small minimal popup for 3.2 seconds and auto-close with gentle scale/fade motion
+    if (receiptTimerRef.current) {
+      window.clearTimeout(receiptTimerRef.current);
+    }
     setSelectedReceiptActivity(newActivity);
-    setTimeout(() => {
+    receiptTimerRef.current = window.setTimeout(() => {
       setSelectedReceiptActivity((curr) => (curr?.id === newActivity.id ? null : curr));
     }, 3200);
 
@@ -3146,6 +3315,7 @@ export default function App() {
             firstLogin: prev.firstTimeMilestones?.firstLogin || false,
             firstActivity: true,
             firstInvite: prev.firstTimeMilestones?.firstInvite || false,
+            firstWatchSync: prev.firstTimeMilestones?.firstWatchSync || false,
           },
         };
       });
@@ -3497,23 +3667,39 @@ export default function App() {
     triggerToast('تبریک!', `کلاب ${newCrew.name} با موفقیت راه‌اندازی شد.`, 'success');
   };
 
-  // Simulate friend joining with referral code (+ First Invite 10-coin milestone)
+  // Simulate friend joining with referral code (+ First Invite 10-coin one-time milestone; finishes after first claim!)
   const simulateFriendReferral = () => {
     if (!user) return;
-    const isFirstInvite = !user.firstTimeMilestones?.firstInvite;
-    const rewardAmount = 10.0;
+    if (user.firstTimeMilestones?.firstInvite) {
+      triggerToast(
+        'پاداش اولین دعوت قبلاً دریافت شده ✓',
+        'پاداش ۱۰ سکه‌ای اولین دعوت یک‌بار مصرف است و قبلاً به کیف پول شما واریز شده است.',
+        'info'
+      );
+      return;
+    }
+
+    const rewardAmount = FIRST_TIME_REWARD_COINS;
     const newBal = Math.round((user.lockedPoolBalance + rewardAmount) * 10) / 10;
     const newCount = user.invitedFriendsCount + 1;
+    const nextMilestones = {
+      firstLogin: user.firstTimeMilestones?.firstLogin || false,
+      firstActivity: user.firstTimeMilestones?.firstActivity || false,
+      firstInvite: true,
+      firstWatchSync: user.firstTimeMilestones?.firstWatchSync || false,
+    };
+
+    try {
+      localStorage.setItem('dopool_first_milestones_v2', JSON.stringify(nextMilestones));
+    } catch {
+      // ignore
+    }
 
     setUser({
       ...user,
       lockedPoolBalance: newBal,
       invitedFriendsCount: newCount,
-      firstTimeMilestones: {
-        firstLogin: user.firstTimeMilestones?.firstLogin || false,
-        firstActivity: user.firstTimeMilestones?.firstActivity || false,
-        firstInvite: true,
-      },
+      firstTimeMilestones: nextMilestones,
     });
 
     const friendNames = ['کامران داوودی', 'نیلوفر رضایی', 'رضا شاکری', 'الناز حسینی', 'مهدی صادقی'];
@@ -3521,15 +3707,15 @@ export default function App() {
 
     dispatchPushNotification({
       type: 'REFERRAL_BONUS',
-      title: isFirstInvite ? 'جایزه اولین دعوت (+۱۰ سکه) واریز شد! 🎉' : 'پاداش دعوت دوست واریز شد! 🎉',
-      body: `دوست شما (${randomFriend}) با کد معرف ${user.referralCode} ثبت‌نام کرد و ۱۰ سکه POOL به حساب شما اضافه شد!`,
+      title: 'پاداش اولین دعوت (+۱۰ سکه) واریز و تکمیل شد! 🎉',
+      body: `دوست شما (${randomFriend}) با کد معرف ${user.referralCode} ثبت‌نام کرد و ۱۰ سکه دوپول پاداش اولین دعوت به حساب شما اضافه شد.`,
       poolAmount: rewardAmount,
     });
   };
 
-  // Claim 10-Coin First-Time Milestone Rewards (اولین لاگین، اولین اکتیویتی، اولین دعوت)
+  // Claim 10-Coin First-Time Milestone Rewards (اولین ورود، اولین فعالیت، اولین دعوت، اولین اتصال ساعت — هر کدام ۱۰ سکه و بعدش تمام می‌شود)
   const handleClaimFirstMilestone = (
-    key: 'firstLogin' | 'firstActivity' | 'firstInvite',
+    key: 'firstLogin' | 'firstActivity' | 'firstInvite' | 'firstWatchSync',
     e?: React.MouseEvent
   ) => {
     if (!user) return;
@@ -3537,30 +3723,56 @@ export default function App() {
       firstLogin: false,
       firstActivity: false,
       firstInvite: false,
+      firstWatchSync: false,
     };
 
     if (currentMilestones[key]) {
-      triggerToast('قبلاً دریافت شده ✓', 'جایزه ۱۰ سکه‌ای این مرحله قبلاً به کیف پول شما واریز شده است.', 'info');
+      triggerToast(
+        'قبلاً دریافت و تکمیل شده ✓',
+        'پاداش ۱۰ سکه‌ای این بخش یک‌بار مصرف است و قبلاً دریافت شده است.',
+        'info'
+      );
       return;
     }
 
-    const rewardAmount = 10.0;
+    const rewardAmount = FIRST_TIME_REWARD_COINS;
     const newBal = Math.round((user.lockedPoolBalance + rewardAmount) * 10) / 10;
 
-    const labels: Record<'firstLogin' | 'firstActivity' | 'firstInvite', { title: string; body: string }> = {
+    const labels: Record<
+      'firstLogin' | 'firstActivity' | 'firstInvite' | 'firstWatchSync',
+      { title: string; body: string }
+    > = {
       firstLogin: {
-        title: 'جایزه اولین لاگین (+۱۰ سکه) دریافت شد! 🎁',
-        body: '۱۰ سکه POOL به مناسبت اولین ورود به حساب کاربری به کیف پول شما واریز گردید.',
+        title: 'پاداش اولین ورود (+۱۰ سکه) دریافت و تکمیل شد! 🎁',
+        body: '۱۰ سکه دوپول به مناسبت اولین ورود به حساب کاربری به کیف پول شما واریز گردید.',
       },
       firstActivity: {
-        title: 'جایزه اولین اکتیویتی (+۱۰ سکه) دریافت شد! 🏃‍♂️',
-        body: '۱۰ سکه POOL به مناسبت ثبت اولین فعالیت ورزشی به کیف پول شما افزوده شد.',
+        title: 'پاداش اولین فعالیت (+۱۰ سکه) دریافت و تکمیل شد! 🏃‍♂️',
+        body: '۱۰ سکه دوپول به مناسبت ثبت اولین فعالیت ورزشی به کیف پول شما افزوده شد.',
       },
       firstInvite: {
-        title: 'جایزه اولین دعوت (+۱۰ سکه) دریافت شد! 🤝',
-        body: '۱۰ سکه POOL به مناسبت اولین دعوت از دوستان به کیف پول شما واریز شد.',
+        title: 'پاداش اولین دعوت (+۱۰ سکه) دریافت و تکمیل شد! 🤝',
+        body: '۱۰ سکه دوپول به مناسبت اولین دعوت از دوستان به کیف پول شما واریز شد.',
+      },
+      firstWatchSync: {
+        title: 'پاداش اولین اتصال ساعت (+۱۰ سکه) دریافت و تکمیل شد! ⌚',
+        body: '۱۰ سکه دوپول به مناسبت اولین اتصال ساعت هوشمند و استراوا به کیف پول شما واریز شد.',
       },
     };
+
+    const nextMilestones = {
+      firstLogin: Boolean(currentMilestones.firstLogin),
+      firstActivity: Boolean(currentMilestones.firstActivity),
+      firstInvite: Boolean(currentMilestones.firstInvite),
+      firstWatchSync: Boolean(currentMilestones.firstWatchSync),
+      [key]: true,
+    };
+
+    try {
+      localStorage.setItem('dopool_first_milestones_v2', JSON.stringify(nextMilestones));
+    } catch {
+      // ignore
+    }
 
     setUser((prev) => {
       if (!prev) return null;
@@ -3568,13 +3780,9 @@ export default function App() {
         ...prev,
         lockedPoolBalance: newBal,
         totalKm: key === 'firstActivity' && prev.totalKm === 0 ? 1.5 : prev.totalKm,
-        invitedFriendsCount: key === 'firstInvite' && prev.invitedFriendsCount === 0 ? 1 : prev.invitedFriendsCount,
-        firstTimeMilestones: {
-          firstLogin: prev.firstTimeMilestones?.firstLogin || false,
-          firstActivity: prev.firstTimeMilestones?.firstActivity || false,
-          firstInvite: prev.firstTimeMilestones?.firstInvite || false,
-          [key]: true,
-        },
+        invitedFriendsCount:
+          key === 'firstInvite' && prev.invitedFriendsCount === 0 ? 1 : prev.invitedFriendsCount,
+        firstTimeMilestones: nextMilestones,
       };
     });
 
@@ -3587,19 +3795,6 @@ export default function App() {
       body: labels[key].body,
       poolAmount: rewardAmount,
     });
-  };
-
-  const handleResetFirstMilestones = () => {
-    if (!user) return;
-    setUser({
-      ...user,
-      firstTimeMilestones: {
-        firstLogin: false,
-        firstActivity: false,
-        firstInvite: false,
-      },
-    });
-    triggerToast('ریست جوایز شروع 🔄', 'هر ۳ جایزه ۱۰ سکه‌ای (اولین لاگین، اولین اکتیویتی، اولین دعوت) مجدداً آماده دریافت شدند.', 'info');
   };
 
   // Simulate rank up directly from tester
@@ -3853,19 +4048,23 @@ export default function App() {
   const activeWatchLastSyncedAt =
     user?.watchAuthDetails?.[activeWatchProvider]?.lastSyncedAt || 'همگام‌سازی خودکار فعال';
 
-  // Automatic background sync when opening the Activity tab (once per day for the connected provider)
+  // Silent background check to auto-complete 5km daily running mission when synced activities >= 5km exist
   useEffect(() => {
-    if (!user || activeTab !== 'sync' || isSyncingFromProvider) return;
-    const todayKey = new Date().toISOString().split('T')[0];
-    const expectedFilename = `${activeWatchProvider}_sync_${todayKey}.fit`.toLowerCase();
-    const alreadySyncedToday = activities.some(
-      (a) => a.filename.trim().toLowerCase() === expectedFilename
+    if (!user) return;
+    const hasFiveKmRun = activities.some(
+      (a) => a.status === 'ACCEPTED' && a.distanceKm >= 5.0
     );
-    if (!alreadySyncedToday) {
-      handleSyncWatchActivity(activeWatchProvider);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab, user?.id, activeWatchProvider]);
+    if (!hasFiveKmRun) return;
+    setDailyTasks((prev) => {
+      const target = prev.find((t) => t.id === 'task-run');
+      if (!target || (target.isCompleted && target.isClaimed)) return prev;
+      return prev.map((t) =>
+        t.id === 'task-run'
+          ? { ...t, progress: 5.0, target: 5.0, isCompleted: true, isClaimed: true }
+          : t
+      );
+    });
+  }, [user?.id, activities]);
 
   // Copy OAuth URL
   const handleCopyOAuthLink = (url: string) => {
@@ -4088,7 +4287,6 @@ export default function App() {
           setUser(parsed);
           setActiveTab('home');
           setTimeout(() => {
-            triggerCoinReward(10, topWalletRef.current);
             triggerToast('خوش آمدید 👋', `${parsed.fullName} عزیز، با موفقیت وارد کیف پول ورزشی شدید.`, 'success');
           }, 600);
           return;
@@ -4096,6 +4294,27 @@ export default function App() {
       } catch {
         // Fallback to default login profile below
       }
+    }
+
+    let persistedMilestones = {
+      firstLogin: false,
+      firstActivity: false,
+      firstInvite: false,
+      firstWatchSync: false,
+    };
+    try {
+      const savedM = localStorage.getItem('dopool_first_milestones_v2');
+      if (savedM) {
+        const pm = JSON.parse(savedM);
+        persistedMilestones = {
+          firstLogin: Boolean(pm.firstLogin),
+          firstActivity: Boolean(pm.firstActivity),
+          firstInvite: Boolean(pm.firstInvite),
+          firstWatchSync: Boolean(pm.firstWatchSync),
+        };
+      }
+    } catch {
+      // ignore
     }
 
     const loggedInUser: UserProfile = {
@@ -4113,15 +4332,11 @@ export default function App() {
       crewId: 1,
       crewName: 'باشگاه انقلاب تهران (Enghelab Crew)',
       crewBadge: '🔥',
-      streakDays: 4,
+      streakDays: 1,
       battleWins: 4,
       battleLosses: 1,
       battleRating: 1250,
-      firstTimeMilestones: {
-        firstLogin: false,
-        firstActivity: false,
-        firstInvite: false,
-      },
+      firstTimeMilestones: persistedMilestones,
       connectedWatches: {
         strava: true,
         garmin: false,
@@ -4145,14 +4360,6 @@ export default function App() {
     setShowSplash(true);
     setUser(loggedInUser);
     setActiveTab('home');
-    setTimeout(() => {
-      dispatchPushNotification({
-        type: 'TOKEN_AWARD',
-        title: `جایزه اولین لاگین (+۱۰ سکه) واریز شد! 🎉`,
-        body: `${loggedInUser.fullName} عزیز خوش آمدید! ۱۰ سکه دوپول بابت اولین ورود به حساب شما اضافه شد.`,
-        poolAmount: 10,
-      });
-    }, 600);
   };
 
   // Register handler (فقط اسم، فامیل و آیدی + اجرای انیمیشن ورود)
@@ -4286,8 +4493,8 @@ export default function App() {
             <motion.div
               key="dopool-splash"
               initial={{ opacity: 1 }}
-              exit={{ opacity: 0, scale: 1.06, filter: 'blur(8px)' }}
-              transition={{ duration: 0.45, ease: 'easeInOut' }}
+              exit={{ opacity: 0, scale: 1.02, pointerEvents: 'none' }}
+              transition={{ duration: 0.2, ease: 'easeOut' }}
               onClick={() => setShowSplash(false)}
               className="fixed sm:absolute inset-0 z-[120] bg-[#080d1a] flex flex-col items-center justify-between p-8 text-center select-none cursor-pointer overflow-hidden"
             >
@@ -4390,14 +4597,14 @@ export default function App() {
               <motion.div
                 initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.2, duration: 0.35 }}
+                transition={{ delay: 0.1, duration: 0.25 }}
                 className="relative z-10 w-full max-w-[250px] space-y-2.5 pb-2"
               >
                 <div className="w-full h-2 bg-slate-800/90 rounded-full overflow-hidden p-[1px] border border-amber-500/30">
                   <motion.div
                     initial={{ width: '0%' }}
                     animate={{ width: '100%' }}
-                    transition={{ duration: 1.65, ease: 'easeInOut' }}
+                    transition={{ duration: 0.6, ease: 'easeInOut' }}
                     className="h-full rounded-full bg-gradient-to-r from-amber-400 via-yellow-300 to-emerald-400 shadow-[0_0_12px_rgba(245,158,11,0.7)]"
                   />
                 </div>
@@ -4412,12 +4619,12 @@ export default function App() {
 
         {/* Clean, Minimal & User-Friendly Top Header (فقط پس از ورود کاربر نمایش داده می‌شود) */}
         {user && (
-          <header className="px-4 py-3 flex items-center justify-between border-b border-slate-800/60 sticky top-0 app-header-bar z-30 transition-colors duration-300">
+          <header className="px-4 py-3 flex items-center justify-between border-b border-slate-800/60 sticky top-0 app-header-bar z-40 transition-colors duration-300">
             {/* Right Side: Official Dopool Brand Logo (پروفایل به منوی ۳ خط منتقل شد) */}
             <button
               type="button"
-              onClick={() => setActiveTab('home')}
-              className="flex items-center gap-2.5 text-right rounded-2xl p-1 -mr-1 hover:bg-slate-800/50 transition-colors cursor-pointer min-w-0"
+              onClick={() => navigateToTab('home')}
+              className="flex items-center gap-2.5 text-right rounded-2xl p-1 -mr-1 hover:bg-slate-800/50 active:scale-[0.98] transition-all cursor-pointer min-w-0"
               title="دوپول | Dopool"
             >
               <div className="relative w-10 h-10 rounded-2xl bg-slate-900/90 border border-amber-500/30 shrink-0 flex items-center justify-center shadow-sm">
@@ -4441,13 +4648,17 @@ export default function App() {
             </button>
 
             {/* Left Side: Notifications + 3-Line Menu */}
-            <div ref={topWalletRef} className="flex items-center gap-1.5 shrink-0">
+            <div ref={topWalletRef} className="flex items-center gap-2 shrink-0">
 
               {/* Notification Bell Button */}
               <button
                 type="button"
-                onClick={() => setShowNotifDrawer(true)}
-                className="w-9 h-9 rounded-xl bg-slate-800/60 hover:bg-slate-800 border border-slate-700/60 text-slate-300 hover:text-white relative flex items-center justify-center shrink-0 transition-colors cursor-pointer"
+                onClick={() => {
+                  setShowHamburgerMenu(false);
+                  setSelectedReceiptActivity(null);
+                  setShowNotifDrawer((prev) => !prev);
+                }}
+                className="w-10 h-10 rounded-xl bg-slate-800/60 hover:bg-slate-800 active:scale-95 border border-slate-700/60 text-slate-300 hover:text-white relative flex items-center justify-center shrink-0 transition-all cursor-pointer"
                 title="اعلان‌ها"
               >
                 {unreadCount > 0 ? (
@@ -4456,7 +4667,7 @@ export default function App() {
                   <Bell className="w-4 h-4 shrink-0" />
                 )}
                 {unreadCount > 0 && (
-                  <span className="absolute -top-1 -right-1 w-4 h-4 bg-emerald-500 text-slate-950 font-black text-[9px] rounded-full flex items-center justify-center shadow">
+                  <span className="pointer-events-none absolute -top-1 -right-1 w-4 h-4 bg-emerald-500 text-slate-950 font-black text-[9px] rounded-full flex items-center justify-center shadow">
                     {unreadCount}
                   </span>
                 )}
@@ -4465,8 +4676,13 @@ export default function App() {
               {/* 3-Line Hamburger Menu Button */}
               <button
                 type="button"
-                onClick={() => setShowHamburgerMenu(true)}
-                className={`w-9 h-9 rounded-xl border relative flex items-center justify-center shrink-0 transition-all cursor-pointer ${
+                onClick={() => {
+                  setShowNotifDrawer(false);
+                  setSelectedReceiptActivity(null);
+                  setShowHamburgerMenu((prev) => !prev);
+                }}
+                className={`w-10 h-10 rounded-xl border relative flex items-center justify-center shrink-0 active:scale-95 transition-all cursor-pointer ${
+                  showHamburgerMenu ||
                   activeTab === 'watches' ||
                   activeTab === 'leaderboard' ||
                   activeTab === 'support' ||
@@ -4484,7 +4700,7 @@ export default function App() {
         )}
 
         {/* Main Content Area */}
-        <main className="flex-1 px-4 py-4 space-y-4 overflow-y-auto">
+        <main ref={mainScrollRef} className="flex-1 px-4 py-4 space-y-4 overflow-y-auto">
 
           {/* If NOT logged in: Simple Page with Giant Dopool Logo & Frosted Matte Glass Overlay */}
           {!user ? (
@@ -4764,7 +4980,7 @@ export default function App() {
             /* Logged-in Dashboard — Clean, Minimal Main Menu & Organized Separate Tabs */
             <>
               {/* INSTANT, ZERO-LATENCY TAB CONTAINER */}
-              <div className="space-y-4">
+              <div key={activeTab} className="space-y-4 tab-view-enter">
                   {/* TAB 0: MINIMAL MAIN MENU (منو اصلی ساده و مینیمال) */}
                   {activeTab === 'home' && (
                     <div className="space-y-4">
@@ -4851,8 +5067,8 @@ export default function App() {
                         <div className="grid grid-cols-4 gap-1.5 pt-2.5 border-t border-slate-800/80">
                           <button
                             type="button"
-                            onClick={() => setActiveTab('sync')}
-                            className="bg-slate-950/60 hover:bg-slate-950 rounded-xl py-2 px-1 border border-slate-800/80 flex flex-col items-center justify-center gap-0.5 text-center transition-colors cursor-pointer"
+                            onClick={() => navigateToTab('sync')}
+                            className="bg-slate-950/60 hover:bg-slate-950 active:scale-95 rounded-xl py-2 px-1 border border-slate-800/80 flex flex-col items-center justify-center gap-0.5 text-center transition-all cursor-pointer"
                           >
                             <span className="text-[10px] text-slate-400 font-bold whitespace-nowrap">مسافت کل</span>
                             <span className="text-xs font-black text-white font-mono whitespace-nowrap" dir="ltr">
@@ -4862,8 +5078,8 @@ export default function App() {
 
                           <button
                             type="button"
-                            onClick={() => setActiveTab('sync')}
-                            className="bg-slate-950/60 hover:bg-slate-950 rounded-xl py-2 px-1 border border-slate-800/80 flex flex-col items-center justify-center gap-0.5 text-center transition-colors cursor-pointer"
+                            onClick={() => navigateToTab('sync')}
+                            className="bg-slate-950/60 hover:bg-slate-950 active:scale-95 rounded-xl py-2 px-1 border border-slate-800/80 flex flex-col items-center justify-center gap-0.5 text-center transition-all cursor-pointer"
                           >
                             <span className="text-[10px] text-slate-400 font-bold whitespace-nowrap">تعداد فعالیت</span>
                             <span className="text-xs font-black text-teal-400 font-mono whitespace-nowrap">
@@ -4873,8 +5089,8 @@ export default function App() {
 
                           <button
                             type="button"
-                            onClick={() => setActiveTab('invite')}
-                            className="bg-slate-950/60 hover:bg-slate-950 rounded-xl py-2 px-1 border border-slate-800/80 flex flex-col items-center justify-center gap-0.5 text-center transition-colors cursor-pointer"
+                            onClick={() => navigateToTab('invite')}
+                            className="bg-slate-950/60 hover:bg-slate-950 active:scale-95 rounded-xl py-2 px-1 border border-slate-800/80 flex flex-col items-center justify-center gap-0.5 text-center transition-all cursor-pointer"
                           >
                             <span className="text-[10px] text-slate-400 font-bold whitespace-nowrap">دعوت موفق</span>
                             <span className="text-xs font-black text-white font-mono whitespace-nowrap">
@@ -4884,8 +5100,8 @@ export default function App() {
 
                           <button
                             type="button"
-                            onClick={() => setActiveTab('leaderboard')}
-                            className="bg-slate-950/60 hover:bg-slate-950 rounded-xl py-2 px-1 border border-slate-800/80 flex flex-col items-center justify-center gap-0.5 text-center transition-colors cursor-pointer"
+                            onClick={() => navigateToTab('leaderboard')}
+                            className="bg-slate-950/60 hover:bg-slate-950 active:scale-95 rounded-xl py-2 px-1 border border-slate-800/80 flex flex-col items-center justify-center gap-0.5 text-center transition-all cursor-pointer"
                           >
                             <span className="text-[10px] text-slate-400 font-bold whitespace-nowrap">رتبه شما</span>
                             <span className="text-xs font-black text-amber-400 font-mono whitespace-nowrap" dir="ltr">
@@ -4895,16 +5111,17 @@ export default function App() {
                         </div>
                       </div>
 
-                      {/* 2. Three 10-Coin Starter Milestones (بدون انیمیشن‌های بی‌وقفه سنگین برای اجرای روان) */}
+                      {/* 2. One-Time 10-Coin First-Time Rewards (پاداش‌های اولین‌ها: هر کدام ۱۰ سکه و بعدش تموم میشه) */}
                       <AnimatePresence>
                         {(!user.firstTimeMilestones?.firstLogin ||
                           !user.firstTimeMilestones?.firstActivity ||
-                          !user.firstTimeMilestones?.firstInvite) && (
+                          !user.firstTimeMilestones?.firstInvite ||
+                          !user.firstTimeMilestones?.firstWatchSync) && (
                           <motion.div
                             key="starter-milestones-card"
                             initial={{ opacity: 0, y: 8 }}
                             animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, scale: 0.95, height: 0, marginBottom: 0 }}
+                            exit={{ opacity: 0, scale: 0.95, height: 0, marginBottom: 0, pointerEvents: 'none' }}
                             transition={{ duration: 0.2 }}
                             className="rounded-3xl p-4 bg-gradient-to-br from-slate-900/90 via-slate-900/80 to-amber-950/20 border border-amber-500/35 space-y-3 relative overflow-hidden"
                           >
@@ -4915,25 +5132,20 @@ export default function App() {
                                 </div>
                                 <div className="min-w-0">
                                   <h3 className="text-xs font-black text-white flex items-center gap-1.5 flex-wrap">
-                                    <span>جوایز شروع</span>
+                                    <span>پاداش‌های اولین‌ها (یک‌بار مصرف)</span>
                                     <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-bold shrink-0">
-                                      +{([
-                                        !user.firstTimeMilestones?.firstLogin,
-                                        !user.firstTimeMilestones?.firstActivity,
-                                        !user.firstTimeMilestones?.firstInvite,
-                                      ].filter(Boolean).length * 10)}{' '}
-                                      دوپول
+                                      هر کدام ۱۰ سکه · بعد از دریافت تمام می‌شود
                                     </span>
                                   </h3>
                                   <span className="text-[10px] text-slate-400 block">
-                                    هدیه اولین ورود، فعالیت و دعوت
+                                    اولین ورود، اولین فعالیت، اولین دعوت و اولین اتصال ساعت
                                   </span>
                                 </div>
                               </div>
                             </div>
 
                             <div className="space-y-2.5">
-                              {/* Milestone 1: First Login (اولین لاگین - ۱۰ سکه) */}
+                              {/* Milestone 1: First Login (اولین ورود - ۱۰ سکه و بعدش تموم میشه) */}
                               {!user.firstTimeMilestones?.firstLogin && (
                                 <div className="p-3 rounded-2xl bg-slate-950/85 border border-emerald-500/30 flex items-center justify-between gap-2">
                                   <div className="flex items-center gap-2.5 min-w-0">
@@ -4942,9 +5154,9 @@ export default function App() {
                                       <span className="text-[9px] font-mono font-black text-amber-300" dir="ltr">+10</span>
                                     </div>
                                     <div className="min-w-0">
-                                      <h4 className="text-xs font-bold text-white">هدیه اولین ورود</h4>
+                                      <h4 className="text-xs font-bold text-white">پاداش اولین ورود</h4>
                                       <span className="text-[10px] text-slate-400 block">
-                                        ۱۰ سکه هدیه ورود به برنامه
+                                        ۱۰ سکه هدیه اولین ورود (یک‌بار مصرف)
                                       </span>
                                     </div>
                                   </div>
@@ -4959,7 +5171,7 @@ export default function App() {
                                 </div>
                               )}
 
-                              {/* Milestone 2: First Activity (اولین اکتیویتی - ۱۰ سکه) */}
+                              {/* Milestone 2: First Activity (اولین فعالیت - ۱۰ سکه و بعدش تموم میشه) */}
                               {!user.firstTimeMilestones?.firstActivity && (
                                 <div className="p-3 rounded-2xl bg-slate-950/85 border border-sky-500/30 flex items-center justify-between gap-2">
                                   <div className="flex items-center gap-2.5 min-w-0">
@@ -4968,17 +5180,17 @@ export default function App() {
                                       <span className="text-[9px] font-mono font-black text-amber-300" dir="ltr">+10</span>
                                     </div>
                                     <div className="min-w-0">
-                                      <h4 className="text-xs font-bold text-white">هدیه اولین فعالیت</h4>
+                                      <h4 className="text-xs font-bold text-white">پاداش اولین فعالیت</h4>
                                       <span className="text-[10px] text-slate-400 block">
-                                        ۱۰ سکه ثبت اولین دویدن
+                                        ۱۰ سکه ثبت اولین دویدن (یک‌بار مصرف)
                                       </span>
                                     </div>
                                   </div>
                                   <div className="flex items-center gap-1.5 shrink-0">
                                     <button
                                       type="button"
-                                      onClick={() => setActiveTab('sync')}
-                                      className="px-2 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-[11px] font-bold cursor-pointer"
+                                      onClick={() => navigateToTab('sync')}
+                                      className="px-2 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 active:scale-95 text-slate-200 text-[11px] font-bold cursor-pointer transition-all"
                                     >
                                       اکتیویتی
                                     </button>
@@ -4994,7 +5206,7 @@ export default function App() {
                                 </div>
                               )}
 
-                              {/* Milestone 3: First Invite (اولین دعوت - ۱۰ سکه) */}
+                              {/* Milestone 3: First Invite (اولین دعوت - ۱۰ سکه و بعدش تموم میشه) */}
                               {!user.firstTimeMilestones?.firstInvite && (
                                 <div className="p-3 rounded-2xl bg-slate-950/85 border border-amber-500/30 flex items-center justify-between gap-2">
                                   <div className="flex items-center gap-2.5 min-w-0">
@@ -5003,17 +5215,17 @@ export default function App() {
                                       <span className="text-[9px] font-mono font-black text-amber-300" dir="ltr">+10</span>
                                     </div>
                                     <div className="min-w-0">
-                                      <h4 className="text-xs font-bold text-white">هدیه اولین دعوت</h4>
+                                      <h4 className="text-xs font-bold text-white">پاداش اولین دعوت</h4>
                                       <span className="text-[10px] text-slate-400 block">
-                                        ۱۰ سکه دعوت از دوستان
+                                        ۱۰ سکه اولین دعوت از دوستان (یک‌بار مصرف)
                                       </span>
                                     </div>
                                   </div>
                                   <div className="flex items-center gap-1.5 shrink-0">
                                     <button
                                       type="button"
-                                      onClick={() => setActiveTab('invite')}
-                                      className="px-2 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-[11px] font-bold cursor-pointer"
+                                      onClick={() => navigateToTab('invite')}
+                                      className="px-2 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 active:scale-95 text-slate-200 text-[11px] font-bold cursor-pointer transition-all"
                                     >
                                       دعوت
                                     </button>
@@ -5021,6 +5233,41 @@ export default function App() {
                                       type="button"
                                       onClick={(e) => handleClaimFirstMilestone('firstInvite', e)}
                                       className="px-2.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-400 to-yellow-300 text-slate-950 font-black text-[11px] shadow-sm inline-flex items-center gap-1 cursor-pointer active:scale-95 transition-transform"
+                                    >
+                                      <Coins className="w-3.5 h-3.5 shrink-0" />
+                                      <span>دریافت +۱۰</span>
+                                    </button>
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Milestone 4: First Watch / Strava Sync (اولین اتصال ساعت هوشمند - ۱۰ سکه و بعدش تموم میشه) */}
+                              {!user.firstTimeMilestones?.firstWatchSync && (
+                                <div className="p-3 rounded-2xl bg-slate-950/85 border border-teal-500/30 flex items-center justify-between gap-2">
+                                  <div className="flex items-center gap-2.5 min-w-0">
+                                    <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-teal-500/25 to-emerald-500/20 border border-teal-400/40 flex flex-col items-center justify-center shrink-0">
+                                      <img src={DOPOOL_COIN_URL} alt="coin" className="w-6 h-5 object-contain" />
+                                      <span className="text-[9px] font-mono font-black text-amber-300" dir="ltr">+10</span>
+                                    </div>
+                                    <div className="min-w-0">
+                                      <h4 className="text-xs font-bold text-white">پاداش اولین اتصال ساعت</h4>
+                                      <span className="text-[10px] text-slate-400 block">
+                                        ۱۰ سکه اولین اتصال ساعت یا استراوا (یک‌بار مصرف)
+                                      </span>
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center gap-1.5 shrink-0">
+                                    <button
+                                      type="button"
+                                      onClick={() => navigateToTab('watches')}
+                                      className="px-2 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 active:scale-95 text-slate-200 text-[11px] font-bold cursor-pointer transition-all"
+                                    >
+                                      ساعت
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={(e) => handleClaimFirstMilestone('firstWatchSync', e)}
+                                      className="px-2.5 py-1.5 rounded-xl bg-gradient-to-r from-teal-400 to-emerald-400 text-slate-950 font-black text-[11px] shadow-sm inline-flex items-center gap-1 cursor-pointer active:scale-95 transition-transform"
                                     >
                                       <Coins className="w-3.5 h-3.5 shrink-0" />
                                       <span>دریافت +۱۰</span>
@@ -5050,6 +5297,7 @@ export default function App() {
                     <LazyActivitySyncSection
                       activities={activities}
                       onShareStory={handleShareActivityStory}
+                      onViewReceipt={handleViewActivityReceipt}
                       lang={appLanguage}
                     />
                   )}
@@ -5331,14 +5579,21 @@ export default function App() {
                               </a>
                             </div>
 
-                            <button
-                              type="button"
-                              onClick={simulateFriendReferral}
-                              className="w-full py-3 px-3 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-400 text-slate-950 font-black text-xs flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-emerald-500/20"
-                            >
-                              <Gift className="w-4 h-4 shrink-0" />
-                              <span>ثبت دعوت دوست و دریافت +۱۰ دوپول هدیه</span>
-                            </button>
+                            {!user.firstTimeMilestones?.firstInvite ? (
+                              <button
+                                type="button"
+                                onClick={simulateFriendReferral}
+                                className="w-full py-3 px-3 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-400 text-slate-950 font-black text-xs flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-emerald-500/20"
+                              >
+                                <Gift className="w-4 h-4 shrink-0" />
+                                <span>ثبت اولین دعوت دوست و دریافت +۱۰ دوپول (یک‌بار مصرف)</span>
+                              </button>
+                            ) : (
+                              <div className="w-full py-2.5 px-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 font-bold text-xs flex items-center justify-center gap-1.5">
+                                <Check className="w-4 h-4 shrink-0" />
+                                <span>پاداش ۱۰ سکه‌ای اولین دعوت دریافت و تکمیل شد</span>
+                              </div>
+                            )}
                           </div>
                         ) : (
                           <div className="space-y-3">
@@ -5453,13 +5708,143 @@ export default function App() {
                     </button>
                   </div>
 
-                  {/* SECTION 1: MINIMAL DAILY MISSIONS (ماموریت روزانه بدون ورود روزانه و با چراغ خاموش برای ارسال پیام تشویقی) */}
+                  {/* SECTION 1: 30-DAY DAILY COINS + ONE-TIME 10-COIN FIRST REWARDS + DAILY RUNNING MISSIONS */}
                   {missionsSubTab === 'daily' && (
                     <div className="space-y-3">
+                      {/* 30-Day Daily Coin Calendar Card */}
+                      <div className="glass-panel rounded-2xl p-3.5 border border-emerald-500/35 space-y-3">
+                        <div className="flex items-center justify-between gap-2 flex-wrap">
+                          <div>
+                            <h3 className="text-xs font-black text-white flex items-center gap-1.5">
+                              <Calendar className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                              <span>سکه‌های روزانه (روز اول ۱ سکه تا روز سی‌ام ۵۰ سکه)</span>
+                            </h3>
+                            <span className="text-[10px] text-slate-400 block mt-0.5">
+                              {dailyCoinPlanMode === 'cumulative50'
+                                ? `مجموع ۳۰ روز = ۵۰ سکه (دریافتی شما: ${cumulativeEarnedIn30Days} از ۵۰ سکه)`
+                                : `پله‌ای روزانه: روز ۱ = ۱ سکه ... روز ۳۰ = ۵۰ سکه`}
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            disabled={hasClaimedDailyCoinToday || is30DayCycleFinished}
+                            onClick={(e) => handleClaimDailyCheckIn(e)}
+                            className={`px-3 py-1.5 rounded-xl text-[11px] font-black shrink-0 inline-flex items-center gap-1 transition-all ${
+                              hasClaimedDailyCoinToday || is30DayCycleFinished
+                                ? 'bg-slate-900 text-emerald-400 border border-emerald-500/30 cursor-default'
+                                : 'bg-gradient-to-r from-emerald-400 to-amber-300 text-slate-950 cursor-pointer active:scale-95'
+                            }`}
+                          >
+                            {hasClaimedDailyCoinToday || is30DayCycleFinished ? (
+                              <>
+                                <Check className="w-3.5 h-3.5 shrink-0" />
+                                <span>روز {dailyCoinProgress.claimedDays} دریافت شد</span>
+                              </>
+                            ) : (
+                              <>
+                                <Coins className="w-3.5 h-3.5 shrink-0" />
+                                <span>دریافت روز {currentDailyCoinDayNumber} (+{todayDailyCoinReward} سکه)</span>
+                              </>
+                            )}
+                          </button>
+                        </div>
+
+                        {/* Full 30-Day Combination Grid */}
+                        <div className="grid grid-cols-6 gap-1.5">
+                          {activeDailyCoinsArray.map((coinAmt, idx) => {
+                            const dayNum = idx + 1;
+                            const isClaimed = idx < dailyCoinProgress.claimedDays;
+                            const isToday =
+                              idx === currentDailyCoinDayIndex &&
+                              !hasClaimedDailyCoinToday &&
+                              !is30DayCycleFinished;
+                            return (
+                              <div
+                                key={dayNum}
+                                className={`p-1.5 rounded-xl border text-center flex flex-col items-center justify-center ${
+                                  isClaimed
+                                    ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300'
+                                    : isToday
+                                    ? 'bg-amber-500/20 border-amber-400 text-white ring-1 ring-amber-400/40'
+                                    : dayNum === 30
+                                    ? 'bg-amber-500/10 border-amber-500/35 text-amber-300'
+                                    : 'bg-slate-950/75 border-slate-800/80 text-slate-400'
+                                }`}
+                              >
+                                <span className="text-[8.5px] font-bold">روز {dayNum}</span>
+                                <span className="text-[10.5px] font-mono font-black text-amber-300" dir="ltr">
+                                  {isClaimed ? '✓' : `+${coinAmt}`}
+                                </span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* One-Time 10-Coin First-Time Rewards inside Missions Tab */}
+                      {(!user.firstTimeMilestones?.firstLogin ||
+                        !user.firstTimeMilestones?.firstActivity ||
+                        !user.firstTimeMilestones?.firstInvite ||
+                        !user.firstTimeMilestones?.firstWatchSync) && (
+                        <div className="glass-panel rounded-2xl p-3.5 border border-amber-500/35 space-y-2.5">
+                          <div className="flex items-center justify-between px-0.5">
+                            <h3 className="text-xs font-black text-amber-300">پاداش‌های اولین‌ها (۱۰ سکه · یک‌بار مصرف)</h3>
+                            <span className="text-[10px] text-slate-400">بعد از دریافت تمام می‌شود</span>
+                          </div>
+                          <div className="space-y-2">
+                            {(
+                              [
+                                {
+                                  key: 'firstLogin' as const,
+                                  title: 'اولین ورود به برنامه',
+                                  shown: !user.firstTimeMilestones?.firstLogin,
+                                },
+                                {
+                                  key: 'firstActivity' as const,
+                                  title: 'اولین ثبت فعالیت ورزشی',
+                                  shown: !user.firstTimeMilestones?.firstActivity,
+                                },
+                                {
+                                  key: 'firstInvite' as const,
+                                  title: 'اولین دعوت از دوستان',
+                                  shown: !user.firstTimeMilestones?.firstInvite,
+                                },
+                                {
+                                  key: 'firstWatchSync' as const,
+                                  title: 'اولین اتصال ساعت هوشمند یا استراوا',
+                                  shown: !user.firstTimeMilestones?.firstWatchSync,
+                                },
+                              ] as const
+                            )
+                              .filter((item) => item.shown)
+                              .map((item) => (
+                                <div
+                                  key={item.key}
+                                  className="p-2.5 rounded-xl bg-slate-950/80 border border-slate-800/90 flex items-center justify-between gap-2"
+                                >
+                                  <div className="flex items-center gap-2 min-w-0">
+                                    <span className="px-2 py-0.5 rounded-lg bg-amber-500/20 border border-amber-400/40 text-amber-300 font-mono font-black text-[10px]" dir="ltr">
+                                      +10
+                                    </span>
+                                    <span className="text-xs font-bold text-white truncate">{item.title}</span>
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={(e) => handleClaimFirstMilestone(item.key, e)}
+                                    className="px-2.5 py-1 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-[11px] cursor-pointer shrink-0"
+                                  >
+                                    دریافت +۱۰
+                                  </button>
+                                </div>
+                              ))}
+                          </div>
+                        </div>
+                      )}
+
                       {/* Minimal Daily Tasks List */}
                       <div className="glass-panel rounded-2xl p-3.5 border border-slate-800/90 space-y-2.5">
                         <div className="flex items-center justify-between px-0.5">
-                          <h3 className="text-xs font-black text-slate-200">ماموریت‌های امروز</h3>
+                          <h3 className="text-xs font-black text-slate-200">ماموریت‌های ورزشی امروز</h3>
                           <span className="text-[10px] text-slate-500">روزانه</span>
                         </div>
 
@@ -5979,11 +6364,8 @@ export default function App() {
                   {(settingsSubTab !== 'menu' || activeTab === 'support') && (
                     <button
                       type="button"
-                      onClick={() => {
-                        setActiveTab('settings');
-                        setSettingsSubTab('menu');
-                      }}
-                      className="w-full p-3 rounded-2xl bg-slate-900/90 hover:bg-slate-800/90 border border-slate-800 flex items-center justify-between gap-2 text-xs font-black text-amber-300 cursor-pointer transition-colors"
+                      onClick={() => navigateToTab('settings', 'menu')}
+                      className="w-full p-3 rounded-2xl bg-slate-900/90 hover:bg-slate-800/90 active:scale-[0.98] border border-slate-800 flex items-center justify-between gap-2 text-xs font-black text-amber-300 cursor-pointer transition-all"
                     >
                       <div className="flex items-center gap-2">
                         <ChevronRight className={`w-4 h-4 shrink-0 ${appLanguage === 'en' ? 'rotate-180' : ''}`} />
@@ -6013,7 +6395,7 @@ export default function App() {
                       <button
                         type="button"
                         onClick={() => setSettingsSubTab('language')}
-                        className="w-full p-3.5 rounded-2xl bg-slate-950/80 hover:bg-slate-900 border border-slate-800/90 flex items-center justify-between gap-3 cursor-pointer transition-all"
+                        className="w-full p-3.5 rounded-2xl bg-slate-950/80 hover:bg-slate-900 active:scale-[0.98] border border-slate-800/90 flex items-center justify-between gap-3 cursor-pointer transition-all"
                       >
                         <div className="flex items-center gap-3 min-w-0">
                           <div className="w-9 h-9 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 flex items-center justify-center shrink-0">
@@ -6040,7 +6422,7 @@ export default function App() {
                       <button
                         type="button"
                         onClick={() => setSettingsSubTab('privacy')}
-                        className="w-full p-3.5 rounded-2xl bg-slate-950/80 hover:bg-slate-900 border border-slate-800/90 flex items-center justify-between gap-3 cursor-pointer transition-all"
+                        className="w-full p-3.5 rounded-2xl bg-slate-950/80 hover:bg-slate-900 active:scale-[0.98] border border-slate-800/90 flex items-center justify-between gap-3 cursor-pointer transition-all"
                       >
                         <div className="flex items-center gap-3 min-w-0">
                           <div className="w-9 h-9 rounded-xl bg-purple-500/15 border border-purple-500/30 text-purple-300 flex items-center justify-center shrink-0">
@@ -6081,7 +6463,7 @@ export default function App() {
                       <button
                         type="button"
                         onClick={() => setSettingsSubTab('appearance')}
-                        className="w-full p-3.5 rounded-2xl bg-slate-950/80 hover:bg-slate-900 border border-slate-800/90 flex items-center justify-between gap-3 cursor-pointer transition-all"
+                        className="w-full p-3.5 rounded-2xl bg-slate-950/80 hover:bg-slate-900 active:scale-[0.98] border border-slate-800/90 flex items-center justify-between gap-3 cursor-pointer transition-all"
                       >
                         <div className="flex items-center gap-3 min-w-0">
                           <div className="w-9 h-9 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-400 flex items-center justify-center shrink-0">
@@ -6105,7 +6487,7 @@ export default function App() {
                       <button
                         type="button"
                         onClick={() => setSettingsSubTab('support')}
-                        className="w-full p-3.5 rounded-2xl bg-slate-950/80 hover:bg-slate-900 border border-slate-800/90 flex items-center justify-between gap-3 cursor-pointer transition-all"
+                        className="w-full p-3.5 rounded-2xl bg-slate-950/80 hover:bg-slate-900 active:scale-[0.98] border border-slate-800/90 flex items-center justify-between gap-3 cursor-pointer transition-all"
                       >
                         <div className="flex items-center gap-3 min-w-0">
                           <div className="w-9 h-9 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 flex items-center justify-center shrink-0">
@@ -6129,7 +6511,7 @@ export default function App() {
                       <button
                         type="button"
                         onClick={() => setSettingsSubTab('contact')}
-                        className="w-full p-3.5 rounded-2xl bg-slate-950/80 hover:bg-slate-900 border border-slate-800/90 flex items-center justify-between gap-3 cursor-pointer transition-all"
+                        className="w-full p-3.5 rounded-2xl bg-slate-950/80 hover:bg-slate-900 active:scale-[0.98] border border-slate-800/90 flex items-center justify-between gap-3 cursor-pointer transition-all"
                       >
                         <div className="flex items-center gap-3 min-w-0">
                           <div className="w-9 h-9 rounded-xl bg-sky-500/15 border border-sky-500/30 text-sky-400 flex items-center justify-center shrink-0">
@@ -6149,97 +6531,6 @@ export default function App() {
                         <ChevronRight className={`w-4 h-4 text-slate-500 shrink-0 ${appLanguage === 'en' ? '' : 'rotate-180'}`} />
                       </button>
 
-                      {/* Backup Section: Full Source ZIP + User Data JSON */}
-                      <div className="pt-2 border-t border-slate-800/80 space-y-2">
-                        <span className="text-[10px] font-bold text-emerald-400 px-1 block">
-                          {appLanguage === 'en' ? 'Project & Data Backup' : 'نسخه پشتیبان (بکاپ کامل تا این مرحله)'}
-                        </span>
-
-                        <a
-                          href="/dopool-full-source-backup.zip"
-                          download="dopool-full-source-backup.zip"
-                          onClick={() => {
-                            triggerToast(
-                              'دانلود بکاپ کامل پروژه آغاز شد 📦',
-                              'فایل فشرده (ZIP) شامل تمام کدهای سورس و فایل‌های پروژه در حال دریافت است.',
-                              'success'
-                            );
-                          }}
-                          className="w-full p-3.5 rounded-2xl bg-gradient-to-r from-emerald-500/15 via-teal-500/10 to-sky-500/15 hover:from-emerald-500/25 hover:to-sky-500/25 border border-emerald-500/40 flex items-center justify-between gap-3 cursor-pointer transition-all"
-                        >
-                          <div className="flex items-center gap-3 min-w-0">
-                            <div className="w-9 h-9 rounded-xl bg-emerald-500/20 border border-emerald-400/40 text-emerald-300 flex items-center justify-center shrink-0">
-                              <Download className="w-4 h-4" />
-                            </div>
-                            <div className="text-right min-w-0">
-                              <span className="text-xs font-black text-white block">
-                                دانلود بکاپ کامل سورس‌پروژه (ZIP)
-                              </span>
-                              <span className="text-[10px] text-slate-300 block mt-0.5">
-                                شامل تمام کدهای برنامه، استایل‌ها و تنظیمات تا این لحظه
-                              </span>
-                            </div>
-                          </div>
-                          <span className="px-2 py-1 rounded-lg bg-emerald-500 text-slate-950 font-mono font-black text-[10px] shrink-0">
-                            ZIP
-                          </span>
-                        </a>
-
-                        <button
-                          type="button"
-                          onClick={() => {
-                            try {
-                              const payload = {
-                                exportedAt: new Date().toISOString(),
-                                appVersion: 'Dopool v1.0',
-                                user,
-                                activities,
-                                dailyTasks,
-                                notifications,
-                                battles,
-                                cashoutHistory,
-                              };
-                              const blob = new Blob([JSON.stringify(payload, null, 2)], {
-                                type: 'application/json;charset=utf-8',
-                              });
-                              const url = URL.createObjectURL(blob);
-                              const link = document.createElement('a');
-                              link.href = url;
-                              link.download = `dopool-data-backup-${new Date().toISOString().split('T')[0]}.json`;
-                              document.body.appendChild(link);
-                              link.click();
-                              document.body.removeChild(link);
-                              URL.revokeObjectURL(url);
-                              triggerToast(
-                                'فایل بکاپ اطلاعات ذخیره شد ✓',
-                                'اطلاعات حساب، موجودی کیف پول و فعالیت‌های شما در قالب فایل JSON دانلود شد.',
-                                'success'
-                              );
-                            } catch {
-                              triggerToast('خطا در ساخت بکاپ', 'امکان ایجاد فایل پشتیبان وجود نداشت.', 'error');
-                            }
-                          }}
-                          className="w-full p-3 rounded-2xl bg-slate-950/85 hover:bg-slate-900 border border-slate-800 flex items-center justify-between gap-3 cursor-pointer transition-all"
-                        >
-                          <div className="flex items-center gap-3 min-w-0">
-                            <div className="w-9 h-9 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-400 flex items-center justify-center shrink-0">
-                              <Download className="w-4 h-4" />
-                            </div>
-                            <div className="text-right min-w-0">
-                              <span className="text-xs font-black text-white block">
-                                دانلود بکاپ اطلاعات و کیف‌پول (JSON)
-                              </span>
-                              <span className="text-[10px] text-slate-400 block mt-0.5">
-                                ذخیره موجودی سکه‌ها، رکوردهای دویدن و پروفایل کاربری
-                              </span>
-                            </div>
-                          </div>
-                          <span className="px-2 py-1 rounded-lg bg-amber-500/20 border border-amber-500/40 text-amber-300 font-mono font-black text-[10px] shrink-0">
-                            JSON
-                          </span>
-                        </button>
-                      </div>
-
                       {/* Row 6: Sign Out */}
                       <div className="pt-1.5">
                         <button
@@ -6248,7 +6539,7 @@ export default function App() {
                             setLogoutSecondConfirm(false);
                             setShowLogoutConfirmModal(true);
                           }}
-                          className="w-full p-3.5 rounded-2xl bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-300 font-bold text-xs flex items-center justify-between gap-2 cursor-pointer transition-colors"
+                          className="w-full p-3.5 rounded-2xl bg-rose-500/10 hover:bg-rose-500/20 active:scale-[0.98] border border-rose-500/30 text-rose-300 font-bold text-xs flex items-center justify-between gap-2 cursor-pointer transition-all"
                         >
                           <div className="flex items-center gap-2.5">
                             <LogOut className="w-4 h-4 shrink-0" />
@@ -6815,634 +7106,690 @@ export default function App() {
         </main>
 
         {/* MODAL: CREATE NEW RUNNING CREW */}
-        {showCreateCrewModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4">
-            <div className="w-full max-w-[420px] bg-[#091122] border border-slate-800 rounded-3xl p-5 shadow-2xl space-y-4">
-              <div className="flex items-center justify-between pb-2 border-b border-slate-800">
-                <h3 className="text-sm font-bold text-white flex items-center gap-1.5">
-                  <PlusCircle className="w-4 h-4 text-emerald-400" />
-                  <span>تاسیس کلاب دویدن جدید (Running Crew)</span>
-                </h3>
-                <button
-                  type="button"
-                  onClick={() => setShowCreateCrewModal(false)}
-                  className="p-1 text-slate-400 hover:text-white"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-
-              <form onSubmit={handleCreateCrewSubmit} className="space-y-3">
-                <div>
-                  <label className="block text-xs text-slate-300 mb-1">نام کلاب / تیم</label>
-                  <input
-                    type="text"
-                    required
-                    value={newCrewName}
-                    onChange={(e) => setNewCrewName(e.target.value)}
-                    placeholder="مثال: دوندگان بام چیتگر"
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs text-slate-300 mb-1">شهر / منطقه</label>
-                  <input
-                    type="text"
-                    required
-                    value={newCrewCity}
-                    onChange={(e) => setNewCrewCity(e.target.value)}
-                    placeholder="مثال: تهران یا اصفهان"
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs text-slate-300 mb-1">نشان اموجی تیم</label>
-                  <div className="grid grid-cols-6 gap-1.5 text-center">
-                    {['🔥', '⚡', '🏃', '🐆', '🏔️', '🌊'].map((emoji) => (
-                      <button
-                        key={emoji}
-                        type="button"
-                        onClick={() => setNewCrewBadge(emoji)}
-                        className={`p-2 rounded-xl text-lg border transition-all ${
-                          newCrewBadge === emoji ? 'bg-emerald-500/20 border-emerald-500 scale-105' : 'bg-slate-950 border-slate-800'
-                        }`}
-                      >
-                        {emoji}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-xs text-slate-300 mb-1">توضیحات و مسیر تمرین</label>
-                  <textarea
-                    rows={2}
-                    value={newCrewDesc}
-                    onChange={(e) => setNewCrewDesc(e.target.value)}
-                    placeholder="تمرینات اینتروال صبح‌های دوشنبه دور دریاچه..."
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500"
-                  />
-                </div>
-
-                <button
-                  type="submit"
-                  className="w-full py-2.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold rounded-xl text-xs transition-colors cursor-pointer"
-                >
-                  ثبت رسمی کلاب و ارتقا به کاپیتان
-                </button>
-              </form>
-            </div>
-          </div>
-        )}
-
-        {/* MINIMAL NOTIFICATION CENTER DRAWER */}
-        {showNotifDrawer && (
-          <div
-            className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm p-0 sm:p-4"
-            onClick={() => setShowNotifDrawer(false)}
-          >
-            <div
-              onClick={(e) => e.stopPropagation()}
-              className="w-full max-w-[440px] max-h-[78vh] bg-[#091122] border-t sm:border border-slate-800 rounded-t-3xl sm:rounded-3xl p-4 flex flex-col shadow-2xl overflow-hidden"
+        <AnimatePresence>
+          {showCreateCrewModal && (
+            <motion.div
+              key="create-crew-modal-backdrop"
+              {...POPUP_BACKDROP_MOTION}
+              onClick={() => setShowCreateCrewModal(false)}
+              className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4"
             >
-              {/* Compact Header */}
-              <div className="flex items-center justify-between pb-3 border-b border-slate-800/80">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 rounded-xl flex items-center justify-center shrink-0">
-                    <Bell className="w-4 h-4" />
+              <motion.div
+                {...POPUP_CARD_MOTION}
+                onClick={(e) => e.stopPropagation()}
+                className="w-full max-w-[420px] bg-[#091122] border border-slate-800 rounded-3xl p-5 shadow-2xl space-y-4"
+              >
+                <div className="flex items-center justify-between pb-2 border-b border-slate-800">
+                  <h3 className="text-sm font-bold text-white flex items-center gap-1.5">
+                    <PlusCircle className="w-4 h-4 text-emerald-400" />
+                    <span>تاسیس کلاب دویدن جدید (Running Crew)</span>
+                  </h3>
+                  <button
+                    type="button"
+                    onClick={() => setShowCreateCrewModal(false)}
+                    className="p-1 text-slate-400 hover:text-white cursor-pointer"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                <form onSubmit={handleCreateCrewSubmit} className="space-y-3">
+                  <div>
+                    <label className="block text-xs text-slate-300 mb-1">نام کلاب / تیم</label>
+                    <input
+                      type="text"
+                      required
+                      value={newCrewName}
+                      onChange={(e) => setNewCrewName(e.target.value)}
+                      placeholder="مثال: دوندگان بام چیتگر"
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500"
+                    />
                   </div>
                   <div>
-                    <h3 className="text-xs font-black text-white">مرکز اعلان‌ها</h3>
-                    <span className="text-[10px] text-slate-400 block">
-                      {unreadCount > 0 ? `${unreadCount} پیام جدید` : 'همه پیام‌ها خوانده شده'}
-                    </span>
+                    <label className="block text-xs text-slate-300 mb-1">شهر / منطقه</label>
+                    <input
+                      type="text"
+                      required
+                      value={newCrewCity}
+                      onChange={(e) => setNewCrewCity(e.target.value)}
+                      placeholder="مثال: تهران یا اصفهان"
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500"
+                    />
                   </div>
-                </div>
-
-                <div className="flex items-center gap-1.5">
-                  {unreadCount > 0 && (
-                    <button
-                      type="button"
-                      onClick={markAllNotificationsRead}
-                      className="px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-800 text-[10px] font-bold text-slate-300 hover:text-white transition-colors cursor-pointer"
-                    >
-                      خوانده شد
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => setShowNotifDrawer(false)}
-                    className="w-8 h-8 text-slate-400 hover:text-white rounded-xl bg-slate-900/80 hover:bg-slate-800 flex items-center justify-center transition-colors cursor-pointer"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-
-              {/* Minimal 1-Line Push Status Bar */}
-              <div className="mt-2.5 px-3 py-2 rounded-xl bg-slate-950/75 border border-slate-800/80 flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2">
-                  <Radio className={`w-3.5 h-3.5 shrink-0 ${pushPermission === 'granted' ? 'text-emerald-400' : 'text-amber-400'}`} />
-                  <span className="text-[11px] font-bold text-slate-300">
-                    {pushPermission === 'granted' ? 'اعلان گوشی فعال است ✓' : 'اعلان روی گوشی'}
-                  </span>
-                </div>
-                {pushPermission !== 'granted' && (
-                  <button
-                    type="button"
-                    onClick={requestPushPermission}
-                    className="px-2.5 py-1 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black rounded-lg text-[10px] transition-colors cursor-pointer"
-                  >
-                    فعال‌سازی
-                  </button>
-                )}
-              </div>
-
-              {/* Minimal Notification List */}
-              <div className="mt-2.5 flex-1 overflow-y-auto space-y-2 pr-0.5">
-                {notifications.length === 0 ? (
-                  <div className="text-center py-8 text-slate-500 text-xs">
-                    اعلانی وجود ندارد.
-                  </div>
-                ) : (
-                  notifications.map((n) => (
-                    <div
-                      key={n.id}
-                      className={`p-3 rounded-2xl border transition-all ${
-                        !n.isRead
-                          ? 'bg-slate-900/90 border-emerald-500/30'
-                          : 'bg-slate-950/50 border-slate-800/70'
-                      }`}
-                    >
-                      <div className="flex items-start gap-2.5">
-                        <div
-                          className={`w-7 h-7 rounded-xl flex items-center justify-center shrink-0 mt-0.5 ${
-                            n.type === 'REFERRAL_BONUS'
-                              ? 'bg-emerald-500/15 text-emerald-400'
-                              : n.type === 'RANK_UP'
-                              ? 'bg-amber-500/15 text-amber-400'
-                              : n.type === 'TOKEN_AWARD'
-                              ? 'bg-sky-500/15 text-sky-400'
-                              : 'bg-purple-500/15 text-purple-400'
+                  <div>
+                    <label className="block text-xs text-slate-300 mb-1">نشان اموجی تیم</label>
+                    <div className="grid grid-cols-6 gap-1.5 text-center">
+                      {['🔥', '⚡', '🏃', '🐆', '🏔️', '🌊'].map((emoji) => (
+                        <button
+                          key={emoji}
+                          type="button"
+                          onClick={() => setNewCrewBadge(emoji)}
+                          className={`p-2 rounded-xl text-lg border transition-all ${
+                            newCrewBadge === emoji ? 'bg-emerald-500/20 border-emerald-500 scale-105' : 'bg-slate-950 border-slate-800'
                           }`}
                         >
-                          {n.type === 'REFERRAL_BONUS' ? (
-                            <Gift className="w-3.5 h-3.5" />
-                          ) : n.type === 'RANK_UP' ? (
-                            <Trophy className="w-3.5 h-3.5" />
-                          ) : n.type === 'TOKEN_AWARD' ? (
-                            <Zap className="w-3.5 h-3.5" />
-                          ) : (
-                            <Bell className="w-3.5 h-3.5" />
-                          )}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center justify-between gap-2">
-                            <h4 className="text-xs font-bold text-white flex items-center gap-1.5">
-                              <span>{n.title}</span>
-                              {!n.isRead && (
-                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
-                              )}
-                            </h4>
-                            <span className="text-[10px] text-slate-500 shrink-0">{n.createdAt}</span>
-                          </div>
-                          <p className="text-[11px] text-slate-300 mt-0.5 leading-relaxed">{n.body}</p>
-                          {n.poolAmount && n.poolAmount > 0 ? (
-                            <div className="mt-1.5 inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 font-mono text-[10px] font-bold">
-                              <span>+{n.poolAmount} دوپول</span>
-                            </div>
-                          ) : null}
-                        </div>
-                      </div>
+                          {emoji}
+                        </button>
+                      ))}
                     </div>
-                  ))
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* ACTIVE DUEL SIMULATION MODAL (Option 4) */}
-        {activeDuel && (
-          <div className="fixed inset-0 bg-[#060913]/90 backdrop-blur-xl z-50 flex items-center justify-center p-4">
-            <div className="w-full max-w-[440px] glass-panel-glow rounded-3xl p-5 border border-amber-500/40 relative overflow-hidden shadow-2xl animate-fade-in space-y-4">
-              <div className="flex items-center justify-between text-xs pb-3 border-b border-slate-800">
-                <span className="bg-amber-500/20 text-amber-300 font-bold px-2.5 py-0.5 rounded-full border border-amber-500/30 flex items-center gap-1.5">
-                  <Swords className="w-3.5 h-3.5" />
-                  <span>مسابقه زنده {activeDuel.distanceKm} کیلومتر</span>
-                </span>
-                <span className="text-emerald-400 font-mono font-bold">
-                  جایزه برنده: {Math.round(activeDuel.wagerPool * 2 * 0.95 * 10) / 10} POOL
-                </span>
-              </div>
-
-              {/* Race Track Animation */}
-              <div className="bg-slate-950/80 rounded-2xl p-4 border border-slate-800/80 space-y-4">
-                {/* Lane 1: User */}
-                <div>
-                  <div className="flex items-center justify-between text-xs mb-1.5">
-                    <div className="flex items-center gap-1.5 font-bold text-white">
-                      <span className="text-base">👟</span>
-                      <span>شما (سهراب مرادی)</span>
-                    </div>
-                    <span className="text-emerald-400 font-mono font-bold text-[11px]">
-                      {activeDuel.userProgress.toFixed(0)}% · پیس: {activeDuel.userPace}
-                    </span>
                   </div>
-                  <div className="w-full bg-slate-900 rounded-full h-3 overflow-hidden border border-slate-800 relative">
-                    <div
-                      className="h-full bg-gradient-to-r from-emerald-500 via-teal-400 to-cyan-300 rounded-full transition-all duration-700"
-                      style={{ width: `${activeDuel.userProgress}%` }}
+                  <div>
+                    <label className="block text-xs text-slate-300 mb-1">توضیحات و مسیر تمرین</label>
+                    <textarea
+                      rows={2}
+                      value={newCrewDesc}
+                      onChange={(e) => setNewCrewDesc(e.target.value)}
+                      placeholder="تمرینات اینتروال صبح‌های دوشنبه دور دریاچه..."
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500"
                     />
                   </div>
-                </div>
 
-                {/* Lane 2: Opponent */}
-                <div>
-                  <div className="flex items-center justify-between text-xs mb-1.5">
-                    <div className="flex items-center gap-1.5 font-bold text-slate-300">
-                      <span className="text-base">🏃</span>
-                      <span>{activeDuel.opponentName} ({activeDuel.opponentCity})</span>
-                    </div>
-                    <span className="text-amber-400 font-mono font-bold text-[11px]">
-                      {activeDuel.opponentProgress.toFixed(0)}% · پیس: {activeDuel.opponentPace}
-                    </span>
-                  </div>
-                  <div className="w-full bg-slate-900 rounded-full h-3 overflow-hidden border border-slate-800 relative">
-                    <div
-                      className="h-full bg-gradient-to-r from-amber-500 via-orange-400 to-rose-400 rounded-full transition-all duration-700"
-                      style={{ width: `${activeDuel.opponentProgress}%` }}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Live Telemetry */}
-              <div className="grid grid-cols-3 gap-2 text-center text-xs">
-                <div className="bg-slate-950/50 p-2.5 rounded-xl border border-slate-800/60">
-                  <span className="text-[10px] text-slate-400 block">زمان سپری‌شده</span>
-                  <span className="font-mono font-black text-white text-sm">
-                    {Math.floor(activeDuel.elapsedSeconds / 60)}:{String(activeDuel.elapsedSeconds % 60).padStart(2, '0')}
-                  </span>
-                </div>
-                <div className="bg-slate-950/50 p-2.5 rounded-xl border border-slate-800/60">
-                  <span className="text-[10px] text-slate-400 block">ضربان قلب شما</span>
-                  <span className="font-mono font-black text-rose-400 text-sm">{activeDuel.userHr} bpm</span>
-                </div>
-                <div className="bg-slate-950/50 p-2.5 rounded-xl border border-slate-800/60">
-                  <span className="text-[10px] text-slate-400 block">استیک هر طرف</span>
-                  <span className="font-mono font-black text-amber-300 text-sm">{activeDuel.wagerPool} POOL</span>
-                </div>
-              </div>
-
-              {/* Real-time Commentary Ticker */}
-              <div className="bg-slate-950/70 p-3 rounded-xl border border-slate-800 text-xs">
-                <div className="flex items-center gap-1.5 text-amber-400 font-bold mb-1">
-                  <span className="w-2 h-2 rounded-full bg-rose-500 animate-ping" />
-                  <span>گزارش زنده مسیر:</span>
-                </div>
-                <p className="text-[11px] text-slate-300 leading-relaxed font-medium">
-                  {activeDuel.liveLog}
-                </p>
-              </div>
-
-              {/* Arbiter Anti-Cheat Badge */}
-              <div className="flex items-center gap-2 p-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-[10px] text-emerald-400">
-                <ShieldCheck className="w-4 h-4 shrink-0" />
-                <span>داور هوشمند بیت‌ران: بررسی سلامت پیس، کادنس و ضربان قلب فعال است.</span>
-              </div>
-
-              {/* Finished State / Claim Button */}
-              {activeDuel.finished && (
-                <div className="pt-2 animate-bounce">
-                  <div className="text-center p-3 rounded-2xl bg-gradient-to-r from-emerald-500/20 to-teal-500/20 border border-emerald-500/40 mb-3">
-                    <span className="text-3xl block mb-1">{activeDuel.winner === 'USER' ? '🏆' : '🥈'}</span>
-                    <h4 className="text-sm font-black text-white">
-                      {activeDuel.winner === 'USER' ? 'پیروزی شکوهمند در دوئل!' : 'پایان مسابقه'}
-                    </h4>
-                    <p className="text-xs text-slate-300 mt-0.5">
-                      {activeDuel.winner === 'USER'
-                        ? `شما برنده جایزه ${Math.round(activeDuel.wagerPool * 2 * 0.95 * 10) / 10} توکن POOL شدید!`
-                        : `حریف با اختلاف ناچیز به خط پایان رسید.`}
-                    </p>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={handleClaimDuelResult}
-                    className="w-full py-3 bg-gradient-to-r from-emerald-500 to-teal-400 text-slate-950 font-black rounded-xl text-xs shadow-xl shadow-emerald-500/30 transition-all cursor-pointer active:scale-95"
-                  >
-                    ثبت نتیجه در کارنامه و دریافت جوایز
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* CASHOUT MODAL (Option 4 - تسویه ریالی تومان) */}
-        {showCashoutModal && (
-          <div className="fixed inset-0 bg-[#060913]/90 backdrop-blur-xl z-50 flex items-center justify-center p-4">
-            <div className="w-full max-w-[440px] glass-panel-glow rounded-3xl p-5 border border-emerald-500/40 relative shadow-2xl animate-fade-in space-y-4">
-              <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-                <div className="flex items-center gap-2">
-                  <CreditCard className="w-5 h-5 text-emerald-400" />
-                  <h3 className="text-sm font-black text-white">تسویه ریالی توکن‌های دوپول</h3>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setShowCashoutModal(false)}
-                  className="p-1.5 text-slate-400 hover:text-white rounded-lg transition-colors cursor-pointer"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-
-              <div className="bg-emerald-950/20 border border-emerald-500/30 p-3 rounded-2xl text-xs space-y-1">
-                <div className="flex items-center justify-between text-slate-300">
-                  <span>نرخ تبدیل مصوب:</span>
-                  <span className="font-mono text-emerald-400 font-bold">۱ POOL = ۵,۰۰۰ تومان</span>
-                </div>
-                <div className="flex items-center justify-between text-slate-400 text-[11px]">
-                  <span>موجودی قابل تسویه:</span>
-                  <span className="font-mono text-white font-bold">{user ? user.lockedPoolBalance.toFixed(1) : '0'} POOL</span>
-                </div>
-              </div>
-
-              <form onSubmit={handleRequestCashout} className="space-y-3">
-                <div>
-                  <label className="block text-xs text-slate-300 mb-1 font-medium">تعداد توکن برای تسویه (حداقل ۲۰ POOL)</label>
-                  <input
-                    type="number"
-                    min="20"
-                    max={user?.lockedPoolBalance || 100}
-                    required
-                    value={cashoutPoolAmount}
-                    onChange={(e) => setCashoutPoolAmount(Number(e.target.value))}
-                    className="w-full bg-slate-950/80 border border-slate-800 rounded-xl px-3.5 py-2.5 text-sm text-emerald-400 font-mono font-bold focus:outline-none focus:border-emerald-500 text-left"
-                    dir="ltr"
-                  />
-                  <div className="flex items-center justify-between text-[11px] text-slate-400 mt-1">
-                    <span>معادل ریالی قابل واریز:</span>
-                    <span className="font-mono font-bold text-white text-xs">
-                      {(cashoutPoolAmount * 5000).toLocaleString('fa-IR')} تومان
-                    </span>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-xs text-slate-300 mb-1 font-medium">شماره شبا حساب بانکی (IR...)</label>
-                  <input
-                    type="text"
-                    required
-                    value={shebaInput}
-                    onChange={(e) => setShebaInput(e.target.value)}
-                    placeholder="IR820170000000123456789012"
-                    className="w-full bg-slate-950/80 border border-slate-800 rounded-xl px-3.5 py-2.5 text-sm text-sky-300 font-mono focus:outline-none focus:border-sky-400 text-left uppercase"
-                    dir="ltr"
-                  />
-                  <span className="text-[10px] text-slate-500 block mt-1">
-                    پشتیبانی از کلیه بانک‌های عضو شتاب (ملت، ملی، صادرات، سامان، پاسارگاد، بلو، رسالت)
-                  </span>
-                </div>
-
-                <div>
-                  <label className="block text-xs text-slate-300 mb-1 font-medium">نام و نام خانوادگی صاحب حساب</label>
-                  <input
-                    type="text"
-                    required
-                    value={accountOwnerName}
-                    onChange={(e) => setAccountOwnerName(e.target.value)}
-                    placeholder="سهراب مرادی"
-                    className="w-full bg-slate-950/80 border border-slate-800 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-emerald-500"
-                  />
-                </div>
-
-                <div className="pt-2">
                   <button
                     type="submit"
-                    className="w-full py-3 bg-gradient-to-r from-emerald-500 to-teal-400 hover:from-emerald-400 hover:to-teal-300 text-slate-950 font-black rounded-xl text-xs shadow-xl shadow-emerald-500/25 transition-all cursor-pointer active:scale-98"
+                    className="w-full py-2.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold rounded-xl text-xs transition-colors cursor-pointer"
                   >
-                    ثبت و انتقال وجه به سامانه پایا/ساتنا
+                    ثبت رسمی کلاب و ارتقا به کاپیتان
                   </button>
-                </div>
-              </form>
+                </form>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
-              {/* History Preview */}
-              {cashoutHistory.length > 0 && (
-                <div className="pt-2 border-t border-slate-800 space-y-1.5">
-                  <span className="text-[10px] text-slate-400 block">آخرین درخواست تسویه:</span>
-                  <div className="p-2.5 rounded-xl bg-slate-950/50 border border-slate-800/80 flex items-center justify-between text-xs">
+        {/* MINIMAL NOTIFICATION CENTER DRAWER */}
+        <AnimatePresence>
+          {showNotifDrawer && (
+            <motion.div
+              key="notif-drawer-backdrop"
+              {...POPUP_BACKDROP_MOTION}
+              className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm p-0 sm:p-4"
+              onClick={() => setShowNotifDrawer(false)}
+            >
+              <motion.div
+                {...POPUP_CARD_MOTION}
+                onClick={(e) => e.stopPropagation()}
+                className="w-full max-w-[440px] max-h-[78vh] bg-[#091122] border-t sm:border border-slate-800 rounded-t-3xl sm:rounded-3xl p-4 flex flex-col shadow-2xl overflow-hidden"
+              >
+                {/* Compact Header */}
+                <div className="flex items-center justify-between pb-3 border-b border-slate-800/80">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 rounded-xl flex items-center justify-center shrink-0">
+                      <Bell className="w-4 h-4" />
+                    </div>
                     <div>
-                      <span className="font-bold text-white block">
-                        {cashoutHistory[0].tomanAmount.toLocaleString('fa-IR')} تومان
-                      </span>
-                      <span className="text-[10px] text-slate-500 font-mono">
-                        کد: {cashoutHistory[0].trackingCode} · {cashoutHistory[0].createdAt}
+                      <h3 className="text-xs font-black text-white">مرکز اعلان‌ها</h3>
+                      <span className="text-[10px] text-slate-400 block">
+                        {unreadCount > 0 ? `${unreadCount} پیام جدید` : 'همه پیام‌ها خوانده شده'}
                       </span>
                     </div>
-                    <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded font-bold">
-                      {cashoutHistory[0].status === 'PROCESSED' ? 'تایید پایا' : 'در صف واریز'}
-                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-1.5">
+                    {unreadCount > 0 && (
+                      <button
+                        type="button"
+                        onClick={markAllNotificationsRead}
+                        className="px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-800 text-[10px] font-bold text-slate-300 hover:text-white transition-colors cursor-pointer"
+                      >
+                        خوانده شد
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => setShowNotifDrawer(false)}
+                      className="w-8 h-8 text-slate-400 hover:text-white rounded-xl bg-slate-900/80 hover:bg-slate-800 flex items-center justify-center transition-colors cursor-pointer"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
                   </div>
                 </div>
-              )}
-            </div>
-          </div>
-        )}
 
-        {/* SMARTWATCH & STRAVA OAUTH 2.0 AUTHORIZATION MODAL */}
-        {authWatchModal.isOpen && (() => {
-          const provider = WATCH_PROVIDERS.find((p) => p.id === authWatchModal.provider) || WATCH_PROVIDERS[0];
-          const isConnected = user?.connectedWatches[provider.id] || false;
-          const authDetails = user?.watchAuthDetails?.[provider.id];
+                {/* Minimal 1-Line Push Status Bar */}
+                <div className="mt-2.5 px-3 py-2 rounded-xl bg-slate-950/75 border border-slate-800/80 flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <Radio className={`w-3.5 h-3.5 shrink-0 ${pushPermission === 'granted' ? 'text-emerald-400' : 'text-amber-400'}`} />
+                    <span className="text-[11px] font-bold text-slate-300">
+                      {pushPermission === 'granted' ? 'اعلان گوشی فعال است ✓' : 'اعلان روی گوشی'}
+                    </span>
+                  </div>
+                  {pushPermission !== 'granted' && (
+                    <button
+                      type="button"
+                      onClick={requestPushPermission}
+                      className="px-2.5 py-1 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black rounded-lg text-[10px] transition-colors cursor-pointer"
+                    >
+                      فعال‌سازی
+                    </button>
+                  )}
+                </div>
 
-          return (
-            <div className="fixed inset-0 bg-[#060913]/90 backdrop-blur-xl z-50 flex items-center justify-center p-4">
-              <div
-                className="w-full max-w-[460px] glass-panel-glow rounded-3xl p-5 border relative shadow-2xl animate-fade-in space-y-4 max-h-[92vh] overflow-y-auto"
-                style={{ borderColor: `${provider.brandColor}50` }}
+                {/* Minimal Notification List */}
+                <div className="mt-2.5 flex-1 overflow-y-auto space-y-2 pr-0.5">
+                  {notifications.length === 0 ? (
+                    <div className="text-center py-8 text-slate-500 text-xs">
+                      اعلانی وجود ندارد.
+                    </div>
+                  ) : (
+                    notifications.map((n) => (
+                      <div
+                        key={n.id}
+                        className={`p-3 rounded-2xl border transition-all ${
+                          !n.isRead
+                            ? 'bg-slate-900/90 border-emerald-500/30'
+                            : 'bg-slate-950/50 border-slate-800/70'
+                        }`}
+                      >
+                        <div className="flex items-start gap-2.5">
+                          <div
+                            className={`w-7 h-7 rounded-xl flex items-center justify-center shrink-0 mt-0.5 ${
+                              n.type === 'REFERRAL_BONUS'
+                                ? 'bg-emerald-500/15 text-emerald-400'
+                                : n.type === 'RANK_UP'
+                                ? 'bg-amber-500/15 text-amber-400'
+                                : n.type === 'TOKEN_AWARD'
+                                ? 'bg-sky-500/15 text-sky-400'
+                                : 'bg-purple-500/15 text-purple-400'
+                            }`}
+                          >
+                            {n.type === 'REFERRAL_BONUS' ? (
+                              <Gift className="w-3.5 h-3.5" />
+                            ) : n.type === 'RANK_UP' ? (
+                              <Trophy className="w-3.5 h-3.5" />
+                            ) : n.type === 'TOKEN_AWARD' ? (
+                              <Zap className="w-3.5 h-3.5" />
+                            ) : (
+                              <Bell className="w-3.5 h-3.5" />
+                            )}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between gap-2">
+                              <h4 className="text-xs font-bold text-white flex items-center gap-1.5">
+                                <span>{n.title}</span>
+                                {!n.isRead && (
+                                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
+                                )}
+                              </h4>
+                              <span className="text-[10px] text-slate-500 shrink-0">{n.createdAt}</span>
+                            </div>
+                            <p className="text-[11px] text-slate-300 mt-0.5 leading-relaxed">{n.body}</p>
+                            {n.poolAmount && n.poolAmount > 0 ? (
+                              <div className="mt-1.5 inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 font-mono text-[10px] font-bold">
+                                <span>+{n.poolAmount} دوپول</span>
+                              </div>
+                            ) : null}
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* ACTIVE DUEL SIMULATION MODAL (Option 4) */}
+        <AnimatePresence>
+          {activeDuel && (
+            <motion.div
+              key="active-duel-modal-backdrop"
+              {...POPUP_BACKDROP_MOTION}
+              className="fixed inset-0 bg-[#060913]/90 backdrop-blur-xl z-50 flex items-center justify-center p-4"
+            >
+              <motion.div
+                {...POPUP_CARD_MOTION}
+                onClick={(e) => e.stopPropagation()}
+                className="w-full max-w-[440px] glass-panel-glow rounded-3xl p-5 border border-amber-500/40 relative overflow-hidden shadow-2xl space-y-4"
               >
-                {/* Modal Header */}
-                <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-                  <div className="flex items-center gap-2.5">
-                    <WatchBrandLogo providerId={provider.id} size="md" />
-                    <div>
-                      <h3 className="text-sm font-black text-white flex items-center gap-1.5">
-                        <span>احراز هویت {provider.nameFa}</span>
-                        <span className="text-[10px] px-1.5 py-0.5 rounded font-mono font-normal bg-slate-800 text-slate-300">
-                          OAuth 2.0
-                        </span>
-                      </h3>
-                      <span className="text-[10px] text-slate-400 font-mono block mt-0.5">
-                        {provider.protocol}
+                <div className="flex items-center justify-between text-xs pb-3 border-b border-slate-800">
+                  <span className="bg-amber-500/20 text-amber-300 font-bold px-2.5 py-0.5 rounded-full border border-amber-500/30 flex items-center gap-1.5">
+                    <Swords className="w-3.5 h-3.5" />
+                    <span>مسابقه زنده {activeDuel.distanceKm} کیلومتر</span>
+                  </span>
+                  <span className="text-emerald-400 font-mono font-bold">
+                    جایزه برنده: {Math.round(activeDuel.wagerPool * 2 * 0.95 * 10) / 10} POOL
+                  </span>
+                </div>
+
+                {/* Race Track Animation */}
+                <div className="bg-slate-950/80 rounded-2xl p-4 border border-slate-800/80 space-y-4">
+                  {/* Lane 1: User */}
+                  <div>
+                    <div className="flex items-center justify-between text-xs mb-1.5">
+                      <div className="flex items-center gap-1.5 font-bold text-white">
+                        <span className="text-base">👟</span>
+                        <span>شما (سهراب مرادی)</span>
+                      </div>
+                      <span className="text-emerald-400 font-mono font-bold text-[11px]">
+                        {activeDuel.userProgress.toFixed(0)}% · پیس: {activeDuel.userPace}
                       </span>
                     </div>
+                    <div className="w-full bg-slate-900 rounded-full h-3 overflow-hidden border border-slate-800 relative">
+                      <div
+                        className="h-full bg-gradient-to-r from-emerald-500 via-teal-400 to-cyan-300 rounded-full transition-all duration-700"
+                        style={{ width: `${activeDuel.userProgress}%` }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Lane 2: Opponent */}
+                  <div>
+                    <div className="flex items-center justify-between text-xs mb-1.5">
+                      <div className="flex items-center gap-1.5 font-bold text-slate-300">
+                        <span className="text-base">🏃</span>
+                        <span>{activeDuel.opponentName} ({activeDuel.opponentCity})</span>
+                      </div>
+                      <span className="text-amber-400 font-mono font-bold text-[11px]">
+                        {activeDuel.opponentProgress.toFixed(0)}% · پیس: {activeDuel.opponentPace}
+                      </span>
+                    </div>
+                    <div className="w-full bg-slate-900 rounded-full h-3 overflow-hidden border border-slate-800 relative">
+                      <div
+                        className="h-full bg-gradient-to-r from-amber-500 via-orange-400 to-rose-400 rounded-full transition-all duration-700"
+                        style={{ width: `${activeDuel.opponentProgress}%` }}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Live Telemetry */}
+                <div className="grid grid-cols-3 gap-2 text-center text-xs">
+                  <div className="bg-slate-950/50 p-2.5 rounded-xl border border-slate-800/60">
+                    <span className="text-[10px] text-slate-400 block">زمان سپری‌شده</span>
+                    <span className="font-mono font-black text-white text-sm">
+                      {Math.floor(activeDuel.elapsedSeconds / 60)}:{String(activeDuel.elapsedSeconds % 60).padStart(2, '0')}
+                    </span>
+                  </div>
+                  <div className="bg-slate-950/50 p-2.5 rounded-xl border border-slate-800/60">
+                    <span className="text-[10px] text-slate-400 block">ضربان قلب شما</span>
+                    <span className="font-mono font-black text-rose-400 text-sm">{activeDuel.userHr} bpm</span>
+                  </div>
+                  <div className="bg-slate-950/50 p-2.5 rounded-xl border border-slate-800/60">
+                    <span className="text-[10px] text-slate-400 block">استیک هر طرف</span>
+                    <span className="font-mono font-black text-amber-300 text-sm">{activeDuel.wagerPool} POOL</span>
+                  </div>
+                </div>
+
+                {/* Real-time Commentary Ticker */}
+                <div className="bg-slate-950/70 p-3 rounded-xl border border-slate-800 text-xs">
+                  <div className="flex items-center gap-1.5 text-amber-400 font-bold mb-1">
+                    <span className="w-2 h-2 rounded-full bg-rose-500 animate-ping" />
+                    <span>گزارش زنده مسیر:</span>
+                  </div>
+                  <p className="text-[11px] text-slate-300 leading-relaxed font-medium">
+                    {activeDuel.liveLog}
+                  </p>
+                </div>
+
+                {/* Arbiter Anti-Cheat Badge */}
+                <div className="flex items-center gap-2 p-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-[10px] text-emerald-400">
+                  <ShieldCheck className="w-4 h-4 shrink-0" />
+                  <span>داور هوشمند بیت‌ران: بررسی سلامت پیس، کادنس و ضربان قلب فعال است.</span>
+                </div>
+
+                {/* Finished State / Claim Button */}
+                {activeDuel.finished && (
+                  <div className="pt-2 animate-bounce">
+                    <div className="text-center p-3 rounded-2xl bg-gradient-to-r from-emerald-500/20 to-teal-500/20 border border-emerald-500/40 mb-3">
+                      <span className="text-3xl block mb-1">{activeDuel.winner === 'USER' ? '🏆' : '🥈'}</span>
+                      <h4 className="text-sm font-black text-white">
+                        {activeDuel.winner === 'USER' ? 'پیروزی شکوهمند در دوئل!' : 'پایان مسابقه'}
+                      </h4>
+                      <p className="text-xs text-slate-300 mt-0.5">
+                        {activeDuel.winner === 'USER'
+                          ? `شما برنده جایزه ${Math.round(activeDuel.wagerPool * 2 * 0.95 * 10) / 10} توکن POOL شدید!`
+                          : `حریف با اختلاف ناچیز به خط پایان رسید.`}
+                      </p>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={handleClaimDuelResult}
+                      className="w-full py-3 bg-gradient-to-r from-emerald-500 to-teal-400 text-slate-950 font-black rounded-xl text-xs shadow-xl shadow-emerald-500/30 transition-all cursor-pointer active:scale-95"
+                    >
+                      ثبت نتیجه در کارنامه و دریافت جوایز
+                    </button>
+                  </div>
+                )}
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* CASHOUT MODAL (Option 4 - تسویه ریالی تومان با انیمیشن ورود scale-in و fade-in ملایم) */}
+        <AnimatePresence>
+          {showCashoutModal && (
+            <motion.div
+              key="cashout-modal-backdrop"
+              {...POPUP_BACKDROP_MOTION}
+              onClick={() => setShowCashoutModal(false)}
+              className="fixed inset-0 bg-[#060913]/90 backdrop-blur-xl z-50 flex items-center justify-center p-4"
+            >
+              <motion.div
+                {...POPUP_CARD_MOTION}
+                onClick={(e) => e.stopPropagation()}
+                className="w-full max-w-[440px] glass-panel-glow rounded-3xl p-5 border border-emerald-500/40 relative shadow-2xl space-y-4"
+              >
+                <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+                  <div className="flex items-center gap-2">
+                    <CreditCard className="w-5 h-5 text-emerald-400" />
+                    <h3 className="text-sm font-black text-white">تسویه ریالی توکن‌های دوپول</h3>
                   </div>
                   <button
                     type="button"
-                    onClick={() => setAuthWatchModal({ ...authWatchModal, isOpen: false })}
+                    onClick={() => setShowCashoutModal(false)}
                     className="p-1.5 text-slate-400 hover:text-white rounded-lg transition-colors cursor-pointer"
                   >
                     <X className="w-4 h-4" />
                   </button>
                 </div>
 
-                {/* Description & Overview */}
-                <div className="p-3 rounded-2xl bg-slate-950/60 border border-slate-800/80 space-y-1.5 text-xs">
-                  <div className="flex items-center justify-between">
-                    <span className="text-slate-400 font-medium">سرویس ورزشی:</span>
-                    <span className="font-bold text-white">{provider.name}</span>
+                <div className="bg-emerald-950/20 border border-emerald-500/30 p-3 rounded-2xl text-xs space-y-1">
+                  <div className="flex items-center justify-between text-slate-300">
+                    <span>نرخ تبدیل مصوب:</span>
+                    <span className="font-mono text-emerald-400 font-bold">۱ POOL = ۵,۰۰۰ تومان</span>
                   </div>
-                  <p className="text-[11px] text-slate-300 leading-relaxed pt-1 border-t border-slate-800/60">
-                    {provider.description}
-                  </p>
+                  <div className="flex items-center justify-between text-slate-400 text-[11px]">
+                    <span>موجودی قابل تسویه:</span>
+                    <span className="font-mono text-white font-bold">{user ? user.lockedPoolBalance.toFixed(1) : '0'} POOL</span>
+                  </div>
                 </div>
 
-                {/* Optimized Connection Links & Portal Access */}
-                <div className="space-y-2.5">
-                  <div className="grid grid-cols-2 gap-2">
-                    <a
-                      href={getProviderAuthUrl(provider)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="py-2.5 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700/80 text-sky-300 hover:text-sky-200 text-xs font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
-                    >
-                      <ExternalLink className="w-3.5 h-3.5 shrink-0" />
-                      <span>پنل وب {provider.nameFa}</span>
-                    </a>
-                    <a
-                      href={provider.appUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="py-2.5 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700/80 text-emerald-300 hover:text-emerald-200 text-xs font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
-                    >
-                      <Smartphone className="w-3.5 h-3.5 shrink-0" />
-                      <span>اپلیکیشن {provider.name}</span>
-                    </a>
-                  </div>
-
-                  {/* Callback / Webhook URL for API Integration */}
-                  <div className="p-2.5 rounded-2xl bg-slate-950/80 border border-slate-800/80 space-y-1.5">
-                    <div className="flex items-center justify-between text-[10px]">
-                      <span className="text-slate-400 font-bold flex items-center gap-1">
-                        <Link2 className="w-3 h-3 text-sky-400" />
-                        <span>آدرس بازگشت (Callback URL):</span>
+                <form onSubmit={handleRequestCashout} className="space-y-3">
+                  <div>
+                    <label className="block text-xs text-slate-300 mb-1 font-medium">تعداد توکن برای تسویه (حداقل ۲۰ POOL)</label>
+                    <input
+                      type="number"
+                      min="20"
+                      max={user?.lockedPoolBalance || 100}
+                      required
+                      value={cashoutPoolAmount}
+                      onChange={(e) => setCashoutPoolAmount(Number(e.target.value))}
+                      className="w-full bg-slate-950/80 border border-slate-800 rounded-xl px-3.5 py-2.5 text-sm text-emerald-400 font-mono font-bold focus:outline-none focus:border-emerald-500 text-left"
+                      dir="ltr"
+                    />
+                    <div className="flex items-center justify-between text-[11px] text-slate-400 mt-1">
+                      <span>معادل ریالی قابل واریز:</span>
+                      <span className="font-mono font-bold text-white text-xs">
+                        {(cashoutPoolAmount * 5000).toLocaleString('fa-IR')} تومان
                       </span>
-                      <button
-                        type="button"
-                        onClick={() => handleCopyOAuthLink(`${window.location.origin}/auth/callback`)}
-                        className="text-sky-400 hover:text-sky-300 font-bold flex items-center gap-1 cursor-pointer"
-                      >
-                        {copiedLink ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
-                        <span>{copiedLink ? 'کپی شد' : 'کپی آدرس'}</span>
-                      </button>
-                    </div>
-                    <div className="text-[10px] font-mono text-slate-300 bg-slate-900/90 px-2.5 py-1.5 rounded-lg border border-slate-800 truncate select-all text-left" dir="ltr">
-                      {`${window.location.origin}/auth/callback`}
                     </div>
                   </div>
-                </div>
 
-                {/* Current Connection Status / Handshake */}
-                {isConnected ? (
-                  <div className="space-y-3 pt-1">
-                    {/* Athlete Connection Card */}
-                    <div className="p-3.5 rounded-2xl bg-emerald-950/20 border border-emerald-500/30 space-y-2">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-bold text-emerald-400 flex items-center gap-1.5">
-                          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-                          ارتباط فعال و تایید شده
-                        </span>
-                        <span className="text-[10px] text-slate-400 font-mono">Token: Active</span>
-                      </div>
-                      <div className="grid grid-cols-2 gap-2 text-[11px] pt-1 border-t border-emerald-500/20">
-                        <div>
-                          <span className="text-slate-400 block text-[10px]">ورزشکار متصل:</span>
-                          <span className="font-bold text-white">{authDetails?.athleteName || user?.fullName}</span>
-                        </div>
-                        <div>
-                          <span className="text-slate-400 block text-[10px]">شناسه ورزشکار:</span>
-                          <span className="font-mono text-emerald-300">{authDetails?.athleteId || '#4829103'}</span>
-                        </div>
-                        <div>
-                          <span className="text-slate-400 block text-[10px]">تاریخ احراز هویت:</span>
-                          <span className="text-slate-300">{authDetails?.connectedAt || '۱۴۰۳/۰۷/۱۵'}</span>
-                        </div>
-                        <div>
-                          <span className="text-slate-400 block text-[10px]">آخرین استعلام سرور:</span>
-                          <span className="text-emerald-400 font-bold">{authDetails?.lastSyncedAt || 'هم‌اکنون'}</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Actions when Connected */}
-                    <div className="space-y-2">
-                      <button
-                        type="button"
-                        onClick={() => handleSyncWatchActivity(provider.id)}
-                        disabled={isSyncingFromProvider}
-                        className="w-full py-3 bg-gradient-to-r from-emerald-500 to-teal-400 hover:from-emerald-400 hover:to-teal-300 text-slate-950 font-black rounded-xl text-xs shadow-xl shadow-emerald-500/25 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 active:scale-98"
-                      >
-                        <RefreshCw className={`w-4 h-4 ${isSyncingFromProvider ? 'animate-spin' : ''}`} />
-                        <span>{isSyncingFromProvider ? 'در حال ارتباط با API و دریافت فایل دویدن...' : '⚡ همگام‌سازی و دریافت آخرین فعالیت دویدن'}</span>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => handleRevokeWatch(provider.id)}
-                        className="w-full py-2.5 bg-slate-900 hover:bg-rose-950/40 text-slate-400 hover:text-rose-400 border border-slate-800 hover:border-rose-500/30 rounded-xl text-xs font-medium transition-colors cursor-pointer"
-                      >
-                        قطع ارتباط و لغو مجوز دسترسی OAuth
-                      </button>
-                    </div>
+                  <div>
+                    <label className="block text-xs text-slate-300 mb-1 font-medium">شماره شبا حساب بانکی (IR...)</label>
+                    <input
+                      type="text"
+                      required
+                      value={shebaInput}
+                      onChange={(e) => setShebaInput(e.target.value)}
+                      placeholder="IR820170000000123456789012"
+                      className="w-full bg-slate-950/80 border border-slate-800 rounded-xl px-3.5 py-2.5 text-sm text-sky-300 font-mono focus:outline-none focus:border-sky-400 text-left uppercase"
+                      dir="ltr"
+                    />
+                    <span className="text-[10px] text-slate-500 block mt-1">
+                      پشتیبانی از کلیه بانک‌های عضو شتاب (ملت، ملی، صادرات، سامان، پاسارگاد، بلو، رسالت)
+                    </span>
                   </div>
-                ) : (
-                  /* Authorization Flow Button when NOT connected */
-                  <div className="space-y-3 pt-1">
-                    {isAuthorizingWatch ? (
-                      <div className="p-4 rounded-2xl bg-slate-950/80 border border-sky-500/30 text-center space-y-2.5 animate-pulse">
-                        <div className="w-8 h-8 rounded-full border-2 border-sky-400 border-t-transparent animate-spin mx-auto" />
-                        <p className="text-xs font-bold text-white">
-                          {authStep === 1
-                            ? 'گام ۱/۳: ارسال درخواست و دریافت Authorization Code...'
-                            : authStep === 2
-                            ? 'گام ۲/۳: مبادله توکن امن Access Token و تایید هویت ورزشکار...'
-                            : 'گام ۳/۳: راه‌اندازی Webhook و شروع استخراج خودکار رکوردهای دویدن...'}
-                        </p>
-                        <span className="text-[10px] text-slate-400 font-mono">
-                          HTTPS POST /oauth/token · RFC 6749 Compliant
+
+                  <div>
+                    <label className="block text-xs text-slate-300 mb-1 font-medium">نام و نام خانوادگی صاحب حساب</label>
+                    <input
+                      type="text"
+                      required
+                      value={accountOwnerName}
+                      onChange={(e) => setAccountOwnerName(e.target.value)}
+                      placeholder="سهراب مرادی"
+                      className="w-full bg-slate-950/80 border border-slate-800 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-emerald-500"
+                    />
+                  </div>
+
+                  <div className="pt-2">
+                    <button
+                      type="submit"
+                      className="w-full py-3 bg-gradient-to-r from-emerald-500 to-teal-400 hover:from-emerald-400 hover:to-teal-300 text-slate-950 font-black rounded-xl text-xs shadow-xl shadow-emerald-500/25 transition-all cursor-pointer active:scale-98"
+                    >
+                      ثبت و انتقال وجه به سامانه پایا/ساتنا
+                    </button>
+                  </div>
+                </form>
+
+                {/* History Preview */}
+                {cashoutHistory.length > 0 && (
+                  <div className="pt-2 border-t border-slate-800 space-y-1.5">
+                    <span className="text-[10px] text-slate-400 block">آخرین درخواست تسویه:</span>
+                    <div className="p-2.5 rounded-xl bg-slate-950/50 border border-slate-800/80 flex items-center justify-between text-xs">
+                      <div>
+                        <span className="font-bold text-white block">
+                          {cashoutHistory[0].tomanAmount.toLocaleString('fa-IR')} تومان
+                        </span>
+                        <span className="text-[10px] text-slate-500 font-mono">
+                          کد: {cashoutHistory[0].trackingCode} · {cashoutHistory[0].createdAt}
                         </span>
                       </div>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => handleAuthorizeWatch(provider.id)}
-                        className="w-full py-3.5 text-white font-black rounded-xl text-xs shadow-xl transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-98"
-                        style={{
-                          backgroundColor: provider.brandColor,
-                          boxShadow: `0 10px 25px ${provider.brandColor}40`,
-                        }}
-                      >
-                        <ShieldCheck className="w-4 h-4" />
-                        <span>تایید مجوزها و اتصال حساب کاربری (Authorize Account)</span>
-                      </button>
-                    )}
-
-                    <div className="flex items-center justify-center gap-1.5 text-[10px] text-slate-500">
-                      <Lock className="w-3 h-3 text-emerald-400" />
-                      <span>اتصال با استاندارد رمزنگاری بدون نیاز به وارد کردن کلمه عبور در دوپ‌Pool</span>
+                      <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded font-bold">
+                        {cashoutHistory[0].status === 'PROCESSED' ? 'تایید پایا' : 'در صف واریز'}
+                      </span>
                     </div>
                   </div>
                 )}
-              </div>
-            </div>
-          );
-        })()}
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* SMARTWATCH & STRAVA OAUTH 2.0 AUTHORIZATION MODAL */}
+        <AnimatePresence>
+          {authWatchModal.isOpen && (() => {
+            const provider = WATCH_PROVIDERS.find((p) => p.id === authWatchModal.provider) || WATCH_PROVIDERS[0];
+            const isConnected = user?.connectedWatches[provider.id] || false;
+            const authDetails = user?.watchAuthDetails?.[provider.id];
+
+            return (
+              <motion.div
+                key={`watch-auth-modal-${provider.id}`}
+                {...POPUP_BACKDROP_MOTION}
+                onClick={() => setAuthWatchModal({ ...authWatchModal, isOpen: false })}
+                className="fixed inset-0 bg-[#060913]/90 backdrop-blur-xl z-50 flex items-center justify-center p-4"
+              >
+                <motion.div
+                  {...POPUP_CARD_MOTION}
+                  onClick={(e) => e.stopPropagation()}
+                  className="w-full max-w-[460px] glass-panel-glow rounded-3xl p-5 border relative shadow-2xl space-y-4 max-h-[92vh] overflow-y-auto"
+                  style={{ borderColor: `${provider.brandColor}50` }}
+                >
+                  {/* Modal Header */}
+                  <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+                    <div className="flex items-center gap-2.5">
+                      <WatchBrandLogo providerId={provider.id} size="md" />
+                      <div>
+                        <h3 className="text-sm font-black text-white flex items-center gap-1.5">
+                          <span>احراز هویت {provider.nameFa}</span>
+                          <span className="text-[10px] px-1.5 py-0.5 rounded font-mono font-normal bg-slate-800 text-slate-300">
+                            OAuth 2.0
+                          </span>
+                        </h3>
+                        <span className="text-[10px] text-slate-400 font-mono block mt-0.5">
+                          {provider.protocol}
+                        </span>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setAuthWatchModal({ ...authWatchModal, isOpen: false })}
+                      className="p-1.5 text-slate-400 hover:text-white rounded-lg transition-colors cursor-pointer"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  {/* Description & Overview */}
+                  <div className="p-3 rounded-2xl bg-slate-950/60 border border-slate-800/80 space-y-1.5 text-xs">
+                    <div className="flex items-center justify-between">
+                      <span className="text-slate-400 font-medium">سرویس ورزشی:</span>
+                      <span className="font-bold text-white">{provider.name}</span>
+                    </div>
+                    <p className="text-[11px] text-slate-300 leading-relaxed pt-1 border-t border-slate-800/60">
+                      {provider.description}
+                    </p>
+                  </div>
+
+                  {/* Optimized Connection Links & Portal Access */}
+                  <div className="space-y-2.5">
+                    <div className="grid grid-cols-2 gap-2">
+                      <a
+                        href={getProviderAuthUrl(provider)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="py-2.5 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700/80 text-sky-300 hover:text-sky-200 text-xs font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                      >
+                        <ExternalLink className="w-3.5 h-3.5 shrink-0" />
+                        <span>پنل وب {provider.nameFa}</span>
+                      </a>
+                      <a
+                        href={provider.appUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="py-2.5 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700/80 text-emerald-300 hover:text-emerald-200 text-xs font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                      >
+                        <Smartphone className="w-3.5 h-3.5 shrink-0" />
+                        <span>اپلیکیشن {provider.name}</span>
+                      </a>
+                    </div>
+
+                    {/* Callback / Webhook URL for API Integration */}
+                    <div className="p-2.5 rounded-2xl bg-slate-950/80 border border-slate-800/80 space-y-1.5">
+                      <div className="flex items-center justify-between text-[10px]">
+                        <span className="text-slate-400 font-bold flex items-center gap-1">
+                          <Link2 className="w-3 h-3 text-sky-400" />
+                          <span>آدرس بازگشت (Callback URL):</span>
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => handleCopyOAuthLink(`${window.location.origin}/auth/callback`)}
+                          className="text-sky-400 hover:text-sky-300 font-bold flex items-center gap-1 cursor-pointer"
+                        >
+                          {copiedLink ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                          <span>{copiedLink ? 'کپی شد' : 'کپی آدرس'}</span>
+                        </button>
+                      </div>
+                      <div className="text-[10px] font-mono text-slate-300 bg-slate-900/90 px-2.5 py-1.5 rounded-lg border border-slate-800 truncate select-all text-left" dir="ltr">
+                        {`${window.location.origin}/auth/callback`}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Current Connection Status / Handshake */}
+                  {isConnected ? (
+                    <div className="space-y-3 pt-1">
+                      {/* Athlete Connection Card */}
+                      <div className="p-3.5 rounded-2xl bg-emerald-950/20 border border-emerald-500/30 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-bold text-emerald-400 flex items-center gap-1.5">
+                            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+                            ارتباط فعال و تایید شده
+                          </span>
+                          <span className="text-[10px] text-slate-400 font-mono">Token: Active</span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2 text-[11px] pt-1 border-t border-emerald-500/20">
+                          <div>
+                            <span className="text-slate-400 block text-[10px]">ورزشکار متصل:</span>
+                            <span className="font-bold text-white">{authDetails?.athleteName || user?.fullName}</span>
+                          </div>
+                          <div>
+                            <span className="text-slate-400 block text-[10px]">شناسه ورزشکار:</span>
+                            <span className="font-mono text-emerald-300">{authDetails?.athleteId || '#4829103'}</span>
+                          </div>
+                          <div>
+                            <span className="text-slate-400 block text-[10px]">تاریخ احراز هویت:</span>
+                            <span className="text-slate-300">{authDetails?.connectedAt || '۱۴۰۳/۰۷/۱۵'}</span>
+                          </div>
+                          <div>
+                            <span className="text-slate-400 block text-[10px]">آخرین استعلام سرور:</span>
+                            <span className="text-emerald-400 font-bold">{authDetails?.lastSyncedAt || 'هم‌اکنون'}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Actions when Connected */}
+                      <div className="space-y-2">
+                        <button
+                          type="button"
+                          onClick={() => handleSyncWatchActivity(provider.id)}
+                          disabled={isSyncingFromProvider}
+                          className="w-full py-3 bg-gradient-to-r from-emerald-500 to-teal-400 hover:from-emerald-400 hover:to-teal-300 text-slate-950 font-black rounded-xl text-xs shadow-xl shadow-emerald-500/25 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 active:scale-98"
+                        >
+                          <RefreshCw className={`w-4 h-4 ${isSyncingFromProvider ? 'animate-spin' : ''}`} />
+                          <span>{isSyncingFromProvider ? 'در حال ارتباط با API و دریافت فایل دویدن...' : '⚡ همگام‌سازی و دریافت آخرین فعالیت دویدن'}</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => handleRevokeWatch(provider.id)}
+                          className="w-full py-2.5 bg-slate-900 hover:bg-rose-950/40 text-slate-400 hover:text-rose-400 border border-slate-800 hover:border-rose-500/30 rounded-xl text-xs font-medium transition-colors cursor-pointer"
+                        >
+                          قطع ارتباط و لغو مجوز دسترسی OAuth
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    /* Authorization Flow Button when NOT connected */
+                    <div className="space-y-3 pt-1">
+                      {isAuthorizingWatch ? (
+                        <div className="p-4 rounded-2xl bg-slate-950/80 border border-sky-500/30 text-center space-y-2.5 animate-pulse">
+                          <div className="w-8 h-8 rounded-full border-2 border-sky-400 border-t-transparent animate-spin mx-auto" />
+                          <p className="text-xs font-bold text-white">
+                            {authStep === 1
+                              ? 'گام ۱/۳: ارسال درخواست و دریافت Authorization Code...'
+                              : authStep === 2
+                              ? 'گام ۲/۳: مبادله توکن امن Access Token و تایید هویت ورزشکار...'
+                              : 'گام ۳/۳: راه‌اندازی Webhook و شروع استخراج خودکار رکوردهای دویدن...'}
+                          </p>
+                          <span className="text-[10px] text-slate-400 font-mono">
+                            HTTPS POST /oauth/token · RFC 6749 Compliant
+                          </span>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => handleAuthorizeWatch(provider.id)}
+                          className="w-full py-3.5 text-white font-black rounded-xl text-xs shadow-xl transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-98"
+                          style={{
+                            backgroundColor: provider.brandColor,
+                            boxShadow: `0 10px 25px ${provider.brandColor}40`,
+                          }}
+                        >
+                          <ShieldCheck className="w-4 h-4" />
+                          <span>تایید مجوزها و اتصال حساب کاربری (Authorize Account)</span>
+                        </button>
+                      )}
+
+                      <div className="flex items-center justify-center gap-1.5 text-[10px] text-slate-500">
+                        <Lock className="w-3 h-3 text-emerald-400" />
+                        <span>اتصال با استاندارد رمزنگاری بدون نیاز به وارد کردن کلمه عبور در دوپ‌Pool</span>
+                      </div>
+                    </div>
+                  )}
+                </motion.div>
+              </motion.div>
+            );
+          })()}
+        </AnimatePresence>
 
         {/* DAILY TASKS MODAL */}
-        {showDailyTasksModal && (
-          <div className="fixed inset-0 bg-[#060913]/90 backdrop-blur-xl z-50 flex items-center justify-center p-4">
-            <div className="w-full max-w-[460px] glass-panel-glow rounded-3xl p-5 border border-amber-500/40 relative shadow-2xl animate-fade-in space-y-4 max-h-[92vh] overflow-y-auto">
+        <AnimatePresence>
+          {showDailyTasksModal && (
+            <motion.div
+              key="daily-tasks-modal-backdrop"
+              {...POPUP_BACKDROP_MOTION}
+              onClick={() => setShowDailyTasksModal(false)}
+              className="fixed inset-0 bg-[#060913]/90 backdrop-blur-xl z-50 flex items-center justify-center p-4"
+            >
+              <motion.div
+                {...POPUP_CARD_MOTION}
+                onClick={(e) => e.stopPropagation()}
+                className="w-full max-w-[460px] glass-panel-glow rounded-3xl p-5 border border-amber-500/40 relative shadow-2xl space-y-4 max-h-[92vh] overflow-y-auto"
+              >
               {/* Modal Header */}
               <div className="flex items-center justify-between pb-3 border-b border-slate-800">
                 <div className="flex items-center gap-2.5">
@@ -7605,314 +7952,349 @@ export default function App() {
                     })}
                 </div>
               </div>
-            </div>
-          </div>
-        )}
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* TWO-STEP LOGOUT CONFIRMATION MODAL (بدون نمایش موجودی و بدون وضعیت امنیت ابری + تایید مجدد خروج) */}
-        {showLogoutConfirmModal && user && (
-          <div className="fixed inset-0 bg-[#060913]/90 backdrop-blur-xl z-50 flex items-center justify-center p-4">
+        <AnimatePresence>
+          {showLogoutConfirmModal && user && (
             <motion.div
-              initial={{ opacity: 0, scale: 0.92 }}
-              animate={{ opacity: 1, scale: 1 }}
-              className="w-full max-w-[400px] glass-panel-glow rounded-3xl p-5 border border-rose-500/35 shadow-2xl space-y-4"
+              key="logout-confirm-modal-backdrop"
+              {...POPUP_BACKDROP_MOTION}
+              onClick={() => {
+                setLogoutSecondConfirm(false);
+                setShowLogoutConfirmModal(false);
+              }}
+              className="fixed inset-0 bg-[#060913]/90 backdrop-blur-xl z-50 flex items-center justify-center p-4"
             >
-              <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-                <div className="flex items-center gap-2">
-                  <div className="w-9 h-9 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-400 flex items-center justify-center">
-                    <LogOut className="w-5 h-5" />
+              <motion.div
+                {...POPUP_CARD_MOTION}
+                onClick={(e) => e.stopPropagation()}
+                className="w-full max-w-[400px] glass-panel-glow rounded-3xl p-5 border border-rose-500/35 shadow-2xl space-y-4"
+              >
+                <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+                  <div className="flex items-center gap-2">
+                    <div className="w-9 h-9 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-400 flex items-center justify-center">
+                      <LogOut className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-black text-white">خروج از حساب کاربری</h3>
+                      <span className="text-[10px] text-slate-400">
+                        {logoutSecondConfirm ? 'تایید نهایی خروج از برنامه' : 'بررسی درخواست خروج'}
+                      </span>
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="text-sm font-black text-white">خروج از حساب کاربری</h3>
-                    <span className="text-[10px] text-slate-400">
-                      {logoutSecondConfirm ? 'تایید نهایی خروج از برنامه' : 'بررسی درخواست خروج'}
-                    </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setLogoutSecondConfirm(false);
+                      setShowLogoutConfirmModal(false);
+                    }}
+                    className="p-1.5 text-slate-400 hover:text-white rounded-lg cursor-pointer"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+
+                {!logoutSecondConfirm ? (
+                  <>
+                    {/* Step 1: Initial Logout Question */}
+                    <div className="p-3.5 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-2 text-xs">
+                      <div className="flex items-center justify-between">
+                        <span className="text-slate-400">کاربر فعال:</span>
+                        <span className="font-bold text-white">{user.fullName}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-slate-400">آیدی کاربری:</span>
+                        <span className="font-mono text-sky-300" dir="ltr">@{user.username}</span>
+                      </div>
+                    </div>
+
+                    <p className="text-xs text-slate-300 text-center leading-relaxed">
+                      آیا می‌خواهید از حساب کاربری خود خارج شوید؟
+                    </p>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setLogoutSecondConfirm(true)}
+                        className="py-2.5 bg-rose-500/20 hover:bg-rose-500/30 border border-rose-500/40 text-rose-300 font-black rounded-xl text-xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+                      >
+                        <LogOut className="w-3.5 h-3.5 shrink-0" />
+                        <span>ادامه برای خروج</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setLogoutSecondConfirm(false);
+                          setShowLogoutConfirmModal(false);
+                        }}
+                        className="py-2.5 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-xl text-xs transition-colors cursor-pointer"
+                      >
+                        انصراف
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    {/* Step 2: Second Confirmation Prompt (سوال مجدد برای تایید خروج) */}
+                    <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/35 text-center space-y-1.5">
+                      <AlertCircle className="w-7 h-7 text-rose-400 mx-auto" />
+                      <h4 className="text-xs font-black text-white">
+                        آیا مطمئن هستید که می‌خواهید خارج شوید؟
+                      </h4>
+                      <p className="text-[11px] text-slate-300 leading-relaxed">
+                        برای ورود مجدد به برنامه به آیدی و رمز عبور خود نیاز خواهید داشت.
+                      </p>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          signOutCloud().catch(() => {});
+                          try {
+                            localStorage.removeItem('dopool_user_session');
+                            sessionStorage.removeItem('dopool_active_tab');
+                          } catch {
+                            // Ignore storage errors
+                          }
+                          setLogoutSecondConfirm(false);
+                          setShowLogoutConfirmModal(false);
+                          setUser(null);
+                          setAuthMode('login');
+                          triggerToast('خروج موفق 👋', 'با موفقیت از حساب کاربری خود خارج شدید.', 'info');
+                        }}
+                        className="py-2.5 bg-rose-500 hover:bg-rose-400 text-slate-950 font-black rounded-xl text-xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+                      >
+                        <LogOut className="w-3.5 h-3.5 shrink-0" />
+                        <span>بله، خروج قطعی</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setLogoutSecondConfirm(false);
+                          setShowLogoutConfirmModal(false);
+                        }}
+                        className="py-2.5 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-xl text-xs transition-colors cursor-pointer"
+                      >
+                        خیر، بمانم
+                      </button>
+                    </div>
+                  </>
+                )}
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* WELCOME EMAIL PREVIEW MODAL (ارسال ایمیل خوش‌آمدگویی پس از نام‌نویسی) */}
+        <AnimatePresence>
+          {showWelcomeEmailModal && sentWelcomeEmail && (
+            <motion.div
+              key="welcome-email-modal-backdrop"
+              {...POPUP_BACKDROP_MOTION}
+              onClick={() => setShowWelcomeEmailModal(false)}
+              className="fixed inset-0 bg-[#060913]/90 backdrop-blur-xl z-50 flex items-center justify-center p-4"
+            >
+              <motion.div
+                {...POPUP_CARD_MOTION}
+                onClick={(e) => e.stopPropagation()}
+                className="w-full max-w-[460px] glass-panel-glow rounded-3xl p-5 border border-emerald-500/40 shadow-2xl space-y-4 max-h-[92vh] overflow-y-auto"
+              >
+                <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-400 text-slate-950 flex items-center justify-center shadow-lg shadow-emerald-500/20">
+                      <Mail className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-1.5">
+                        <h3 className="text-sm font-black text-white">ایمیل خوش‌آمدگویی ارسال شد!</h3>
+                        <span className="text-[9px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-1.5 py-0.5 rounded font-mono font-bold">
+                          SMTP 250 OK
+                        </span>
+                      </div>
+                      <span className="text-[10px] text-slate-400 block mt-0.5">
+                        تحویل آنی به صندوق ورودی ایمیل کاربر
+                      </span>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowWelcomeEmailModal(false)}
+                    className="p-1.5 text-slate-400 hover:text-white rounded-lg cursor-pointer"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+
+                {/* Email Envelope Metadata */}
+                <div className="p-3 rounded-2xl bg-slate-950/90 border border-slate-800 space-y-1.5 text-[11px]">
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-400">فرستنده:</span>
+                    <span className="font-mono text-slate-200" dir="ltr">Dopool Running Club &lt;welcome@dopool.ir&gt;</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-400">گیرنده (شما):</span>
+                    <span className="font-mono text-emerald-400 font-bold" dir="ltr">{sentWelcomeEmail.recipientEmail}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-400">شماره تماس ثبت‌شده:</span>
+                    <span className="font-mono text-sky-300" dir="ltr">{sentWelcomeEmail.phone}</span>
+                  </div>
+                  <div className="pt-1.5 border-t border-slate-800/80 text-white font-bold">
+                    موضوع: {sentWelcomeEmail.subject}
                   </div>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setLogoutSecondConfirm(false);
-                    setShowLogoutConfirmModal(false);
-                  }}
-                  className="p-1.5 text-slate-400 hover:text-white rounded-lg cursor-pointer"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
 
-              {!logoutSecondConfirm ? (
-                <>
-                  {/* Step 1: Initial Logout Question */}
-                  <div className="p-3.5 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-2 text-xs">
-                    <div className="flex items-center justify-between">
-                      <span className="text-slate-400">کاربر فعال:</span>
-                      <span className="font-bold text-white">{user.fullName}</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-slate-400">آیدی کاربری:</span>
-                      <span className="font-mono text-sky-300" dir="ltr">@{user.username}</span>
-                    </div>
-                  </div>
-
-                  <p className="text-xs text-slate-300 text-center leading-relaxed">
-                    آیا می‌خواهید از حساب کاربری خود خارج شوید؟
-                  </p>
-
-                  <div className="grid grid-cols-2 gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setLogoutSecondConfirm(true)}
-                      className="py-2.5 bg-rose-500/20 hover:bg-rose-500/30 border border-rose-500/40 text-rose-300 font-black rounded-xl text-xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
-                    >
-                      <LogOut className="w-3.5 h-3.5 shrink-0" />
-                      <span>ادامه برای خروج</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setLogoutSecondConfirm(false);
-                        setShowLogoutConfirmModal(false);
-                      }}
-                      className="py-2.5 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-xl text-xs transition-colors cursor-pointer"
-                    >
-                      انصراف
-                    </button>
-                  </div>
-                </>
-              ) : (
-                <>
-                  {/* Step 2: Second Confirmation Prompt (سوال مجدد برای تایید خروج) */}
-                  <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/35 text-center space-y-1.5">
-                    <AlertCircle className="w-7 h-7 text-rose-400 mx-auto" />
-                    <h4 className="text-xs font-black text-white">
-                      آیا مطمئن هستید که می‌خواهید خارج شوید؟
-                    </h4>
-                    <p className="text-[11px] text-slate-300 leading-relaxed">
-                      برای ورود مجدد به برنامه به آیدی و رمز عبور خود نیاز خواهید داشت.
+                {/* Rendered Persian HTML Email Body */}
+                <div className="rounded-2xl bg-gradient-to-b from-[#0c182e] to-slate-950 border border-emerald-500/30 p-4 space-y-3 text-xs leading-relaxed">
+                  <div className="text-center pb-3 border-b border-slate-800/80 space-y-1">
+                    <span className="text-2xl">🏃‍♂️⚡🏅</span>
+                    <h4 className="text-sm font-black text-white">سلام {sentWelcomeEmail.recipientName} عزیز!</h4>
+                    <p className="text-[11px] text-emerald-400 font-bold">
+                      به اولین پلتفرم دویدن و کسب درآمد (Move-to-Earn) ایران خوش آمدید
                     </p>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-2">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        signOutCloud().catch(() => {});
-                        try {
-                          localStorage.removeItem('dopool_user_session');
-                          sessionStorage.removeItem('dopool_active_tab');
-                        } catch {
-                          // Ignore storage errors
-                        }
-                        setLogoutSecondConfirm(false);
-                        setShowLogoutConfirmModal(false);
-                        setUser(null);
-                        setAuthMode('login');
-                        triggerToast('خروج موفق 👋', 'با موفقیت از حساب کاربری خود خارج شدید.', 'info');
-                      }}
-                      className="py-2.5 bg-rose-500 hover:bg-rose-400 text-slate-950 font-black rounded-xl text-xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
-                    >
-                      <LogOut className="w-3.5 h-3.5 shrink-0" />
-                      <span>بله، خروج قطعی</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setLogoutSecondConfirm(false);
-                        setShowLogoutConfirmModal(false);
-                      }}
-                      className="py-2.5 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-xl text-xs transition-colors cursor-pointer"
-                    >
-                      خیر، بمانم
-                    </button>
-                  </div>
-                </>
-              )}
-            </motion.div>
-          </div>
-        )}
-
-        {/* WELCOME EMAIL PREVIEW MODAL (ارسال ایمیل خوش‌آمدگویی پس از نام‌نویسی) */}
-        {showWelcomeEmailModal && sentWelcomeEmail && (
-          <div className="fixed inset-0 bg-[#060913]/90 backdrop-blur-xl z-50 flex items-center justify-center p-4">
-            <motion.div
-              initial={{ opacity: 0, y: 20, scale: 0.95 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              className="w-full max-w-[460px] glass-panel-glow rounded-3xl p-5 border border-emerald-500/40 shadow-2xl space-y-4 max-h-[92vh] overflow-y-auto"
-            >
-              <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-400 text-slate-950 flex items-center justify-center shadow-lg shadow-emerald-500/20">
-                    <Mail className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-1.5">
-                      <h3 className="text-sm font-black text-white">ایمیل خوش‌آمدگویی ارسال شد!</h3>
-                      <span className="text-[9px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-1.5 py-0.5 rounded font-mono font-bold">
-                        SMTP 250 OK
-                      </span>
-                    </div>
-                    <span className="text-[10px] text-slate-400 block mt-0.5">
-                      تحویل آنی به صندوق ورودی ایمیل کاربر
-                    </span>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setShowWelcomeEmailModal(false)}
-                  className="p-1.5 text-slate-400 hover:text-white rounded-lg cursor-pointer"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-
-              {/* Email Envelope Metadata */}
-              <div className="p-3 rounded-2xl bg-slate-950/90 border border-slate-800 space-y-1.5 text-[11px]">
-                <div className="flex items-center justify-between">
-                  <span className="text-slate-400">فرستنده:</span>
-                  <span className="font-mono text-slate-200" dir="ltr">Dopool Running Club &lt;welcome@dopool.ir&gt;</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-slate-400">گیرنده (شما):</span>
-                  <span className="font-mono text-emerald-400 font-bold" dir="ltr">{sentWelcomeEmail.recipientEmail}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-slate-400">شماره تماس ثبت‌شده:</span>
-                  <span className="font-mono text-sky-300" dir="ltr">{sentWelcomeEmail.phone}</span>
-                </div>
-                <div className="pt-1.5 border-t border-slate-800/80 text-white font-bold">
-                  موضوع: {sentWelcomeEmail.subject}
-                </div>
-              </div>
-
-              {/* Rendered Persian HTML Email Body */}
-              <div className="rounded-2xl bg-gradient-to-b from-[#0c182e] to-slate-950 border border-emerald-500/30 p-4 space-y-3 text-xs leading-relaxed">
-                <div className="text-center pb-3 border-b border-slate-800/80 space-y-1">
-                  <span className="text-2xl">🏃‍♂️⚡🏅</span>
-                  <h4 className="text-sm font-black text-white">سلام {sentWelcomeEmail.recipientName} عزیز!</h4>
-                  <p className="text-[11px] text-emerald-400 font-bold">
-                    به اولین پلتفرم دویدن و کسب درآمد (Move-to-Earn) ایران خوش آمدید
+                  <p className="text-slate-300 text-[11px] leading-relaxed">
+                    حساب کاربری و کیف پول ورزشی شما با نام کاربری <strong className="text-white font-mono">@{sentWelcomeEmail.username}</strong> با موفقیت فعال گردید. به پاس عضویت شما، <strong className="text-emerald-400">{sentWelcomeEmail.bonusTokens} سکه POOL</strong> به عنوان هدیه خوش‌آمدگویی به کیف پول شما واریز شد!
                   </p>
+
+                  <div className="bg-slate-900/90 rounded-xl p-3 border border-slate-800 grid grid-cols-2 gap-2 text-center">
+                    <div>
+                      <span className="text-[10px] text-slate-400 block">هدیه خوش‌آمدگویی</span>
+                      <span className="text-sm font-black text-emerald-400 font-mono">+{sentWelcomeEmail.bonusTokens} POOL</span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-slate-400 block">کد دعوت اختصاصی شما</span>
+                      <span className="text-sm font-black text-sky-400 font-mono">{sentWelcomeEmail.referralCode}</span>
+                    </div>
+                  </div>
+
+                  <ul className="space-y-1 text-[11px] text-slate-300 list-disc pr-4">
+                    <li>هر روز با ورود به برنامه <strong>۱۰ سکه تشویقی</strong> دریافت کنید.</li>
+                    <li>ساعت هوشمند یا استراوای خود را متصل کنید و به ازای هر کیلومتر دویدن سکه بگیرید.</li>
+                    <li>نوتیفیکیشن گوشی شما برای اعلام پاداش‌ها و رتبه جدول فعال است.</li>
+                  </ul>
                 </div>
 
-                <p className="text-slate-300 text-[11px] leading-relaxed">
-                  حساب کاربری و کیف پول ورزشی شما با نام کاربری <strong className="text-white font-mono">@{sentWelcomeEmail.username}</strong> با موفقیت فعال گردید. به پاس عضویت شما، <strong className="text-emerald-400">{sentWelcomeEmail.bonusTokens} سکه POOL</strong> به عنوان هدیه خوش‌آمدگویی به کیف پول شما واریز شد!
-                </p>
-
-                <div className="bg-slate-900/90 rounded-xl p-3 border border-slate-800 grid grid-cols-2 gap-2 text-center">
-                  <div>
-                    <span className="text-[10px] text-slate-400 block">هدیه خوش‌آمدگویی</span>
-                    <span className="text-sm font-black text-emerald-400 font-mono">+{sentWelcomeEmail.bonusTokens} POOL</span>
-                  </div>
-                  <div>
-                    <span className="text-[10px] text-slate-400 block">کد دعوت اختصاصی شما</span>
-                    <span className="text-sm font-black text-sky-400 font-mono">{sentWelcomeEmail.referralCode}</span>
-                  </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      dispatchPushNotification({
+                        type: 'SYSTEM',
+                        title: `تاییدیه موبایل برای ${sentWelcomeEmail.recipientName} 📱`,
+                        body: `نوتیفیکیشن گوشی شما به همراه ایمیل ${sentWelcomeEmail.recipientEmail} به درستی متصل است!`,
+                      });
+                    }}
+                    className="py-2.5 bg-sky-500/15 hover:bg-sky-500/25 border border-sky-500/30 text-sky-300 font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 cursor-pointer"
+                  >
+                    <BellRing className="w-3.5 h-3.5" />
+                    <span>تست نوتیف روی گوشی</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowWelcomeEmailModal(false)}
+                    className="py-2.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black rounded-xl text-xs transition-colors cursor-pointer"
+                  >
+                    ورود به داشبورد دوپول
+                  </button>
                 </div>
-
-                <ul className="space-y-1 text-[11px] text-slate-300 list-disc pr-4">
-                  <li>هر روز با ورود به برنامه <strong>۱۰ سکه تشویقی</strong> دریافت کنید.</li>
-                  <li>ساعت هوشمند یا استراوای خود را متصل کنید و به ازای هر کیلومتر دویدن سکه بگیرید.</li>
-                  <li>نوتیفیکیشن گوشی شما برای اعلام پاداش‌ها و رتبه جدول فعال است.</li>
-                </ul>
-              </div>
-
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    dispatchPushNotification({
-                      type: 'SYSTEM',
-                      title: `تاییدیه موبایل برای ${sentWelcomeEmail.recipientName} 📱`,
-                      body: `نوتیفیکیشن گوشی شما به همراه ایمیل ${sentWelcomeEmail.recipientEmail} به درستی متصل است!`,
-                    });
-                  }}
-                  className="py-2.5 bg-sky-500/15 hover:bg-sky-500/25 border border-sky-500/30 text-sky-300 font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 cursor-pointer"
-                >
-                  <BellRing className="w-3.5 h-3.5" />
-                  <span>تست نوتیف روی گوشی</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowWelcomeEmailModal(false)}
-                  className="py-2.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black rounded-xl text-xs transition-colors cursor-pointer"
-                >
-                  ورود به داشبورد دوپول
-                </button>
-              </div>
+              </motion.div>
             </motion.div>
-          </div>
-        )}
+          )}
+        </AnimatePresence>
 
         {/* FORGOT PASSWORD MODAL */}
-        {showForgotPasswordModal && (
-          <div className="fixed inset-0 bg-[#060913]/90 backdrop-blur-xl z-50 flex items-center justify-center p-4">
-            <div className="w-full max-w-[400px] glass-panel-glow rounded-3xl p-5 border border-sky-500/30 space-y-4">
-              <div className="flex items-center justify-between pb-2 border-b border-slate-800">
-                <h3 className="text-sm font-black text-white">بازیابی رمز عبور</h3>
-                <button
-                  type="button"
-                  onClick={() => setShowForgotPasswordModal(false)}
-                  className="p-1 text-slate-400 hover:text-white cursor-pointer"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-              {!forgotPasswordSubmitted ? (
-                <form
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    setForgotPasswordSubmitted(true);
-                    triggerToast('لینک بازیابی ارسال شد', 'لینک تغییر رمز عبور به ایمیل و شماره موبایل شما ارسال گردید.', 'success');
-                  }}
-                  className="space-y-3"
-                >
-                  <p className="text-xs text-slate-300 leading-relaxed">
-                    ایمیل یا شماره موبایل خود را وارد کنید تا لینک بازنشانی رمز عبور برایتان ارسال شود:
-                  </p>
-                  <input
-                    type="text"
-                    required
-                    value={forgotPasswordInput}
-                    onChange={(e) => setForgotPasswordInput(e.target.value)}
-                    placeholder="runner@gmail.com یا 0912..."
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-sm text-white text-left font-mono"
-                    dir="ltr"
-                  />
-                  <button
-                    type="submit"
-                    className="w-full py-2.5 bg-sky-500 hover:bg-sky-400 text-slate-950 font-black rounded-xl text-xs cursor-pointer"
-                  >
-                    ارسال کد و لینک بازیابی
-                  </button>
-                </form>
-              ) : (
-                <div className="text-center space-y-3 py-2">
-                  <CheckCircle2 className="w-10 h-10 text-emerald-400 mx-auto" />
-                  <p className="text-xs text-slate-200 font-bold">
-                    لینک بازیابی با موفقیت به <span className="font-mono text-sky-300">{forgotPasswordInput}</span> ارسال شد.
-                  </p>
+        <AnimatePresence>
+          {showForgotPasswordModal && (
+            <motion.div
+              key="forgot-password-modal-backdrop"
+              {...POPUP_BACKDROP_MOTION}
+              onClick={() => setShowForgotPasswordModal(false)}
+              className="fixed inset-0 bg-[#060913]/90 backdrop-blur-xl z-50 flex items-center justify-center p-4"
+            >
+              <motion.div
+                {...POPUP_CARD_MOTION}
+                onClick={(e) => e.stopPropagation()}
+                className="w-full max-w-[400px] glass-panel-glow rounded-3xl p-5 border border-sky-500/30 space-y-4"
+              >
+                <div className="flex items-center justify-between pb-2 border-b border-slate-800">
+                  <h3 className="text-sm font-black text-white">بازیابی رمز عبور</h3>
                   <button
                     type="button"
                     onClick={() => setShowForgotPasswordModal(false)}
-                    className="w-full py-2 bg-slate-800 text-white rounded-xl text-xs font-bold cursor-pointer"
+                    className="p-1 text-slate-400 hover:text-white cursor-pointer"
                   >
-                    بازگشت به صفحه ورود
+                    <X className="w-4 h-4" />
                   </button>
                 </div>
-              )}
-            </div>
-          </div>
-        )}
+                {!forgotPasswordSubmitted ? (
+                  <form
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      setForgotPasswordSubmitted(true);
+                      triggerToast('لینک بازیابی ارسال شد', 'لینک تغییر رمز عبور به ایمیل و شماره موبایل شما ارسال گردید.', 'success');
+                    }}
+                    className="space-y-3"
+                  >
+                    <p className="text-xs text-slate-300 leading-relaxed">
+                      ایمیل یا شماره موبایل خود را وارد کنید تا لینک بازنشانی رمز عبور برایتان ارسال شود:
+                    </p>
+                    <input
+                      type="text"
+                      required
+                      value={forgotPasswordInput}
+                      onChange={(e) => setForgotPasswordInput(e.target.value)}
+                      placeholder="runner@gmail.com یا 0912..."
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-sm text-white text-left font-mono"
+                      dir="ltr"
+                    />
+                    <button
+                      type="submit"
+                      className="w-full py-2.5 bg-sky-500 hover:bg-sky-400 text-slate-950 font-black rounded-xl text-xs cursor-pointer"
+                    >
+                      ارسال کد و لینک بازیابی
+                    </button>
+                  </form>
+                ) : (
+                  <div className="text-center space-y-3 py-2">
+                    <CheckCircle2 className="w-10 h-10 text-emerald-400 mx-auto" />
+                    <p className="text-xs text-slate-200 font-bold">
+                      لینک بازیابی با موفقیت به <span className="font-mono text-sky-300">{forgotPasswordInput}</span> ارسال شد.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setShowForgotPasswordModal(false)}
+                      className="w-full py-2 bg-slate-800 text-white rounded-xl text-xs font-bold cursor-pointer"
+                    >
+                      بازگشت به صفحه ورود
+                    </button>
+                  </div>
+                )}
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* TESTER RELEASE, SHARE & MOBILE PWA INSTALL MODAL (انتشار اولیه و تست با کاربران) */}
-        {showTesterShareModal && (
-          <div className="fixed inset-0 bg-[#060913]/90 backdrop-blur-xl z-50 flex items-center justify-center p-4">
+        <AnimatePresence>
+          {showTesterShareModal && (
             <motion.div
-              initial={{ opacity: 0, scale: 0.94 }}
-              animate={{ opacity: 1, scale: 1 }}
-              className="w-full max-w-[460px] glass-panel-glow rounded-3xl p-5 border border-sky-500/40 shadow-2xl space-y-4 max-h-[92vh] overflow-y-auto"
+              key="tester-share-modal-backdrop"
+              {...POPUP_BACKDROP_MOTION}
+              onClick={() => setShowTesterShareModal(false)}
+              className="fixed inset-0 bg-[#060913]/90 backdrop-blur-xl z-50 flex items-center justify-center p-4"
             >
+              <motion.div
+                {...POPUP_CARD_MOTION}
+                onClick={(e) => e.stopPropagation()}
+                className="w-full max-w-[460px] glass-panel-glow rounded-3xl p-5 border border-sky-500/40 shadow-2xl space-y-4 max-h-[92vh] overflow-y-auto"
+              >
               <div className="flex items-center justify-between pb-3 border-b border-slate-800">
                 <div className="flex items-center gap-2.5">
                   <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-sky-500 to-emerald-400 text-slate-950 flex items-center justify-center font-black shadow-lg">
@@ -8147,10 +8529,11 @@ export default function App() {
                 </button>
               </div>
             </motion.div>
-          </div>
-        )}
+            </motion.div>
+          )}
+        </AnimatePresence>
 
-        {/* SLEEK, MINIMAL & CLASSY AUTO-CLOSING SYNCED ACTIVITY POPUP */}
+        {/* SLEEK, MINIMAL & CLASSY AUTO-CLOSING SYNCED ACTIVITY POPUP (WITH GENTLE SCALE-IN & FADE-IN MOTION) */}
         <AnimatePresence>
           {selectedReceiptActivity && (() => {
             const paceVal = selectedReceiptActivity.paceMinPerKm || 5.0;
@@ -8166,18 +8549,22 @@ export default function App() {
                 key={selectedReceiptActivity.id}
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.2 }}
-                onClick={() => setSelectedReceiptActivity(null)}
-                className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/45 backdrop-blur-[3px]"
+                exit={{ opacity: 0, pointerEvents: 'none' }}
+                transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+                className="pointer-events-none fixed inset-x-0 top-16 z-35 flex items-start justify-center p-4"
               >
                 <motion.div
-                  initial={{ opacity: 0, scale: 0.93, y: 14 }}
+                  initial={{ opacity: 0, scale: 0.9, y: -12 }}
                   animate={{ opacity: 1, scale: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.95, y: 8 }}
-                  transition={{ type: 'spring', stiffness: 340, damping: 26 }}
+                  exit={{ opacity: 0, scale: 0.94, y: -8, pointerEvents: 'none' }}
+                  transition={{
+                    type: 'spring',
+                    stiffness: 370,
+                    damping: 27,
+                    mass: 0.82,
+                  }}
                   onClick={(e) => e.stopPropagation()}
-                  className="relative w-full max-w-[310px] rounded-[26px] bg-gradient-to-b from-slate-900/95 via-[#131b2e]/98 to-slate-950/98 border border-white/12 px-5 pt-4 pb-4 shadow-[0_24px_60px_-12px_rgba(0,0,0,0.8),0_0_36px_-10px_rgba(43,181,160,0.22)] overflow-hidden"
+                  className="pointer-events-auto relative w-full max-w-[310px] rounded-[26px] bg-gradient-to-b from-slate-900/95 via-[#131b2e]/98 to-slate-950/98 border border-white/12 px-5 pt-4 pb-4 shadow-[0_24px_60px_-12px_rgba(0,0,0,0.8),0_0_36px_-10px_rgba(43,181,160,0.22)] overflow-hidden"
                 >
                   {/* Top Specular Hairline & Soft Ambient Glow */}
                   <div className="pointer-events-none absolute inset-x-8 top-0 h-[1px] bg-gradient-to-r from-transparent via-emerald-300/50 to-transparent" />
@@ -8192,9 +8579,14 @@ export default function App() {
                   {/* Minimal Header Row */}
                   <div className="relative z-10 flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2.5 min-w-0">
-                      <div className="w-7 h-7 rounded-full bg-emerald-500/15 border border-emerald-400/35 text-emerald-400 flex items-center justify-center shrink-0 shadow-[0_0_14px_rgba(43,181,160,0.25)]">
+                      <motion.div
+                        initial={{ scale: 0.65, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        transition={{ delay: 0.05, type: 'spring', stiffness: 420, damping: 22 }}
+                        className="w-7 h-7 rounded-full bg-emerald-500/15 border border-emerald-400/35 text-emerald-400 flex items-center justify-center shrink-0 shadow-[0_0_14px_rgba(43,181,160,0.25)]"
+                      >
                         <Check className="w-3.5 h-3.5 stroke-[2.75]" />
-                      </div>
+                      </motion.div>
                       <div className="text-right min-w-0">
                         <span className="text-xs font-black text-white block leading-tight">
                           فعالیت همگام‌سازی شد
@@ -8216,7 +8608,12 @@ export default function App() {
                   </div>
 
                   {/* Clean Editorial Telemetry Row (Distance · Pace · Elevation without boxy borders) */}
-                  <div className="relative z-10 flex items-center justify-between py-4 my-3 border-y border-white/8 text-center">
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.96 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: 0.04, duration: 0.22, ease: 'easeOut' }}
+                    className="relative z-10 flex items-center justify-between py-4 my-3 border-y border-white/8 text-center"
+                  >
                     <div className="flex-1">
                       <span className="text-[10px] text-slate-400 block mb-1">مسافت</span>
                       <div className="flex items-baseline justify-center gap-1" dir="ltr">
@@ -8250,10 +8647,15 @@ export default function App() {
                         <span className="text-[9px] text-slate-400 font-mono">m</span>
                       </div>
                     </div>
-                  </div>
+                  </motion.div>
 
                   {/* Refined Reward Footer */}
-                  <div className="relative z-10 flex items-center justify-between px-0.5">
+                  <motion.div
+                    initial={{ opacity: 0, y: 4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.08, duration: 0.22, ease: 'easeOut' }}
+                    className="relative z-10 flex items-center justify-between px-0.5"
+                  >
                     <span className="text-[11px] text-slate-400 font-medium">
                       پاداش واریزشده به کیف پول
                     </span>
@@ -8270,7 +8672,7 @@ export default function App() {
                         دوپول
                       </span>
                     </div>
-                  </div>
+                  </motion.div>
 
                   {/* Ultra-Thin Auto-Dismiss Progress Line */}
                   <motion.div
@@ -8287,13 +8689,19 @@ export default function App() {
         </AnimatePresence>
 
         {/* VIRAL AURA INSTAGRAM STORY STUDIO MODAL (9:16 Story Only + Pace Heatmap Only + 4 Models: Gold, Minimal, Magazine, Transparent Photo Overlay) */}
-        {storyModalActivity && (
-          <div className="fixed inset-0 bg-[#060913]/92 backdrop-blur-xl z-50 flex items-center justify-center p-2.5 sm:p-4">
+        <AnimatePresence>
+          {storyModalActivity && (
             <motion.div
-              initial={{ opacity: 0, y: 24, scale: 0.96 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              className="w-full max-w-[440px] max-h-[95vh] overflow-y-auto rounded-3xl bg-[#090e1c] border border-slate-800 p-3.5 sm:p-4 space-y-2.5 shadow-2xl"
+              key={`story-studio-${storyModalActivity.id}`}
+              {...POPUP_BACKDROP_MOTION}
+              onClick={() => setStoryModalActivity(null)}
+              className="fixed inset-0 bg-[#060913]/92 backdrop-blur-xl z-50 flex items-center justify-center p-2.5 sm:p-4"
             >
+              <motion.div
+                {...POPUP_CARD_MOTION}
+                onClick={(e) => e.stopPropagation()}
+                className="w-full max-w-[440px] max-h-[95vh] overflow-y-auto rounded-3xl bg-[#090e1c] border border-slate-800 p-3.5 sm:p-4 space-y-2.5 shadow-2xl"
+              >
               {/* Modal Header */}
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2.5 min-w-0">
@@ -8623,21 +9031,27 @@ export default function App() {
                 </button>
               </div>
             </motion.div>
-          </div>
-        )}
+            </motion.div>
+          )}
+        </AnimatePresence>
 
-        {/* 3-LINE HAMBURGER MENU DRAWER (شامل جوایز و رتبه‌بندی) */}
+        {/* 3-LINE HAMBURGER MENU DRAWER (شامل جوایز و رتبه‌بندی - با پاسخگویی آنی و بدون قفل لمس در زمان بسته شدن) */}
         <AnimatePresence>
           {showHamburgerMenu && user && (
-            <div
+            <motion.div
+              key="hamburger-drawer-backdrop"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0, pointerEvents: 'none' }}
+              transition={{ duration: 0.16, ease: 'easeOut' }}
               className="fixed inset-0 z-50 flex justify-end bg-black/70 backdrop-blur-sm"
               onClick={() => setShowHamburgerMenu(false)}
             >
               <motion.div
-                initial={{ x: '-100%', opacity: 0.5 }}
+                initial={{ x: '-100%', opacity: 0.85 }}
                 animate={{ x: 0, opacity: 1 }}
-                exit={{ x: '-100%', opacity: 0 }}
-                transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+                exit={{ x: '-100%', opacity: 0, pointerEvents: 'none' }}
+                transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
                 onClick={(e) => e.stopPropagation()}
                 className="w-[84%] max-w-[330px] h-full bg-[#090e1c] border-r border-slate-800 p-4 flex flex-col justify-between shadow-2xl overflow-y-auto"
               >
@@ -8654,7 +9068,7 @@ export default function App() {
                     <button
                       type="button"
                       onClick={() => setShowHamburgerMenu(false)}
-                      className="w-8 h-8 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white flex items-center justify-center shrink-0 cursor-pointer"
+                      className="w-8 h-8 rounded-xl bg-slate-800/80 hover:bg-slate-700 active:scale-95 text-slate-300 hover:text-white flex items-center justify-center shrink-0 cursor-pointer transition-all"
                     >
                       <X className="w-4 h-4" />
                     </button>
@@ -8663,11 +9077,8 @@ export default function App() {
                   {/* User Profile Card ONLY (جدا شده از تنظیمات) */}
                   <button
                     type="button"
-                    onClick={() => {
-                      setActiveTab('profile');
-                      setShowHamburgerMenu(false);
-                    }}
-                    className={`w-full p-3.5 rounded-2xl border text-right flex items-center justify-between gap-2.5 transition-all cursor-pointer ${
+                    onClick={() => navigateToTab('profile')}
+                    className={`w-full p-3.5 rounded-2xl border text-right flex items-center justify-between gap-2.5 transition-all active:scale-[0.98] cursor-pointer ${
                       activeTab === 'profile'
                         ? 'bg-amber-500/15 border-amber-400/50 text-white'
                         : 'bg-gradient-to-br from-slate-900 via-slate-900/95 to-amber-950/25 border-amber-500/30 hover:border-amber-400/50'
@@ -8698,11 +9109,8 @@ export default function App() {
                   <div className="space-y-2">
                     <button
                       type="button"
-                      onClick={() => {
-                        setActiveTab('watches');
-                        setShowHamburgerMenu(false);
-                      }}
-                      className={`w-full p-3 rounded-2xl border text-right flex items-center justify-between gap-2 transition-all cursor-pointer ${
+                      onClick={() => navigateToTab('watches')}
+                      className={`w-full p-3 rounded-2xl border text-right flex items-center justify-between gap-2 transition-all active:scale-[0.98] cursor-pointer ${
                         activeTab === 'watches'
                           ? 'bg-emerald-500/15 border-emerald-500/45 text-white'
                           : 'bg-slate-900/80 hover:bg-slate-900 border-slate-800 text-slate-200'
@@ -8729,11 +9137,8 @@ export default function App() {
 
                     <button
                       type="button"
-                      onClick={() => {
-                        setActiveTab('leaderboard');
-                        setShowHamburgerMenu(false);
-                      }}
-                      className={`w-full p-3 rounded-2xl border text-right flex items-center justify-between gap-2 transition-all cursor-pointer ${
+                      onClick={() => navigateToTab('leaderboard')}
+                      className={`w-full p-3 rounded-2xl border text-right flex items-center justify-between gap-2 transition-all active:scale-[0.98] cursor-pointer ${
                         activeTab === 'leaderboard'
                           ? 'bg-emerald-500/15 border-emerald-500/45 text-white'
                           : 'bg-slate-900/80 hover:bg-slate-900 border-slate-800 text-slate-200'
@@ -8761,12 +9166,8 @@ export default function App() {
                     {/* Separate Settings & Support Button */}
                     <button
                       type="button"
-                      onClick={() => {
-                        setActiveTab('settings');
-                        setSettingsSubTab('menu');
-                        setShowHamburgerMenu(false);
-                      }}
-                      className={`w-full p-3 rounded-2xl border text-right flex items-center justify-between gap-2 transition-all cursor-pointer ${
+                      onClick={() => navigateToTab('settings', 'menu')}
+                      className={`w-full p-3 rounded-2xl border text-right flex items-center justify-between gap-2 transition-all active:scale-[0.98] cursor-pointer ${
                         activeTab === 'settings'
                           ? 'bg-emerald-500/15 border-emerald-500/45 text-white'
                           : 'bg-slate-900/80 hover:bg-slate-900 border-slate-800 text-slate-200'
@@ -8800,7 +9201,7 @@ export default function App() {
                         const acceptedAct = activities.find((a) => a.status === 'ACCEPTED') || activities[0];
                         if (acceptedAct) setStoryModalActivity(acceptedAct);
                       }}
-                      className="w-full p-2.5 rounded-2xl bg-gradient-to-r from-amber-500/15 to-emerald-500/15 border border-amber-500/35 text-right flex items-center justify-between gap-2 cursor-pointer"
+                      className="w-full p-2.5 rounded-2xl bg-gradient-to-r from-amber-500/15 to-emerald-500/15 border border-amber-500/35 text-right flex items-center justify-between gap-2 active:scale-[0.98] transition-transform cursor-pointer"
                     >
                       <div className="flex items-center gap-2.5 min-w-0">
                         <div className="w-8 h-8 rounded-xl bg-amber-500/20 border border-amber-500/35 text-amber-400 flex items-center justify-center shrink-0">
@@ -8810,37 +9211,6 @@ export default function App() {
                       </div>
                       <ChevronRight className="w-4 h-4 text-amber-400 rotate-180 shrink-0" />
                     </button>
-
-                    <a
-                      href="/dopool-full-source-backup.zip"
-                      download="dopool-full-source-backup.zip"
-                      onClick={() => {
-                        setShowHamburgerMenu(false);
-                        triggerToast(
-                          'دانلود بکاپ کامل پروژه آغاز شد 📦',
-                          'فایل فشرده (ZIP) شامل تمام کدهای برنامه در حال دریافت است.',
-                          'success'
-                        );
-                      }}
-                      className="w-full p-2.5 rounded-2xl bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/40 text-right flex items-center justify-between gap-2 cursor-pointer transition-colors"
-                    >
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <div className="w-8 h-8 rounded-xl bg-emerald-500/20 border border-emerald-400/40 text-emerald-300 flex items-center justify-center shrink-0">
-                          <Download className="w-4 h-4" />
-                        </div>
-                        <div className="min-w-0">
-                          <span className="text-xs font-black text-white block truncate">
-                            دانلود فایل بکاپ پروژه (ZIP)
-                          </span>
-                          <span className="text-[9.5px] text-emerald-300/90 block truncate">
-                            سورس کامل برنامه تا این مرحله
-                          </span>
-                        </div>
-                      </div>
-                      <span className="px-2 py-0.5 rounded-lg bg-emerald-500 text-slate-950 font-mono font-black text-[10px] shrink-0">
-                        ZIP
-                      </span>
-                    </a>
                   </div>
                 </div>
 
@@ -8854,14 +9224,14 @@ export default function App() {
                       setLogoutSecondConfirm(false);
                       setShowLogoutConfirmModal(true);
                     }}
-                    className="px-2.5 py-1 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-400 hover:text-rose-300 font-bold flex items-center gap-1 shrink-0 cursor-pointer"
+                    className="px-2.5 py-1 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-400 hover:text-rose-300 active:scale-95 font-bold flex items-center gap-1 shrink-0 cursor-pointer transition-transform"
                   >
                     <LogOut className="w-3.5 h-3.5 shrink-0" />
                     <span>خروج</span>
                   </button>
                 </div>
               </motion.div>
-            </div>
+            </motion.div>
           )}
         </AnimatePresence>
 
@@ -8870,8 +9240,8 @@ export default function App() {
           <nav className="fixed sm:absolute bottom-0 left-0 right-0 max-w-[480px] mx-auto app-header-bar border-t border-slate-800/80 px-2 py-1.5 grid grid-cols-4 gap-1 items-center z-40 transition-colors duration-300">
             <button
               type="button"
-              onClick={() => setActiveTab('home')}
-              className={`flex flex-col items-center justify-center gap-1 py-1 rounded-2xl transition-all cursor-pointer ${
+              onClick={() => navigateToTab('home')}
+              className={`flex flex-col items-center justify-center gap-1 py-1 rounded-2xl transition-all active:scale-95 cursor-pointer ${
                 activeTab === 'home' ? 'text-emerald-400 font-black' : 'text-slate-400 hover:text-white font-bold'
               }`}
             >
@@ -8891,8 +9261,8 @@ export default function App() {
 
             <button
               type="button"
-              onClick={() => setActiveTab('sync')}
-              className={`flex flex-col items-center justify-center gap-1 py-1 rounded-2xl transition-all cursor-pointer ${
+              onClick={() => navigateToTab('sync')}
+              className={`flex flex-col items-center justify-center gap-1 py-1 rounded-2xl transition-all active:scale-95 cursor-pointer ${
                 activeTab === 'sync' ? 'text-emerald-400 font-black' : 'text-slate-400 hover:text-white font-bold'
               }`}
             >
@@ -8912,8 +9282,8 @@ export default function App() {
 
             <button
               type="button"
-              onClick={() => setActiveTab('store')}
-              className={`flex flex-col items-center justify-center gap-1 py-1 rounded-2xl transition-all cursor-pointer relative ${
+              onClick={() => navigateToTab('store')}
+              className={`flex flex-col items-center justify-center gap-1 py-1 rounded-2xl transition-all active:scale-95 cursor-pointer relative ${
                 activeTab === 'store' ? 'text-amber-400 font-black' : 'text-slate-400 hover:text-white font-bold'
               }`}
             >
@@ -8945,8 +9315,8 @@ export default function App() {
 
             <button
               type="button"
-              onClick={() => setActiveTab('invite')}
-              className={`flex flex-col items-center justify-center gap-1 py-1 rounded-2xl transition-all cursor-pointer ${
+              onClick={() => navigateToTab('invite')}
+              className={`flex flex-col items-center justify-center gap-1 py-1 rounded-2xl transition-all active:scale-95 cursor-pointer ${
                 activeTab === 'invite' ? 'text-emerald-400 font-black' : 'text-slate-400 hover:text-white font-bold'
               }`}
             >
@@ -8966,36 +9336,45 @@ export default function App() {
           </nav>
         )}
 
-        {/* Global Toast Alert */}
-        {toast && (
-          <div className="fixed bottom-20 left-1/2 -translate-x-1/2 w-[90%] max-w-[420px] p-3.5 rounded-2xl glass-panel shadow-2xl z-50 flex items-center gap-3 border transition-opacity">
-            <div
-              className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold text-sm shrink-0 ${
-                toast.type === 'success'
-                  ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-                  : toast.type === 'warning'
-                  ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
-                  : toast.type === 'error'
-                  ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
-                  : 'bg-sky-500/20 text-sky-400 border border-sky-500/30'
-              }`}
+        {/* Global Toast Alert (With gentle scale-in & fade-in motion, non-blocking so bottom navigation always remains clickable) */}
+        <AnimatePresence>
+          {toast && (
+            <motion.div
+              key={`${toast.message}-${toast.type}`}
+              initial={{ opacity: 0, scale: 0.92, y: 12 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 8, pointerEvents: 'none' }}
+              transition={{ type: 'spring', stiffness: 380, damping: 28, mass: 0.8 }}
+              className="pointer-events-none fixed bottom-20 left-1/2 -translate-x-1/2 w-[90%] max-w-[420px] p-3.5 rounded-2xl glass-panel shadow-2xl z-50 flex items-center gap-3 border"
             >
-              {toast.type === 'success' ? (
-                <CheckCircle2 className="w-5 h-5" />
-              ) : toast.type === 'error' ? (
-                <XCircle className="w-5 h-5" />
-              ) : toast.type === 'warning' ? (
-                <AlertCircle className="w-5 h-5" />
-              ) : (
-                <Sparkles className="w-5 h-5" />
-              )}
-            </div>
-            <div className="flex-1">
-              <p className="text-xs font-bold text-white">{toast.message}</p>
-              {toast.detail && <p className="text-[11px] text-slate-300 mt-0.5 leading-snug">{toast.detail}</p>}
-            </div>
-          </div>
-        )}
+              <div
+                className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold text-sm shrink-0 ${
+                  toast.type === 'success'
+                    ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                    : toast.type === 'warning'
+                    ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
+                    : toast.type === 'error'
+                    ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
+                    : 'bg-sky-500/20 text-sky-400 border border-sky-500/30'
+                }`}
+              >
+                {toast.type === 'success' ? (
+                  <CheckCircle2 className="w-5 h-5" />
+                ) : toast.type === 'error' ? (
+                  <XCircle className="w-5 h-5" />
+                ) : toast.type === 'warning' ? (
+                  <AlertCircle className="w-5 h-5" />
+                ) : (
+                  <Sparkles className="w-5 h-5" />
+                )}
+              </div>
+              <div className="flex-1">
+                <p className="text-xs font-bold text-white">{toast.message}</p>
+                {toast.detail && <p className="text-[11px] text-slate-300 mt-0.5 leading-snug">{toast.detail}</p>}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* ANIMATED COIN REWARD CELEBRATION BANNER + FLYING COINS OVERLAY */}
         <AnimatePresence>
