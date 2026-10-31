@@ -689,32 +689,115 @@ export function computeActivityRewardBreakdown(act: RunActivity): ActivityReward
   };
 }
 
-export function getSinglePostRunRecommendation(distanceKm: number) {
+export function getSinglePostRunRecommendation(distanceKm: number, seedId = '') {
   const burnedCalories = Math.max(65, Math.round(distanceKm * 68));
-  if (burnedCalories >= 500) {
+  const hydrationMl = Math.max(250, Math.round(distanceKm * 95));
+  const proteinGrams = Math.max(18, Math.round(distanceKm * 3.8));
+  const carbGrams = Math.max(32, Math.round(distanceKm * 7.4));
+
+  let variant = 0;
+  for (let i = 0; i < seedId.length; i++) {
+    variant = (variant + seedId.charCodeAt(i)) % 3;
+  }
+
+  if (burnedCalories >= 480) {
+    const heavyMeals = [
+      {
+        emoji: '🍗🍌',
+        title: 'وعده ریکاوری کامل عضلات',
+        suggestion:
+          '۱۵۰ گرم سینه مرغ گریل یا جوجه + ۱ عدد موز و ۲ لیوان آب خنک برای بازسازی گلیکوژن و ریکاوری فیبرهای عضلانی.',
+        timing: 'بهترین زمان مصرف: تا ۳۰ دقیقه پس از دویدن',
+      },
+      {
+        emoji: '🥗🥚',
+        title: 'پروتئین و کربوهیدرات پیچیده',
+        suggestion:
+          '۲ عدد تخم‌مرغ آب‌پز + ۱ پیاله عدسی یا سیب‌زمینی تنوری + ۱ لیوان دوغ کم‌نمک برای جبران الکترولیت‌ها.',
+        timing: 'بهترین زمان مصرف: ۲۰ تا ۴۰ دقیقه پس از فعالیت',
+      },
+      {
+        emoji: '🐟🍚',
+        title: 'تغذیه ضدالتهاب و بازسازی انرژی',
+        suggestion:
+          'فیله ماهی یا تن ماهی بدون روغن با برنج قهوه‌ای + خیار و لیموترش تازه جهت کاهش خستگی عضلانی.',
+        timing: 'بهترین زمان مصرف: تا ۴۵ دقیقه پس از دویدن',
+      },
+    ];
+    const picked = heavyMeals[variant];
     return {
       burnedCalories,
-      emoji: '🍗🍌',
-      title: 'وعده ریکاوری کامل (پروتئین + کربوهیدرات)',
-      suggestion:
-        '۱۵۰ گرم سینه مرغ گریل یا چلوکباب جوجه + ۱ عدد موز و ۲ لیوان آب خنک برای جبران کامل انرژی و بازسازی عضلات.',
+      hydrationMl,
+      proteinGrams,
+      carbGrams,
+      ...picked,
     };
   }
+
   if (burnedCalories >= 280) {
+    const mediumMeals = [
+      {
+        emoji: '🍌🥚',
+        title: 'میان‌وعده بازگشت سریع انرژی',
+        suggestion:
+          '۱ عدد موز متوسط + ۲ عدد سفیده تخم‌مرغ (یا ۱ اسکوپ پروتئین وی) به همراه ۱.۵ لیوان آب خنک.',
+        timing: 'پنجره طلایی ریکاوری: ۱۵ تا ۳۰ دقیقه بعد از دویدن',
+      },
+      {
+        emoji: '🥣🍓',
+        title: 'ماست یونانی و جو دوسر',
+        suggestion:
+          '۱ کاسه ماست یونانی کم‌چرب + ۲ قاشق جو دوسر، چند عدد مغز بادام و ۱ قاشق عسل طبیعی.',
+        timing: 'پنجره طلایی ریکاوری: تا ۳۰ دقیقه پس از پایان تمرین',
+      },
+      {
+        emoji: '🥪🧀',
+        title: 'تست پروتئینی سبک و مغذی',
+        suggestion:
+          '۲ برش نان سبوس‌دار با پنیر کم‌چرب و گردو + ۱ عدد خرما و ۱.۵ لیوان آب برای تعادل قند خون.',
+        timing: 'پنجره طلایی ریکاوری: ۲۰ دقیقه پس از فعالیت',
+      },
+    ];
+    const picked = mediumMeals[variant];
     return {
       burnedCalories,
-      emoji: '🍌🥚',
-      title: 'میان‌وعده بازگشت سریع انرژی',
-      suggestion:
-        '۱ عدد موز متوسط + ۲ عدد سفیده تخم‌مرغ آب‌پز (یا ۱ اسکوپ پروتئین وی) به همراه ۱.۵ لیوان آب خنک.',
+      hydrationMl,
+      proteinGrams,
+      carbGrams,
+      ...picked,
     };
   }
+
+  const lightMeals = [
+    {
+      emoji: '🍏🥛',
+      title: 'تغذیه سبک و آبرسانی هوشمند',
+      suggestion:
+        '۱ عدد سیب یا موز کوچک + ۱ لیوان شیر کم‌چرب (یا کفیر) و ۱ لیوان آب خنک برای حفظ شادابی.',
+      timing: 'زمان پیشنهادی: ۱۵ دقیقه پس از سرد کردن بدن',
+    },
+    {
+      emoji: '🥤🌴',
+      title: 'اسموتی انرژی‌بخش پس از دویدن',
+      suggestion:
+        '۱ لیوان شیر بادام یا شیر کم‌چرب + ۲ عدد رطب تازه و کمی دارچین برای ریکاوری نرم و سریع.',
+      timing: 'زمان پیشنهادی: بلافاصله پس از کشش پایان تمرین',
+    },
+    {
+      emoji: '🍊🥜',
+      title: 'آنتی‌اکسیدان و ریکاوری سبک',
+      suggestion:
+        '۱ عدد پرتقال یا کیوی تازه + یک مشت کوچک آجیل خام بی‌نمک و ۱ لیوان آب خنک.',
+      timing: 'زمان پیشنهادی: تا ۲۵ دقیقه پس از پایان دویدن',
+    },
+  ];
+  const picked = lightMeals[variant];
   return {
     burnedCalories,
-    emoji: '🍏🥛',
-    title: 'تغذیه سبک و آبرسانی بعد از دویدن',
-    suggestion:
-      '۱ عدد سیب یا موز کوچک + ۱ لیوان شیر کم‌چرب (یا ماست یونانی) و ۱ لیوان آب خنک برای حفظ شادابی.',
+    hydrationMl,
+    proteinGrams,
+    carbGrams,
+    ...picked,
   };
 }
 
@@ -3146,7 +3229,7 @@ export default function App() {
       setSelectedReceiptActivity(found);
       receiptTimerRef.current = window.setTimeout(() => {
         setSelectedReceiptActivity((curr) => (curr?.id === found.id ? null : curr));
-      }, 3600);
+      }, 6400);
     },
     [activities]
   );
@@ -3273,14 +3356,14 @@ export default function App() {
     };
 
     setActivities((prev) => deduplicateActivitiesList([newActivity, ...prev]));
-    // Show small minimal popup for 3.2 seconds and auto-close with gentle scale/fade motion
+    // Show sleek minimal popup with recovery nutrition for 6.4 seconds and auto-close with gentle scale/fade motion
     if (receiptTimerRef.current) {
       window.clearTimeout(receiptTimerRef.current);
     }
     setSelectedReceiptActivity(newActivity);
     receiptTimerRef.current = window.setTimeout(() => {
       setSelectedReceiptActivity((curr) => (curr?.id === newActivity.id ? null : curr));
-    }, 3200);
+    }, 6400);
 
     // Record SHA-256 fingerprint & verified activity in Firebase Firestore Cloud Vault
     recordCloudRunActivity({
@@ -5298,6 +5381,8 @@ export default function App() {
                       activities={activities}
                       onShareStory={handleShareActivityStory}
                       onViewReceipt={handleViewActivityReceipt}
+                      onAutoSync={() => handleSyncWatchActivity(activeWatchProvider)}
+                      isSyncing={isSyncingFromProvider}
                       lang={appLanguage}
                     />
                   )}
@@ -8533,7 +8618,7 @@ export default function App() {
           )}
         </AnimatePresence>
 
-        {/* SLEEK, MINIMAL & CLASSY AUTO-CLOSING SYNCED ACTIVITY POPUP (WITH GENTLE SCALE-IN & FADE-IN MOTION) */}
+        {/* SLEEK, MINIMAL & EYE-PLEASING AUTO-SYNC + RECOVERY NUTRITION POPUP (WITH GENTLE SCALE-IN & FADE-IN MOTION) */}
         <AnimatePresence>
           {selectedReceiptActivity && (() => {
             const paceVal = selectedReceiptActivity.paceMinPerKm || 5.0;
@@ -8543,6 +8628,10 @@ export default function App() {
             const elevMeters =
               selectedReceiptActivity.elevGainMeters ??
               Math.max(12, Math.round(selectedReceiptActivity.distanceKm * 3.7));
+            const nutrition = getSinglePostRunRecommendation(
+              selectedReceiptActivity.distanceKm,
+              selectedReceiptActivity.id
+            );
 
             return (
               <motion.div
@@ -8550,46 +8639,47 @@ export default function App() {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0, pointerEvents: 'none' }}
-                transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
-                className="pointer-events-none fixed inset-x-0 top-16 z-35 flex items-start justify-center p-4"
+                transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+                onClick={() => setSelectedReceiptActivity(null)}
+                className="fixed inset-0 bg-[#050811]/65 backdrop-blur-md z-50 flex items-center justify-center p-4"
               >
                 <motion.div
-                  initial={{ opacity: 0, scale: 0.9, y: -12 }}
+                  initial={{ opacity: 0, scale: 0.9, y: 12 }}
                   animate={{ opacity: 1, scale: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.94, y: -8, pointerEvents: 'none' }}
+                  exit={{ opacity: 0, scale: 0.94, y: 8, pointerEvents: 'none' }}
                   transition={{
                     type: 'spring',
-                    stiffness: 370,
+                    stiffness: 350,
                     damping: 27,
-                    mass: 0.82,
+                    mass: 0.84,
                   }}
                   onClick={(e) => e.stopPropagation()}
-                  className="pointer-events-auto relative w-full max-w-[310px] rounded-[26px] bg-gradient-to-b from-slate-900/95 via-[#131b2e]/98 to-slate-950/98 border border-white/12 px-5 pt-4 pb-4 shadow-[0_24px_60px_-12px_rgba(0,0,0,0.8),0_0_36px_-10px_rgba(43,181,160,0.22)] overflow-hidden"
+                  className="pointer-events-auto relative w-full max-w-[355px] rounded-[28px] bg-gradient-to-b from-slate-900/95 via-[#0f172a]/98 to-slate-950/98 border border-white/12 px-5 pt-4 pb-4 shadow-[0_28px_70px_-12px_rgba(0,0,0,0.85),0_0_40px_-10px_rgba(16,185,129,0.22)] overflow-hidden space-y-3.5"
                 >
                   {/* Top Specular Hairline & Soft Ambient Glow */}
-                  <div className="pointer-events-none absolute inset-x-8 top-0 h-[1px] bg-gradient-to-r from-transparent via-emerald-300/50 to-transparent" />
+                  <div className="pointer-events-none absolute inset-x-8 top-0 h-[1px] bg-gradient-to-r from-transparent via-emerald-300/55 to-transparent" />
                   <div
-                    className="pointer-events-none absolute -top-12 left-1/2 -translate-x-1/2 w-48 h-28 rounded-full opacity-80"
+                    className="pointer-events-none absolute -top-12 left-1/2 -translate-x-1/2 w-56 h-32 rounded-full opacity-80"
                     style={{
                       background:
-                        'radial-gradient(circle, rgba(79, 209, 190, 0.18) 0%, rgba(244, 178, 92, 0.08) 50%, transparent 75%)',
+                        'radial-gradient(circle, rgba(52, 211, 153, 0.18) 0%, rgba(251, 191, 36, 0.08) 55%, transparent 75%)',
                     }}
                   />
 
-                  {/* Minimal Header Row */}
+                  {/* 1. Minimal Header Row */}
                   <div className="relative z-10 flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2.5 min-w-0">
                       <motion.div
                         initial={{ scale: 0.65, opacity: 0 }}
                         animate={{ scale: 1, opacity: 1 }}
-                        transition={{ delay: 0.05, type: 'spring', stiffness: 420, damping: 22 }}
-                        className="w-7 h-7 rounded-full bg-emerald-500/15 border border-emerald-400/35 text-emerald-400 flex items-center justify-center shrink-0 shadow-[0_0_14px_rgba(43,181,160,0.25)]"
+                        transition={{ delay: 0.04, type: 'spring', stiffness: 420, damping: 22 }}
+                        className="w-8 h-8 rounded-full bg-emerald-500/15 border border-emerald-400/35 text-emerald-400 flex items-center justify-center shrink-0 shadow-[0_0_14px_rgba(16,185,129,0.25)]"
                       >
-                        <Check className="w-3.5 h-3.5 stroke-[2.75]" />
+                        <Check className="w-4 h-4 stroke-[2.75]" />
                       </motion.div>
                       <div className="text-right min-w-0">
                         <span className="text-xs font-black text-white block leading-tight">
-                          فعالیت همگام‌سازی شد
+                          همگام‌سازی خودکار انجام شد
                         </span>
                         <span className="text-[10px] text-slate-400 block truncate mt-0.5">
                           {selectedReceiptActivity.title || 'دویدن تاییدشده'}
@@ -8597,88 +8687,139 @@ export default function App() {
                       </div>
                     </div>
 
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <div className="flex items-center gap-1 px-2 py-1 rounded-xl bg-amber-500/12 border border-amber-400/25">
+                        <img
+                          src={DOPOOL_COIN_URL}
+                          alt="دوپول"
+                          className="w-4 h-3.5 object-contain"
+                        />
+                        <span className="text-xs font-black text-amber-300 font-mono" dir="ltr">
+                          +{selectedReceiptActivity.poolReward}
+                        </span>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => setSelectedReceiptActivity(null)}
+                        className="w-7 h-7 rounded-full text-slate-400 hover:text-white hover:bg-white/5 flex items-center justify-center transition-colors cursor-pointer shrink-0"
+                        aria-label="بستن"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* 2. Clean Editorial Telemetry Row (Distance · Pace · Elevation · Burned kcal) */}
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.97 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: 0.05, duration: 0.22, ease: 'easeOut' }}
+                    className="relative z-10 flex items-center justify-between py-2.5 border-y border-white/8 text-center"
+                  >
+                    <div className="flex-1">
+                      <span className="text-[9.5px] text-slate-400 block mb-0.5">مسافت</span>
+                      <div className="flex items-baseline justify-center gap-0.5" dir="ltr">
+                        <span className="text-base font-black font-mono text-white tracking-tight">
+                          {selectedReceiptActivity.distanceKm.toFixed(1)}
+                        </span>
+                        <span className="text-[9px] font-bold text-emerald-400 font-mono">km</span>
+                      </div>
+                    </div>
+
+                    <div className="w-px h-7 bg-white/10 shrink-0" />
+
+                    <div className="flex-1">
+                      <span className="text-[9.5px] text-slate-400 block mb-0.5">پیس</span>
+                      <div className="flex items-baseline justify-center gap-0.5" dir="ltr">
+                        <span className="text-xs font-black font-mono text-slate-100">
+                          {formattedPace}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="w-px h-7 bg-white/10 shrink-0" />
+
+                    <div className="flex-1">
+                      <span className="text-[9.5px] text-slate-400 block mb-0.5">ارتفاع</span>
+                      <div className="flex items-baseline justify-center gap-0.5" dir="ltr">
+                        <span className="text-xs font-black font-mono text-sky-300">
+                          +{elevMeters}m
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="w-px h-7 bg-white/10 shrink-0" />
+
+                    <div className="flex-1">
+                      <span className="text-[9.5px] text-slate-400 block mb-0.5">کالری</span>
+                      <div className="flex items-baseline justify-center gap-0.5" dir="ltr">
+                        <span className="text-xs font-black font-mono text-amber-300">
+                          {nutrition.burnedCalories}
+                        </span>
+                        <span className="text-[8.5px] text-slate-400 font-mono">kcal</span>
+                      </div>
+                    </div>
+                  </motion.div>
+
+                  {/* 3. Minimal & Eye-Pleasing Recovery Nutrition Card (پیشنهاد غذایی برای ریکاوری بهتر) */}
+                  <motion.div
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.1, duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+                    className="relative z-10 rounded-2xl p-3.5 bg-gradient-to-br from-emerald-950/40 via-slate-900/90 to-slate-950/90 border border-emerald-500/25 space-y-2.5"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <div className="w-8 h-8 rounded-xl bg-emerald-500/15 border border-emerald-400/30 flex items-center justify-center text-base shrink-0">
+                          {nutrition.emoji}
+                        </div>
+                        <div className="min-w-0">
+                          <span className="text-[10px] font-bold text-emerald-400 block">
+                            پیشنهاد غذایی ریکاوری
+                          </span>
+                          <h4 className="text-xs font-black text-white truncate">
+                            {nutrition.title}
+                          </h4>
+                        </div>
+                      </div>
+                    </div>
+
+                    <p className="text-[11px] text-slate-200/95 leading-relaxed">
+                      {nutrition.suggestion}
+                    </p>
+
+                    {/* Clean Unboxed Macro & Hydration Line */}
+                    <div className="pt-2 border-t border-white/8 flex items-center justify-between text-[10px] text-slate-400">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-emerald-300 font-bold">پروتئین {nutrition.proteinGrams}g</span>
+                        <span aria-hidden="true">·</span>
+                        <span className="text-amber-300 font-bold">کربوهیدرات {nutrition.carbGrams}g</span>
+                        <span aria-hidden="true">·</span>
+                        <span className="text-sky-300 font-bold">آب {nutrition.hydrationMl}ml</span>
+                      </div>
+                    </div>
+                  </motion.div>
+
+                  {/* 4. Minimal Action Footer */}
+                  <div className="relative z-10 flex items-center justify-between pt-0.5">
+                    <span className="text-[10px] text-slate-400">
+                      {nutrition.timing}
+                    </span>
                     <button
                       type="button"
                       onClick={() => setSelectedReceiptActivity(null)}
-                      className="w-7 h-7 rounded-full text-slate-400 hover:text-white hover:bg-white/5 flex items-center justify-center transition-colors cursor-pointer shrink-0"
-                      aria-label="بستن"
+                      className="px-3 py-1 rounded-xl bg-white/8 hover:bg-white/14 text-slate-200 text-[10.5px] font-bold transition-colors cursor-pointer"
                     >
-                      <X className="w-3.5 h-3.5" />
+                      متوجه شدم
                     </button>
                   </div>
-
-                  {/* Clean Editorial Telemetry Row (Distance · Pace · Elevation without boxy borders) */}
-                  <motion.div
-                    initial={{ opacity: 0, scale: 0.96 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ delay: 0.04, duration: 0.22, ease: 'easeOut' }}
-                    className="relative z-10 flex items-center justify-between py-4 my-3 border-y border-white/8 text-center"
-                  >
-                    <div className="flex-1">
-                      <span className="text-[10px] text-slate-400 block mb-1">مسافت</span>
-                      <div className="flex items-baseline justify-center gap-1" dir="ltr">
-                        <span className="text-xl font-black font-mono text-white tracking-tight">
-                          {selectedReceiptActivity.distanceKm.toFixed(2)}
-                        </span>
-                        <span className="text-[10px] font-bold text-emerald-400 font-mono">km</span>
-                      </div>
-                    </div>
-
-                    <div className="w-px h-8 bg-white/10 shrink-0" />
-
-                    <div className="flex-1">
-                      <span className="text-[10px] text-slate-400 block mb-1">پیس</span>
-                      <div className="flex items-baseline justify-center gap-0.5" dir="ltr">
-                        <span className="text-sm font-black font-mono text-slate-100">
-                          {formattedPace}
-                        </span>
-                        <span className="text-[9px] text-slate-400 font-mono">/km</span>
-                      </div>
-                    </div>
-
-                    <div className="w-px h-8 bg-white/10 shrink-0" />
-
-                    <div className="flex-1">
-                      <span className="text-[10px] text-slate-400 block mb-1">ارتفاع</span>
-                      <div className="flex items-baseline justify-center gap-0.5" dir="ltr">
-                        <span className="text-sm font-black font-mono text-sky-300">
-                          +{elevMeters}
-                        </span>
-                        <span className="text-[9px] text-slate-400 font-mono">m</span>
-                      </div>
-                    </div>
-                  </motion.div>
-
-                  {/* Refined Reward Footer */}
-                  <motion.div
-                    initial={{ opacity: 0, y: 4 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.08, duration: 0.22, ease: 'easeOut' }}
-                    className="relative z-10 flex items-center justify-between px-0.5"
-                  >
-                    <span className="text-[11px] text-slate-400 font-medium">
-                      پاداش واریزشده به کیف پول
-                    </span>
-                    <div className="flex items-center gap-1.5">
-                      <img
-                        src={DOPOOL_COIN_URL}
-                        alt="دوپول"
-                        className="w-5 h-4 object-contain drop-shadow-[0_2px_8px_rgba(244,178,92,0.45)]"
-                      />
-                      <span className="text-base font-black text-amber-300 font-mono tracking-tight" dir="ltr">
-                        +{selectedReceiptActivity.poolReward}
-                      </span>
-                      <span className="text-[11px] font-bold text-amber-400/90">
-                        دوپول
-                      </span>
-                    </div>
-                  </motion.div>
 
                   {/* Ultra-Thin Auto-Dismiss Progress Line */}
                   <motion.div
                     initial={{ scaleX: 1 }}
                     animate={{ scaleX: 0 }}
-                    transition={{ duration: 3.15, ease: 'linear' }}
+                    transition={{ duration: 6.3, ease: 'linear' }}
                     style={{ transformOrigin: 'right' }}
                     className="pointer-events-none absolute bottom-0 inset-x-0 h-[2px] bg-gradient-to-l from-emerald-400/80 via-teal-300/70 to-amber-300/80"
                   />

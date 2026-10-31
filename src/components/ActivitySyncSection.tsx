@@ -1,5 +1,5 @@
 import React, { memo, useMemo } from 'react';
-import { Activity, Share2, Clock, Mountain, Coins } from 'lucide-react';
+import { Activity, Share2, Clock, Mountain, Coins, RefreshCw } from 'lucide-react';
 import { translateFaToEn } from '../i18n';
 
 export interface ActivitySyncItem {
@@ -21,6 +21,8 @@ interface ActivitySyncSectionProps {
   activities: ActivitySyncItem[];
   onShareStory: (activity: ActivitySyncItem) => void;
   onViewReceipt?: (activity: ActivitySyncItem) => void;
+  onAutoSync?: () => void;
+  isSyncing?: boolean;
   lang?: 'fa' | 'en';
 }
 
@@ -168,6 +170,8 @@ const ActivitySyncSection = memo(function ActivitySyncSection({
   activities,
   onShareStory,
   onViewReceipt,
+  onAutoSync,
+  isSyncing = false,
   lang = 'fa',
 }: ActivitySyncSectionProps) {
   const isEn = lang === 'en';
@@ -204,6 +208,26 @@ const ActivitySyncSection = memo(function ActivitySyncSection({
               : `فعالیت‌های سینک شده (${acceptedActivities.length})`}
           </span>
         </h3>
+
+        {onAutoSync && (
+          <button
+            type="button"
+            onClick={onAutoSync}
+            disabled={isSyncing}
+            className="px-2.5 py-1.5 rounded-xl bg-emerald-500/12 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 font-bold text-[10.5px] inline-flex items-center gap-1.5 transition-all active:scale-95 cursor-pointer disabled:opacity-60 shadow-sm"
+          >
+            <RefreshCw className={`w-3 h-3 text-emerald-400 shrink-0 ${isSyncing ? 'animate-spin' : ''}`} />
+            <span>
+              {isSyncing
+                ? isEn
+                  ? 'Syncing...'
+                  : 'در حال همگام‌سازی...'
+                : isEn
+                ? 'Auto-Sync'
+                : 'همگام‌سازی خودکار'}
+            </span>
+          </button>
+        )}
       </div>
 
       {acceptedActivities.length === 0 ? (
