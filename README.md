@@ -25,7 +25,7 @@
 
 ## 🛠️ تکنولوژی‌ها (Tech Stack)
 
-- **Frontend:** React 19 + TypeScript + Vite 6
+- **Frontend:** React 19 + TypeScript + Vite 8
 - **Styling:** Tailwind CSS 4 + Lucide Icons
 - **Backend & Security:** Firebase Authentication + Cloud Firestore (`firestore.rules`)
 - **Maps & Visualization:** Leaflet + HTML5 Canvas (Instagram Story Renderer)
@@ -35,14 +35,14 @@
 ## 🚀 راه‌اندازی و اجرا روی سیستم شخصی (Local Development)
 
 ### ۱. پیش‌نیازها
-- نصب بودن [Node.js](https://nodejs.org/) (نسخه 20 یا بالاتر)
+- نصب بودن [Node.js](https://nodejs.org/) (نسخه 22 یا 20.19 به بالا)
 - نصب بودن Git
 
 ### ۲. دریافت پروژه و نصب پکیج‌ها
 ```bash
 git clone https://github.com/YOUR_USERNAME/dopool.git
 cd dopool
-npm install
+npm install --legacy-peer-deps
 ```
 
 ### ۳. اجرای سرور توسعه (Development)

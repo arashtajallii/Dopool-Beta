@@ -125,6 +125,7 @@
     background-color: var(--app-bg-outer);
     color: var(--color-slate-100);
     overflow-x: hidden;
+    overscroll-behavior-y: contain;
     -webkit-font-smoothing: antialiased;
     transition: background-color 0.25s ease, color 0.25s ease;
   }
@@ -488,5 +489,13 @@
 
 .wallet-coin-halo {
   animation: walletCoinHalo 1.75s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-shimmer::after,
+  .animate-float,
+  .animate-radar {
+    animation: none !important;
+  }
 }
 

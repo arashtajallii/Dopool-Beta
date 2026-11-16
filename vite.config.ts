@@ -3,8 +3,9 @@ import react from '@vitejs/plugin-react';
 import path from 'path';
 import {defineConfig} from 'vite';
 
-export default defineConfig(() => {
+export default defineConfig(({command}) => {
   return {
+    base: command === 'build' ? process.env.VITE_BASE_PATH || './' : '/',
     plugins: [react(), tailwindcss()],
     resolve: {
       alias: {
@@ -13,6 +14,29 @@ export default defineConfig(() => {
     },
     optimizeDeps: {
       entries: ['index.html'],
+    },
+    build: {
+      chunkSizeWarningLimit: 750,
+      rolldownOptions: {
+        output: {
+          manualChunks(id) {
+            if (id.includes('node_modules')) {
+              if (id.includes('firebase') || id.includes('@firebase')) {
+                return 'vendor-firebase';
+              }
+              if (id.includes('motion') || id.includes('framer-motion')) {
+                return 'vendor-motion';
+              }
+              if (id.includes('lucide-react')) {
+                return 'vendor-icons';
+              }
+              if (id.includes('react') || id.includes('scheduler')) {
+                return 'vendor-react';
+              }
+            }
+          },
+        },
+      },
     },
     server: {
       port: 3000,

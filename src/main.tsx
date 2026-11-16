@@ -68,7 +68,8 @@ createRoot(document.getElementById('root')!).render(
 // Register Service Worker for Mobile Notifications & PWA
 if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js').catch((err) => {
+    const base = import.meta.env.BASE_URL || './';
+    navigator.serviceWorker.register(`${base}sw.js`).catch((err) => {
       console.log('SW registration note:', err);
     });
   });

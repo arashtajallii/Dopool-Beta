@@ -1137,9 +1137,10 @@ interface PushNotificationItem {
   createdAt: string;
 }
 
-export const DOPOOL_LOGO_LIGHT_URL = '/assets/aistudio/dopool_logo_clean.png?v=4';
-export const DOPOOL_LOGO_DARK_URL = '/assets/aistudio/dopool_logo_dark_clean.png?v=4';
-export const DOPOOL_COIN_URL = '/assets/aistudio/dopool_coin_clean.png?v=4';
+const APP_BASE_URL = import.meta.env.BASE_URL || './';
+export const DOPOOL_LOGO_LIGHT_URL = `${APP_BASE_URL}assets/aistudio/dopool_logo_clean.png?v=4`;
+export const DOPOOL_LOGO_DARK_URL = `${APP_BASE_URL}assets/aistudio/dopool_logo_dark_clean.png?v=4`;
+export const DOPOOL_COIN_URL = `${APP_BASE_URL}assets/aistudio/dopool_coin_clean.png?v=4`;
 
 // One-time v1.0.0 Production Release cleanup so old development/demo data is cleared once
 if (typeof window !== 'undefined') {
@@ -2896,8 +2897,8 @@ export default function App() {
           body,
           dir: 'rtl',
           lang: 'fa',
-          icon: '/icon.svg',
-          badge: '/icon.svg',
+          icon: `${APP_BASE_URL}icon.svg`,
+          badge: `${APP_BASE_URL}icon.svg`,
           tag: `dopool-${Date.now()}`,
         };
 
@@ -7390,7 +7391,7 @@ export default function App() {
             <motion.div
               key="active-duel-modal-backdrop"
               {...POPUP_BACKDROP_MOTION}
-              className="fixed inset-0 bg-[#060913]/90 backdrop-blur-xl z-50 flex items-center justify-center p-4"
+              className="fixed inset-0 bg-[#060913]/90 backdrop-blur-sm z-50 flex items-center justify-center p-4"
             >
               <motion.div
                 {...POPUP_CARD_MOTION}
@@ -7519,7 +7520,7 @@ export default function App() {
               key="cashout-modal-backdrop"
               {...POPUP_BACKDROP_MOTION}
               onClick={() => setShowCashoutModal(false)}
-              className="fixed inset-0 bg-[#060913]/90 backdrop-blur-xl z-50 flex items-center justify-center p-4"
+              className="fixed inset-0 bg-[#060913]/90 backdrop-blur-sm z-50 flex items-center justify-center p-4"
             >
               <motion.div
                 {...POPUP_CARD_MOTION}
@@ -7646,7 +7647,7 @@ export default function App() {
                 key={`watch-auth-modal-${provider.id}`}
                 {...POPUP_BACKDROP_MOTION}
                 onClick={() => setAuthWatchModal({ ...authWatchModal, isOpen: false })}
-                className="fixed inset-0 bg-[#060913]/90 backdrop-blur-xl z-50 flex items-center justify-center p-4"
+                className="fixed inset-0 bg-[#060913]/90 backdrop-blur-sm z-50 flex items-center justify-center p-4"
               >
                 <motion.div
                   {...POPUP_CARD_MOTION}
@@ -7839,7 +7840,7 @@ export default function App() {
               key="daily-tasks-modal-backdrop"
               {...POPUP_BACKDROP_MOTION}
               onClick={() => setShowDailyTasksModal(false)}
-              className="fixed inset-0 bg-[#060913]/90 backdrop-blur-xl z-50 flex items-center justify-center p-4"
+              className="fixed inset-0 bg-[#060913]/90 backdrop-blur-sm z-50 flex items-center justify-center p-4"
             >
               <motion.div
                 {...POPUP_CARD_MOTION}
@@ -8023,7 +8024,7 @@ export default function App() {
                 setLogoutSecondConfirm(false);
                 setShowLogoutConfirmModal(false);
               }}
-              className="fixed inset-0 bg-[#060913]/90 backdrop-blur-xl z-50 flex items-center justify-center p-4"
+              className="fixed inset-0 bg-[#060913]/90 backdrop-blur-sm z-50 flex items-center justify-center p-4"
             >
               <motion.div
                 {...POPUP_CARD_MOTION}
@@ -8153,7 +8154,7 @@ export default function App() {
               key="welcome-email-modal-backdrop"
               {...POPUP_BACKDROP_MOTION}
               onClick={() => setShowWelcomeEmailModal(false)}
-              className="fixed inset-0 bg-[#060913]/90 backdrop-blur-xl z-50 flex items-center justify-center p-4"
+              className="fixed inset-0 bg-[#060913]/90 backdrop-blur-sm z-50 flex items-center justify-center p-4"
             >
               <motion.div
                 {...POPUP_CARD_MOTION}
@@ -8272,7 +8273,7 @@ export default function App() {
               key="forgot-password-modal-backdrop"
               {...POPUP_BACKDROP_MOTION}
               onClick={() => setShowForgotPasswordModal(false)}
-              className="fixed inset-0 bg-[#060913]/90 backdrop-blur-xl z-50 flex items-center justify-center p-4"
+              className="fixed inset-0 bg-[#060913]/90 backdrop-blur-sm z-50 flex items-center justify-center p-4"
             >
               <motion.div
                 {...POPUP_CARD_MOTION}
@@ -8344,7 +8345,7 @@ export default function App() {
               key="tester-share-modal-backdrop"
               {...POPUP_BACKDROP_MOTION}
               onClick={() => setShowTesterShareModal(false)}
-              className="fixed inset-0 bg-[#060913]/90 backdrop-blur-xl z-50 flex items-center justify-center p-4"
+              className="fixed inset-0 bg-[#060913]/90 backdrop-blur-sm z-50 flex items-center justify-center p-4"
             >
               <motion.div
                 {...POPUP_CARD_MOTION}
@@ -8807,7 +8808,7 @@ export default function App() {
               key={`story-studio-${storyModalActivity.id}`}
               {...POPUP_BACKDROP_MOTION}
               onClick={() => setStoryModalActivity(null)}
-              className="fixed inset-0 bg-[#060913]/92 backdrop-blur-xl z-50 flex items-center justify-center p-2.5 sm:p-4"
+              className="fixed inset-0 bg-[#060913]/92 backdrop-blur-sm z-50 flex items-center justify-center p-2.5 sm:p-4"
             >
               <motion.div
                 {...POPUP_CARD_MOTION}
