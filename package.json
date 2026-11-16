@@ -1,20 +1,23 @@
 {
   "name": "dopool",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite --port=3000 --host=0.0.0.0",
     "build": "vite build",
     "start": "vite preview --port=3000 --host=0.0.0.0",
     "preview": "vite preview --port=3000 --host=0.0.0.0",
-    "clean": "rm -rf dist server.js",
+    "clean": "node -e \"const fs=require('fs');['dist','server.js'].forEach(p=>fs.rmSync(p,{recursive:true,force:true}))\"",
     "lint": "tsc --noEmit",
-    "android:setup": "npm install @capacitor/core @capacitor/cli @capacitor/android --legacy-peer-deps && npm run build && npx cap add android && npx cap sync android && npx cap open android",
+    "android:setup": "node scripts/android-setup.mjs",
     "android:sync": "npm run build && npx cap sync android",
     "android:open": "npx cap open android"
   },
   "dependencies": {
+    "@capacitor/android": "^8.6.0",
+    "@capacitor/cli": "^8.6.0",
+    "@capacitor/core": "^8.6.0",
     "@google/genai": "^2.4.0",
     "@tailwindcss/vite": "^4.3.3",
     "@vitejs/plugin-react": "^6.1.1",

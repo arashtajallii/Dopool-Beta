@@ -1,4 +1,4 @@
-import React, { memo, useMemo } from 'react';
+import React, { useMemo } from 'react';
 import { Award } from 'lucide-react';
 import { translateFaToEn } from '../i18n';
 
@@ -17,8 +17,32 @@ interface LeaderboardRowProps {
   isEn: boolean;
 }
 
-const LeaderboardRow = memo(function LeaderboardRow({ item, idx, isMe, isEn }: LeaderboardRowProps) {
-  const displayName = isEn ? translateFaToEn(item.fullName) : item.fullName;
+const areLeaderboardRowsEqual = (
+  prev: LeaderboardRowProps,
+  next: LeaderboardRowProps
+): boolean => {
+  return (
+    prev.idx === next.idx &&
+    prev.isMe === next.isMe &&
+    prev.isEn === next.isEn &&
+    prev.item.username === next.item.username &&
+    prev.item.fullName === next.item.fullName &&
+    prev.item.totalKm === next.item.totalKm &&
+    prev.item.poolBalance === next.item.poolBalance
+  );
+};
+
+const LeaderboardRow = React.memo(function LeaderboardRow({
+  item,
+  idx,
+  isMe,
+  isEn,
+}: LeaderboardRowProps) {
+  const displayName = useMemo(
+    () => (isEn ? translateFaToEn(item.fullName) : item.fullName),
+    [isEn, item.fullName]
+  );
+
   return (
     <div
       className={`flex items-center justify-between p-2.5 rounded-xl transition-colors ${
@@ -58,7 +82,7 @@ const LeaderboardRow = memo(function LeaderboardRow({ item, idx, isMe, isEn }: L
       </div>
     </div>
   );
-});
+}, areLeaderboardRowsEqual);
 
 interface LeaderboardSectionProps {
   leaderboard: LeaderboardRunner[];
@@ -67,7 +91,19 @@ interface LeaderboardSectionProps {
   lang?: 'fa' | 'en';
 }
 
-const LeaderboardSection = memo(function LeaderboardSection({
+const areLeaderboardSectionPropsEqual = (
+  prev: LeaderboardSectionProps,
+  next: LeaderboardSectionProps
+): boolean => {
+  return (
+    prev.leaderboard === next.leaderboard &&
+    prev.currentUsername === next.currentUsername &&
+    prev.coinLogoUrl === next.coinLogoUrl &&
+    prev.lang === next.lang
+  );
+};
+
+const LeaderboardSection = React.memo(function LeaderboardSection({
   leaderboard,
   currentUsername,
   coinLogoUrl,
@@ -178,6 +214,6 @@ const LeaderboardSection = memo(function LeaderboardSection({
       </div>
     </div>
   );
-});
+}, areLeaderboardSectionPropsEqual);
 
 export default LeaderboardSection;

@@ -1,0 +1,28 @@
+{
+  "id": "/",
+  "name": "Dopool (دوپول) - پلتفرم کسب درآمد با دویدن",
+  "short_name": "دوپول",
+  "description": "پلتفرم دویدن و کسب درآمد ورزشی دونده‌های ایرانی با پشتیبانی از اتصال ساعت‌های هوشمند، فایل‌های فیت و ضدتقلب هوشمند",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#060913",
+  "theme_color": "#060913",
+  "orientation": "portrait",
+  "dir": "rtl",
+  "lang": "fa-IR",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ]
+}

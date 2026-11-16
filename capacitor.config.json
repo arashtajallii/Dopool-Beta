@@ -2,7 +2,6 @@
   "appId": "ir.dopool.app",
   "appName": "Dopool",
   "webDir": "dist",
-  "bundledWebRuntime": false,
   "backgroundColor": "#080d1a",
   "server": {
     "androidScheme": "https"

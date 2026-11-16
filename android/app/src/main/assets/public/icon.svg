@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#060913"/>
+      <stop offset="50%" stop-color="#0b1728"/>
+      <stop offset="100%" stop-color="#062e24"/>
+    </linearGradient>
+    <linearGradient id="flameGrad" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#10b981"/>
+      <stop offset="50%" stop-color="#06b6d4"/>
+      <stop offset="100%" stop-color="#38bdf8"/>
+    </linearGradient>
+    <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f59e0b"/>
+      <stop offset="100%" stop-color="#fbbf24"/>
+    </linearGradient>
+  </defs>
+  <!-- Background Rounded Rect -->
+  <rect width="512" height="512" rx="128" fill="url(#bgGrad)" stroke="#10b981" stroke-width="8" stroke-opacity="0.4"/>
+  <!-- Runner Silhouette / Flame -->
+  <path d="M256 96 C220 160 200 210 200 270 C200 350 240 400 256 400 C272 400 312 350 312 270 C312 210 292 160 256 96 Z" fill="url(#flameGrad)" opacity="0.9"/>
+  <!-- Inner Flame -->
+  <path d="M256 180 C236 220 226 250 226 290 C226 340 248 370 256 370 C264 370 286 340 286 290 C286 250 276 220 256 180 Z" fill="#ffffff" opacity="0.95"/>
+  <!-- Gold POOL Coin Accent -->
+  <circle cx="360" cy="150" r="48" fill="url(#goldGrad)" stroke="#fef3c7" stroke-width="6"/>
+  <text x="360" y="165" font-family="monospace, sans-serif" font-weight="900" font-size="42" text-anchor="middle" fill="#78350f">P</text>
+</svg>

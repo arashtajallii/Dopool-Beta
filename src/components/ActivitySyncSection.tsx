@@ -1,4 +1,4 @@
-import React, { memo, useMemo } from 'react';
+import React, { useMemo, useCallback } from 'react';
 import { Activity, Share2, Clock, Mountain, Coins, RefreshCw } from 'lucide-react';
 import { translateFaToEn } from '../i18n';
 
@@ -26,6 +26,13 @@ interface ActivitySyncSectionProps {
   lang?: 'fa' | 'en';
 }
 
+interface SyncedActivityCardProps {
+  activity: ActivitySyncItem;
+  onShareStory: (act: ActivitySyncItem) => void;
+  onViewReceipt?: (act: ActivitySyncItem) => void;
+  isEn: boolean;
+}
+
 const formatDuration = (seconds: number): string => {
   const mins = Math.floor(seconds / 60);
   const secs = seconds % 60;
@@ -41,36 +48,89 @@ const formatPace = (distanceKm: number, elapsedSeconds: number): string => {
   return `${pMin}:${pSec < 10 ? '0' : ''}${pSec}`;
 };
 
-const SyncedActivityCard = memo(function SyncedActivityCard({
+const areActivityCardsEqual = (
+  prev: SyncedActivityCardProps,
+  next: SyncedActivityCardProps
+): boolean => {
+  return (
+    prev.isEn === next.isEn &&
+    prev.onShareStory === next.onShareStory &&
+    prev.onViewReceipt === next.onViewReceipt &&
+    prev.activity.id === next.activity.id &&
+    prev.activity.distanceKm === next.activity.distanceKm &&
+    prev.activity.elapsedSeconds === next.activity.elapsedSeconds &&
+    prev.activity.elevGainMeters === next.activity.elevGainMeters &&
+    prev.activity.poolReward === next.activity.poolReward &&
+    prev.activity.status === next.activity.status &&
+    prev.activity.title === next.activity.title &&
+    prev.activity.createdAt === next.activity.createdAt &&
+    prev.activity.source === next.activity.source
+  );
+};
+
+const SyncedActivityCard = React.memo(function SyncedActivityCard({
   activity,
   onShareStory,
   onViewReceipt,
   isEn,
-}: {
-  activity: ActivitySyncItem;
-  onShareStory: (act: ActivitySyncItem) => void;
-  onViewReceipt?: (act: ActivitySyncItem) => void;
-  isEn: boolean;
-}) {
+}: SyncedActivityCardProps) {
   const elev =
     activity.elevGainMeters ?? Math.max(12, Math.round(activity.distanceKm * 3.7));
-  const durationStr = formatDuration(activity.elapsedSeconds);
-  const paceStr = formatPace(activity.distanceKm, activity.elapsedSeconds);
-  const displayTitle = isEn
-    ? translateFaToEn(activity.title || 'Daily Run')
-    : activity.title || 'دویدن روزانه';
-  const displayDate = isEn
-    ? translateFaToEn(activity.createdAt || 'Today')
-    : activity.createdAt || 'امروز';
-  const displaySource = activity.source
-    ? isEn
-      ? translateFaToEn(activity.source)
-      : activity.source
-    : '';
+  const durationStr = useMemo(
+    () => formatDuration(activity.elapsedSeconds),
+    [activity.elapsedSeconds]
+  );
+  const paceStr = useMemo(
+    () => formatPace(activity.distanceKm, activity.elapsedSeconds),
+    [activity.distanceKm, activity.elapsedSeconds]
+  );
+  const displayTitle = useMemo(
+    () =>
+      isEn
+        ? translateFaToEn(activity.title || 'Daily Run')
+        : activity.title || 'دویدن روزانه',
+    [isEn, activity.title]
+  );
+  const displayDate = useMemo(
+    () =>
+      isEn
+        ? translateFaToEn(activity.createdAt || 'Today')
+        : activity.createdAt || 'امروز',
+    [isEn, activity.createdAt]
+  );
+  const displaySource = useMemo(
+    () =>
+      activity.source
+        ? isEn
+          ? translateFaToEn(activity.source)
+          : activity.source
+        : '',
+    [isEn, activity.source]
+  );
+
+  const handleCardClick = useCallback(() => {
+    onViewReceipt?.(activity);
+  }, [onViewReceipt, activity]);
+
+  const handleReceiptButtonClick = useCallback(
+    (e: React.MouseEvent<HTMLButtonElement>) => {
+      e.stopPropagation();
+      onViewReceipt?.(activity);
+    },
+    [onViewReceipt, activity]
+  );
+
+  const handleShareStoryClick = useCallback(
+    (e: React.MouseEvent<HTMLButtonElement>) => {
+      e.stopPropagation();
+      onShareStory(activity);
+    },
+    [onShareStory, activity]
+  );
 
   return (
     <div
-      onClick={() => onViewReceipt?.(activity)}
+      onClick={handleCardClick}
       className="p-3.5 rounded-2xl bg-slate-900/80 border border-slate-800/90 space-y-2.5 transition-all hover:border-slate-700/80 active:scale-[0.99] cursor-pointer"
     >
       <div className="flex items-start justify-between gap-2">
@@ -139,23 +199,19 @@ const SyncedActivityCard = memo(function SyncedActivityCard({
         {onViewReceipt ? (
           <button
             type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              onViewReceipt(activity);
-            }}
+            onClick={handleReceiptButtonClick}
             className="px-2.5 py-1.5 rounded-xl bg-slate-950/80 hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-white font-bold text-[10px] flex items-center gap-1 cursor-pointer transition-colors"
           >
             <Activity className="w-3 h-3 text-emerald-400 shrink-0" />
             <span>{isEn ? 'Activity Receipt' : 'رسید اکتیویتی'}</span>
           </button>
-        ) : <span />}
+        ) : (
+          <span />
+        )}
 
         <button
           type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            onShareStory(activity);
-          }}
+          onClick={handleShareStoryClick}
           className="px-3 py-1.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/35 text-amber-300 font-bold text-[10px] flex items-center gap-1.5 cursor-pointer transition-colors"
         >
           <Share2 className="w-3 h-3 shrink-0" />
@@ -164,9 +220,23 @@ const SyncedActivityCard = memo(function SyncedActivityCard({
       </div>
     </div>
   );
-});
+}, areActivityCardsEqual);
 
-const ActivitySyncSection = memo(function ActivitySyncSection({
+const areActivitySectionPropsEqual = (
+  prev: ActivitySyncSectionProps,
+  next: ActivitySyncSectionProps
+): boolean => {
+  return (
+    prev.activities === next.activities &&
+    prev.isSyncing === next.isSyncing &&
+    prev.lang === next.lang &&
+    prev.onShareStory === next.onShareStory &&
+    prev.onViewReceipt === next.onViewReceipt &&
+    prev.onAutoSync === next.onAutoSync
+  );
+};
+
+const ActivitySyncSection = React.memo(function ActivitySyncSection({
   activities,
   onShareStory,
   onViewReceipt,
@@ -252,6 +322,6 @@ const ActivitySyncSection = memo(function ActivitySyncSection({
       )}
     </div>
   );
-});
+}, areActivitySectionPropsEqual);
 
 export default ActivitySyncSection;

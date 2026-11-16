@@ -1141,6 +1141,32 @@ export const DOPOOL_LOGO_LIGHT_URL = '/assets/aistudio/dopool_logo_clean.png?v=4
 export const DOPOOL_LOGO_DARK_URL = '/assets/aistudio/dopool_logo_dark_clean.png?v=4';
 export const DOPOOL_COIN_URL = '/assets/aistudio/dopool_coin_clean.png?v=4';
 
+// One-time v1.0.0 Production Release cleanup so old development/demo data is cleared once
+if (typeof window !== 'undefined') {
+  try {
+    if (localStorage.getItem('dopool_release_v1_clean') !== '1.0.0') {
+      [
+        'dopool_user_session',
+        'dopool_saved_profile',
+        'dopool_user_password',
+        'dopool_activities_v2',
+        'dopool_notifications',
+        'dopool_battles',
+        'dopool_cashouts',
+        'dopool_daily_coin_30_v1',
+        'dopool_daily_tasks_v4',
+        'dopool_daily_tasks_date_v4',
+        'dopool_first_milestones_v2',
+        'dopool_2fa_enabled',
+        'dopool_2fa_phone',
+      ].forEach((k) => localStorage.removeItem(k));
+      localStorage.setItem('dopool_release_v1_clean', '1.0.0');
+    }
+  } catch {
+    // Ignore storage restriction errors
+  }
+}
+
 export default function App() {
   // Login Logo Loading Animation State (فقط هنگام ورود یا ثبت‌نام نمایش داده می‌شود)
   const [showSplash, setShowSplash] = useState<boolean>(false);
@@ -1174,13 +1200,11 @@ export default function App() {
   const [isCloudSyncing, setIsCloudSyncing] = useState<boolean>(false);
 
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
-  const [loginUsername, setLoginUsername] = useState('sohrab_run');
+  const [loginUsername, setLoginUsername] = useState('');
   const [savedUserPassword, setSavedUserPassword] = useState<string>(() => {
-    return localStorage.getItem('dopool_user_password') || 'pass123';
+    return localStorage.getItem('dopool_user_password') || '';
   });
-  const [loginPassword, setLoginPassword] = useState(() => {
-    return localStorage.getItem('dopool_user_password') || 'pass123';
-  });
+  const [loginPassword, setLoginPassword] = useState('');
   const [showLoginPassword, setShowLoginPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
 
@@ -1535,34 +1559,7 @@ export default function App() {
         return [];
       }
     }
-    return [
-      {
-        id: 'notif-1',
-        type: 'REFERRAL_BONUS',
-        title: 'پاداش دعوت دوست',
-        body: 'دوست شما با کد معرف ثبت‌نام کرد و ۱۰ دوپول به کیف پول اضافه شد.',
-        poolAmount: 10,
-        isRead: false,
-        createdAt: '۱۰ دقیقه پیش',
-      },
-      {
-        id: 'notif-2',
-        type: 'TOKEN_AWARD',
-        title: 'پاداش ثبت اکتیویتی',
-        body: 'دویدن ۵.۲ کیلومتری ثبت شد و ۵۲ دوپول به حساب شما واریز گردید.',
-        poolAmount: 52,
-        isRead: true,
-        createdAt: 'امروز',
-      },
-      {
-        id: 'notif-3',
-        type: 'RANK_UP',
-        title: 'صعود در جدول رتبه‌بندی',
-        body: 'با ثبت رکورد جدید به رتبه ۴ جدول دوندگان صعود کردید.',
-        isRead: true,
-        createdAt: 'دیروز',
-      },
-    ];
+    return [];
   });
 
   const [showNotifDrawer, setShowNotifDrawer] = useState(false);
@@ -1588,7 +1585,7 @@ export default function App() {
     return localStorage.getItem('dopool_2fa_enabled') === 'true';
   });
   const [twoFactorPhone, setTwoFactorPhone] = useState<string>(() => {
-    return localStorage.getItem('dopool_2fa_phone') || '09121234567';
+    return localStorage.getItem('dopool_2fa_phone') || '';
   });
   const [isEditingTwoFactorPhone, setIsEditingTwoFactorPhone] = useState<boolean>(false);
 
@@ -1597,7 +1594,7 @@ export default function App() {
     return localStorage.getItem('dopool_2fa_enabled') === 'true';
   });
   const [loginTwoFactorPhone, setLoginTwoFactorPhone] = useState<string>(() => {
-    return localStorage.getItem('dopool_2fa_phone') || '09121234567';
+    return localStorage.getItem('dopool_2fa_phone') || '';
   });
   const [loginTwoFactorCode, setLoginTwoFactorCode] = useState<string>('');
   const [loginTwoFactorStep, setLoginTwoFactorStep] = useState<'idle' | 'sent'>('idle');
@@ -2108,77 +2105,83 @@ export default function App() {
   };
 
   // Detect mentioned or tagged activities (جلوگیری از ثبت اکتیویتی منشن شده یا تگ شده)
-  const isMentionedOrTaggedActivity = (
-    title?: string,
-    filename?: string,
-    source?: string,
-    flagged?: boolean
-  ): boolean => {
-    if (flagged) return true;
-    const combined = `${title || ''} ${filename || ''} ${source || ''}`.toLowerCase();
-    return (
-      combined.includes('mention') ||
-      combined.includes('tagged') ||
-      combined.includes('tag_') ||
-      combined.includes('shared_tag') ||
-      combined.includes('with @') ||
-      combined.includes('منشن') ||
-      combined.includes('تگ شده') ||
-      combined.includes('تگ‌') ||
-      combined.includes('مشترک با')
-    );
-  };
+  const isMentionedOrTaggedActivity = useCallback(
+    (
+      title?: string,
+      filename?: string,
+      source?: string,
+      flagged?: boolean
+    ): boolean => {
+      if (flagged) return true;
+      const combined = `${title || ''} ${filename || ''} ${source || ''}`.toLowerCase();
+      return (
+        combined.includes('mention') ||
+        combined.includes('tagged') ||
+        combined.includes('tag_') ||
+        combined.includes('shared_tag') ||
+        combined.includes('with @') ||
+        combined.includes('منشن') ||
+        combined.includes('تگ شده') ||
+        combined.includes('تگ‌') ||
+        combined.includes('مشترک با')
+      );
+    },
+    []
+  );
 
   // Helper to deduplicate and sanitize activities and strip mentioned/tagged workouts
-  const deduplicateActivitiesList = (list: RunActivity[]): RunActivity[] => {
-    const seenIds = new Set<string>();
-    const seenFiles = new Set<string>();
-    const seenTelemetry = new Set<string>();
-    const result: RunActivity[] = [];
-    for (const rawItem of list) {
-      if (!rawItem || typeof rawItem !== 'object') continue;
-      const distanceKm = Number.isFinite(Number(rawItem.distanceKm)) ? Math.max(0.1, Number(rawItem.distanceKm)) : 5.0;
-      const elapsedSeconds = Number.isFinite(Number(rawItem.elapsedSeconds)) ? Math.max(30, Number(rawItem.elapsedSeconds)) : 1500;
-      const avgHeartRate = Number.isFinite(Number(rawItem.avgHeartRate)) ? Math.max(60, Number(rawItem.avgHeartRate)) : 145;
-      const paceMinPerKm = Number.isFinite(Number(rawItem.paceMinPerKm)) && Number(rawItem.paceMinPerKm) > 0
-        ? Number(rawItem.paceMinPerKm)
-        : elapsedSeconds / 60 / distanceKm;
-      const poolReward = Number.isFinite(Number(rawItem.poolReward)) ? Math.max(0, Number(rawItem.poolReward)) : 0;
-      const item: RunActivity = {
-        ...rawItem,
-        id: typeof rawItem.id === 'string' && rawItem.id.trim() ? rawItem.id.trim() : `act-${Date.now()}-${result.length}`,
-        filename: typeof rawItem.filename === 'string' && rawItem.filename.trim() ? rawItem.filename.trim() : 'Workout.fit',
-        distanceKm,
-        elapsedSeconds,
-        avgHeartRate,
-        paceMinPerKm,
-        poolReward,
-        status: rawItem.status === 'REJECTED' ? 'REJECTED' : 'ACCEPTED',
-        createdAt: typeof rawItem.createdAt === 'string' ? rawItem.createdAt : 'امروز',
-        source: typeof rawItem.source === 'string' ? rawItem.source : 'Smartwatch',
-      };
-      if (isMentionedOrTaggedActivity(item.title, item.filename, item.source)) {
-        continue;
+  const deduplicateActivitiesList = useCallback(
+    (list: RunActivity[]): RunActivity[] => {
+      const seenIds = new Set<string>();
+      const seenFiles = new Set<string>();
+      const seenTelemetry = new Set<string>();
+      const result: RunActivity[] = [];
+      for (const rawItem of list) {
+        if (!rawItem || typeof rawItem !== 'object') continue;
+        const distanceKm = Number.isFinite(Number(rawItem.distanceKm)) ? Math.max(0.1, Number(rawItem.distanceKm)) : 5.0;
+        const elapsedSeconds = Number.isFinite(Number(rawItem.elapsedSeconds)) ? Math.max(30, Number(rawItem.elapsedSeconds)) : 1500;
+        const avgHeartRate = Number.isFinite(Number(rawItem.avgHeartRate)) ? Math.max(60, Number(rawItem.avgHeartRate)) : 145;
+        const paceMinPerKm = Number.isFinite(Number(rawItem.paceMinPerKm)) && Number(rawItem.paceMinPerKm) > 0
+          ? Number(rawItem.paceMinPerKm)
+          : elapsedSeconds / 60 / distanceKm;
+        const poolReward = Number.isFinite(Number(rawItem.poolReward)) ? Math.max(0, Number(rawItem.poolReward)) : 0;
+        const item: RunActivity = {
+          ...rawItem,
+          id: typeof rawItem.id === 'string' && rawItem.id.trim() ? rawItem.id.trim() : `act-${Date.now()}-${result.length}`,
+          filename: typeof rawItem.filename === 'string' && rawItem.filename.trim() ? rawItem.filename.trim() : 'Workout.fit',
+          distanceKm,
+          elapsedSeconds,
+          avgHeartRate,
+          paceMinPerKm,
+          poolReward,
+          status: rawItem.status === 'REJECTED' ? 'REJECTED' : 'ACCEPTED',
+          createdAt: typeof rawItem.createdAt === 'string' ? rawItem.createdAt : 'امروز',
+          source: typeof rawItem.source === 'string' ? rawItem.source : 'Smartwatch',
+        };
+        if (isMentionedOrTaggedActivity(item.title, item.filename, item.source)) {
+          continue;
+        }
+        const normId = item.id.toLowerCase();
+        const normFile = item.filename.toLowerCase();
+        const telemetryKey = `${item.distanceKm.toFixed(2)}_${item.elapsedSeconds}_${item.avgHeartRate}`;
+        if (
+          (normId && seenIds.has(normId)) ||
+          (normFile && seenFiles.has(normFile)) ||
+          seenTelemetry.has(telemetryKey)
+        ) {
+          continue;
+        }
+        if (normId) seenIds.add(normId);
+        if (normFile) seenFiles.add(normFile);
+        seenTelemetry.add(telemetryKey);
+        result.push(item);
       }
-      const normId = item.id.toLowerCase();
-      const normFile = item.filename.toLowerCase();
-      const telemetryKey = `${item.distanceKm.toFixed(2)}_${item.elapsedSeconds}_${item.avgHeartRate}`;
-      if (
-        (normId && seenIds.has(normId)) ||
-        (normFile && seenFiles.has(normFile)) ||
-        seenTelemetry.has(telemetryKey)
-      ) {
-        continue;
-      }
-      if (normId) seenIds.add(normId);
-      if (normFile) seenFiles.add(normFile);
-      seenTelemetry.add(telemetryKey);
-      result.push(item);
-    }
-    return result;
-  };
+      return result;
+    },
+    [isMentionedOrTaggedActivity]
+  );
 
-  // Activities List
+  // Activities List (Clean zero-state for first-time production release)
   const [activities, setActivities] = useState<RunActivity[]>(() => {
     const saved = localStorage.getItem('dopool_activities_v2');
     if (saved) {
@@ -2191,78 +2194,19 @@ export default function App() {
         return [];
       }
     }
-    return [
-      {
-        id: 'act-100',
-        title: 'Morning Run · دویدن صبحگاهی',
-        filename: 'Morning_Run_9.2K.fit',
-        distanceKm: 9.2,
-        elevGainMeters: 34,
-        elapsedSeconds: 3596,
-        avgHeartRate: 152,
-        paceMinPerKm: 6.516,
-        status: 'ACCEPTED',
-        poolReward: 178,
-        createdAt: 'امروز · ۲۹ مهر',
-        source: 'Garmin Connect',
-        multiplier: 1.0,
-        energyUsed: 0,
-        gpsScore: 100,
-        hrScore: 100,
-        cadenceScore: 76,
-        proofOfHumanScore: 95,
-      },
-      {
-        id: 'act-101',
-        title: 'دویدن پارک لاله · Laleh Park Run',
-        filename: 'Morning_LalehPark_5.4K.fit',
-        distanceKm: 5.4,
-        elevGainMeters: 24,
-        elapsedSeconds: 1710,
-        avgHeartRate: 148,
-        paceMinPerKm: 5.27,
-        status: 'ACCEPTED',
-        poolReward: 120,
-        createdAt: 'دیروز، ساعت ۰۶:۴۵',
-        source: 'Garmin Forerunner 965',
-        multiplier: 1.2,
-        energyUsed: 10.4,
-        gpsScore: 100,
-        hrScore: 100,
-        cadenceScore: 84,
-        proofOfHumanScore: 97,
-      },
-      {
-        id: 'act-103',
-        title: 'تست سرعت غیرمجاز خودرو',
-        filename: 'Highway_Drive_Test.fit',
-        distanceKm: 8.5,
-        elevGainMeters: 10,
-        elapsedSeconds: 780,
-        avgHeartRate: 102,
-        paceMinPerKm: 1.52,
-        status: 'REJECTED',
-        rejectionReason: 'سرعت غیرطبیعی (پیس ۱:۳۱ سریع‌تر از ۲:۴۰ دقیقه/کیلومتر - احتمال استفاده از خودرو یا موتور).',
-        poolReward: 0,
-        createdAt: '۳ روز پیش',
-        source: 'Cheater Engine',
-        gpsScore: 45,
-        hrScore: 50,
-        cadenceScore: 22,
-        proofOfHumanScore: 41,
-      },
-    ];
+    return [];
   });
+  const activitiesRef = useRef<RunActivity[]>(activities);
+  activitiesRef.current = activities;
 
   // Individual Leaderboard data
   const [leaderboard, setLeaderboard] = useState<LeaderboardUser[]>([
     { rank: 1, fullName: 'پوریا رضایی', username: 'pouria_ultra', totalKm: 142.6, poolBalance: 1426.0 },
     { rank: 2, fullName: 'نیلوفر داوودی', username: 'niloofar_run', totalKm: 118.2, poolBalance: 1182.0 },
     { rank: 3, fullName: 'کامران حسینی', username: 'kamran_fast', totalKm: 98.4, poolBalance: 984.0 },
-    { rank: 4, fullName: 'سهراب مرادی', username: 'sohrab_run', totalKm: 12.5, poolBalance: 125.0 },
-    { rank: 5, fullName: 'الناز شاکری', username: 'elnaz_marathon', totalKm: 76.0, poolBalance: 760.0 },
-    { rank: 6, fullName: 'رضا کمالی', username: 'reza_runner', totalKm: 64.5, poolBalance: 645.0 },
-    { rank: 7, fullName: 'مریم اکبری', username: 'maryam_trail', totalKm: 52.8, poolBalance: 528.0 },
+    { rank: 4, fullName: 'الناز شاکری', username: 'elnaz_marathon', totalKm: 76.0, poolBalance: 760.0 },
+    { rank: 5, fullName: 'رضا کمالی', username: 'reza_runner', totalKm: 64.5, poolBalance: 645.0 },
+    { rank: 6, fullName: 'مریم اکبری', username: 'maryam_trail', totalKm: 52.8, poolBalance: 528.0 },
   ]);
 
   // Memoized Vouchers & Challenges to prevent re-allocations on every render
@@ -2366,42 +2310,7 @@ export default function App() {
         return [];
       }
     }
-    return [
-      {
-        id: 'btl-101',
-        opponentName: 'پوریا رضایی',
-        opponentAvatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&h=100&fit=crop&crop=faces',
-        opponentCity: 'تهران',
-        opponentCrew: 'باشگاه انقلاب تهران',
-        distanceKm: 3.0,
-        wagerPool: 25,
-        prizePool: 47.5,
-        status: 'COMPLETED',
-        userPace: 4.65,
-        opponentPace: 4.85,
-        userTimeSec: 837,
-        opponentTimeSec: 873,
-        winner: 'USER',
-        createdAt: 'دیروز',
-      },
-      {
-        id: 'btl-102',
-        opponentName: 'نیلوفر داوودی',
-        opponentAvatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=100&h=100&fit=crop&crop=faces',
-        opponentCity: 'شیراز',
-        opponentCrew: 'ماراتن شیراز',
-        distanceKm: 1.0,
-        wagerPool: 10,
-        prizePool: 19.0,
-        status: 'COMPLETED',
-        userPace: 4.40,
-        opponentPace: 4.25,
-        userTimeSec: 264,
-        opponentTimeSec: 255,
-        winner: 'OPPONENT',
-        createdAt: '۲ روز پیش',
-      },
-    ];
+    return [];
   });
 
   // Active Duel Simulation state
@@ -2543,7 +2452,7 @@ export default function App() {
     ];
   });
   const [cardInput, setCardInput] = useState<string>('');
-  const [accountOwnerName, setAccountOwnerName] = useState<string>('سهراب مرادی');
+  const [accountOwnerName, setAccountOwnerName] = useState<string>('');
   const [cashoutHistory, setCashoutHistory] = useState<CashoutRecord[]>(() => {
     const saved = localStorage.getItem('dopool_cashouts');
     if (saved) {
@@ -2553,18 +2462,7 @@ export default function App() {
         return [];
       }
     }
-    return [
-      {
-        id: 'csh-101',
-        poolAmount: 40,
-        tomanAmount: 200000,
-        shebaNumber: 'IR820170000000123456789012',
-        bankName: 'بانک ملت',
-        status: 'PROCESSED',
-        trackingCode: 'PAYA-994821',
-        createdAt: '۳ روز پیش',
-      },
-    ];
+    return [];
   });
 
   // Listen to Firebase Auth State
@@ -2588,17 +2486,34 @@ export default function App() {
         }
         setLeaderboard((prev) => {
           const targetUname = user.username.toLowerCase();
-          const hasChanged = prev.some(
-            (item) =>
-              item.username.toLowerCase() === targetUname &&
-              (item.totalKm !== user.totalKm || item.poolBalance !== user.lockedPoolBalance)
-          );
-          if (!hasChanged) return prev;
-          return prev.map((item) =>
-            item.username.toLowerCase() === targetUname
-              ? { ...item, totalKm: user.totalKm, poolBalance: user.lockedPoolBalance }
-              : item
-          );
+          const existingEntry = prev.find((item) => item.username.toLowerCase() === targetUname);
+          if (
+            existingEntry &&
+            existingEntry.fullName === user.fullName &&
+            existingEntry.totalKm === user.totalKm &&
+            existingEntry.poolBalance === user.lockedPoolBalance
+          ) {
+            return prev;
+          }
+          const updatedList = existingEntry
+            ? prev.map((item) =>
+                item.username.toLowerCase() === targetUname
+                  ? { ...item, fullName: user.fullName, totalKm: user.totalKm, poolBalance: user.lockedPoolBalance }
+                  : item
+              )
+            : [
+                ...prev,
+                {
+                  rank: prev.length + 1,
+                  fullName: user.fullName,
+                  username: user.username,
+                  totalKm: user.totalKm,
+                  poolBalance: user.lockedPoolBalance,
+                },
+              ];
+          return [...updatedList]
+            .sort((a, b) => b.totalKm - a.totalKm || b.poolBalance - a.poolBalance)
+            .map((item, idx) => ({ ...item, rank: idx + 1 }));
         });
 
         if (cloudUid && auth.currentUser?.emailVerified) {
@@ -2738,7 +2653,7 @@ export default function App() {
   const audioCtxRef = useRef<AudioContext | null>(null);
 
   // Web Audio Chime Synthesis (Reuses single AudioContext for zero main-thread blocking)
-  const playChime = (type: 'bonus' | 'rank_up') => {
+  const playChime = useCallback((type: 'bonus' | 'rank_up') => {
     try {
       const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
       if (!AudioCtx) return;
@@ -2782,80 +2697,97 @@ export default function App() {
     } catch {
       // Browser audio restriction fallback
     }
-  };
+  }, []);
+
+  // Show Toast (non-blocking, timer-safe)
+  const triggerToast = useCallback(
+    (message: string, detail?: string, type: 'success' | 'warning' | 'error' | 'info' = 'info') => {
+      if (toastTimerRef.current) {
+        window.clearTimeout(toastTimerRef.current);
+      }
+      setToast({ message, detail, type });
+      toastTimerRef.current = window.setTimeout(() => {
+        setToast(null);
+      }, 2600);
+    },
+    []
+  );
 
   // Trigger Coin Flying Animation to Top Wallet
-  const triggerCoinReward = (amount: number, origin?: { x: number; y: number } | HTMLElement | null) => {
-    try {
-      let startX = window.innerWidth / 2;
-      let startY = window.innerHeight * 0.65;
+  const triggerCoinReward = useCallback(
+    (amount: number, origin?: { x: number; y: number } | HTMLElement | null) => {
+      try {
+        let startX = window.innerWidth / 2;
+        let startY = window.innerHeight * 0.65;
 
-      if (origin) {
-        if ('x' in origin && 'y' in origin) {
-          startX = origin.x;
-          startY = origin.y;
-        } else if (origin instanceof HTMLElement) {
-          const rect = origin.getBoundingClientRect();
-          startX = rect.left + rect.width / 2;
-          startY = rect.top + rect.height / 2;
+        if (origin) {
+          if ('x' in origin && 'y' in origin) {
+            startX = origin.x;
+            startY = origin.y;
+          } else if (origin instanceof HTMLElement) {
+            const rect = origin.getBoundingClientRect();
+            startX = rect.left + rect.width / 2;
+            startY = rect.top + rect.height / 2;
+          }
         }
-      }
 
-      // Target: Main Wallet Card on Home if visible, otherwise Top Header
-      let targetX = window.innerWidth - 75;
-      let targetY = 32;
-      if (heroWalletRef.current) {
-        const hRect = heroWalletRef.current.getBoundingClientRect();
-        if (hRect.width > 0 && hRect.height > 0) {
-          targetX = hRect.left + hRect.width * 0.25;
-          targetY = hRect.top + hRect.height * 0.45;
+        // Target: Main Wallet Card on Home if visible, otherwise Top Header
+        let targetX = window.innerWidth - 75;
+        let targetY = 32;
+        if (heroWalletRef.current) {
+          const hRect = heroWalletRef.current.getBoundingClientRect();
+          if (hRect.width > 0 && hRect.height > 0) {
+            targetX = hRect.left + hRect.width * 0.25;
+            targetY = hRect.top + hRect.height * 0.45;
+          }
+        } else if (topWalletRef.current) {
+          const tRect = topWalletRef.current.getBoundingClientRect();
+          targetX = tRect.left + tRect.width / 2;
+          targetY = tRect.top + tRect.height / 2;
         }
-      } else if (topWalletRef.current) {
-        const tRect = topWalletRef.current.getBoundingClientRect();
-        targetX = tRect.left + tRect.width / 2;
-        targetY = tRect.top + tRect.height / 2;
+
+        const count = 4;
+        const newCoins: CoinParticle[] = [];
+
+        for (let i = 0; i < count; i++) {
+          const angle = (Math.PI * 2 * i) / count;
+          const distance = 35;
+          const scatterX = Math.cos(angle) * distance;
+          const scatterY = Math.sin(angle) * distance - 20;
+
+          newCoins.push({
+            id: `coin-${Date.now()}-${i}`,
+            startX,
+            startY,
+            targetX,
+            targetY,
+            scatterX,
+            scatterY,
+            rotation: (i % 2 === 0 ? 1 : -1) * 120,
+            delay: i * 0.02,
+            scale: 0.9,
+          });
+        }
+
+        setFlyingCoins(newCoins);
+        setRecentRewardGain({ amount, id: Date.now() });
+
+        setTimeout(() => {
+          playChime('bonus');
+        }, 340);
+
+        setTimeout(() => {
+          setFlyingCoins([]);
+        }, 850);
+        setTimeout(() => {
+          setRecentRewardGain(null);
+        }, 1600);
+      } catch (e) {
+        console.error('Error triggering coin animation', e);
       }
-
-      const count = 4;
-      const newCoins: CoinParticle[] = [];
-
-      for (let i = 0; i < count; i++) {
-        const angle = (Math.PI * 2 * i) / count;
-        const distance = 35;
-        const scatterX = Math.cos(angle) * distance;
-        const scatterY = Math.sin(angle) * distance - 20;
-
-        newCoins.push({
-          id: `coin-${Date.now()}-${i}`,
-          startX,
-          startY,
-          targetX,
-          targetY,
-          scatterX,
-          scatterY,
-          rotation: (i % 2 === 0 ? 1 : -1) * 120,
-          delay: i * 0.02,
-          scale: 0.9,
-        });
-      }
-
-      setFlyingCoins(newCoins);
-      setRecentRewardGain({ amount, id: Date.now() });
-
-      setTimeout(() => {
-        playChime('bonus');
-      }, 340);
-
-      setTimeout(() => {
-        setFlyingCoins([]);
-      }, 850);
-      setTimeout(() => {
-        setRecentRewardGain(null);
-      }, 1600);
-    } catch (e) {
-      console.error('Error triggering coin animation', e);
-    }
-  };
+    },
+    [playChime]
+  );
 
   // Trigger Gentle Glow & Shimmer on the Wallet Balance Display Section (Zero-dependency callback so tab switches never re-trigger effects)
   const triggerWalletGentleGlow = useCallback((gainAmount: number) => {
@@ -2937,76 +2869,79 @@ export default function App() {
   );
 
   // Dispatch Push Notification (Supports Mobile Service Worker + Desktop + Haptic Vibration)
-  const dispatchPushNotification = ({
-    type,
-    title,
-    body,
-    poolAmount = 0,
-  }: {
-    type: 'REFERRAL_BONUS' | 'TOKEN_AWARD' | 'RANK_UP' | 'SYSTEM';
-    title: string;
-    body: string;
-    poolAmount?: number;
-  }) => {
-    playChime(type === 'RANK_UP' ? 'rank_up' : 'bonus');
-
-    if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
-      try {
-        navigator.vibrate([120, 60, 140]);
-      } catch {
-        // Ignore on unsupported devices
-      }
-    }
-
-    if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
-      const notifOptions: NotificationOptions = {
-        body,
-        dir: 'rtl',
-        lang: 'fa',
-        icon: '/icon.svg',
-        badge: '/icon.svg',
-        tag: `dopool-${Date.now()}`,
-      };
-
-      if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.ready
-          .then((registration) => {
-            registration.showNotification(title, notifOptions);
-          })
-          .catch(() => {
-            try {
-              new Notification(title, notifOptions);
-            } catch {
-              // Fallback
-            }
-          });
-      } else {
-        try {
-          new Notification(title, notifOptions);
-        } catch {
-          // Fallback
-        }
-      }
-    }
-
-    const newNotif: PushNotificationItem = {
-      id: `notif-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+  const dispatchPushNotification = useCallback(
+    ({
       type,
       title,
       body,
-      poolAmount,
-      isRead: false,
-      createdAt: 'همین الان',
-    };
+      poolAmount = 0,
+    }: {
+      type: 'REFERRAL_BONUS' | 'TOKEN_AWARD' | 'RANK_UP' | 'SYSTEM';
+      title: string;
+      body: string;
+      poolAmount?: number;
+    }) => {
+      playChime(type === 'RANK_UP' ? 'rank_up' : 'bonus');
 
-    setNotifications((prev) => [newNotif, ...prev]);
-    triggerToast(title, body, type === 'RANK_UP' ? 'success' : 'success');
+      if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+        try {
+          navigator.vibrate([120, 60, 140]);
+        } catch {
+          // Ignore on unsupported devices
+        }
+      }
 
-    // Trigger Flying Coins Animation towards top wallet
-    if (poolAmount && poolAmount > 0) {
-      triggerCoinReward(poolAmount);
-    }
-  };
+      if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+        const notifOptions: NotificationOptions = {
+          body,
+          dir: 'rtl',
+          lang: 'fa',
+          icon: '/icon.svg',
+          badge: '/icon.svg',
+          tag: `dopool-${Date.now()}`,
+        };
+
+        if ('serviceWorker' in navigator) {
+          navigator.serviceWorker.ready
+            .then((registration) => {
+              registration.showNotification(title, notifOptions);
+            })
+            .catch(() => {
+              try {
+                new Notification(title, notifOptions);
+              } catch {
+                // Fallback
+              }
+            });
+        } else {
+          try {
+            new Notification(title, notifOptions);
+          } catch {
+            // Fallback
+          }
+        }
+      }
+
+      const newNotif: PushNotificationItem = {
+        id: `notif-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+        type,
+        title,
+        body,
+        poolAmount,
+        isRead: false,
+        createdAt: 'همین الان',
+      };
+
+      setNotifications((prev) => [newNotif, ...prev]);
+      triggerToast(title, body, type === 'RANK_UP' ? 'success' : 'success');
+
+      // Trigger Flying Coins Animation towards top wallet
+      if (poolAmount && poolAmount > 0) {
+        triggerCoinReward(poolAmount);
+      }
+    },
+    [playChime, triggerToast, triggerCoinReward]
+  );
 
   // Request browser push notification permission
   const requestPushPermission = async () => {
@@ -3159,20 +3094,6 @@ export default function App() {
     triggerToast('ماموریت تکمیل شد! ⭐', `${rewardAmount} سکه POOL به کیف پول شما واریز گردید.`, 'success');
   };
 
-  // Show Toast (non-blocking, timer-safe)
-  const triggerToast = useCallback(
-    (message: string, detail?: string, type: 'success' | 'warning' | 'error' | 'info' = 'info') => {
-      if (toastTimerRef.current) {
-        window.clearTimeout(toastTimerRef.current);
-      }
-      setToast({ message, detail, type });
-      toastTimerRef.current = window.setTimeout(() => {
-        setToast(null);
-      }, 2600);
-    },
-    []
-  );
-
   // Calculate user rank on leaderboard
   const getUserRank = useCallback(
     (totalKm: number) => {
@@ -3208,255 +3129,271 @@ export default function App() {
     setSelectedStravaWeekIdx(idx);
   }, []);
 
-  const handleShareActivityStory = useCallback(
-    (act: { id: string }) => {
-      const found =
-        activities.find((a) => a.id === act.id) ||
-        activities.find((a) => a.status === 'ACCEPTED') ||
-        activities[0];
-      if (found) setStoryModalActivity(found);
-    },
-    [activities]
-  );
+  const handleShareActivityStory = useCallback((act: { id: string }) => {
+    const list = activitiesRef.current;
+    const found =
+      list.find((a) => a.id === act.id) ||
+      list.find((a) => a.status === 'ACCEPTED') ||
+      list[0];
+    if (found) setStoryModalActivity(found);
+  }, []);
 
-  const handleViewActivityReceipt = useCallback(
-    (act: { id: string }) => {
-      const found = activities.find((a) => a.id === act.id);
-      if (!found) return;
-      if (receiptTimerRef.current) {
-        window.clearTimeout(receiptTimerRef.current);
-      }
-      setSelectedReceiptActivity(found);
-      receiptTimerRef.current = window.setTimeout(() => {
-        setSelectedReceiptActivity((curr) => (curr?.id === found.id ? null : curr));
-      }, 6400);
-    },
-    [activities]
-  );
-
-  // Anti-Cheat Engine (Proof of Human) Verification
-  const verifyAntiCheat = (distanceKm: number, avgHr: number, paceMinPerKm: number) => {
-    const reasons: string[] = [];
-    if (distanceKm < 1.0) {
-      reasons.push(`مسافت ثبت‌شده (${distanceKm.toFixed(2)} km) کمتر از حداقل مجاز (۱.۰ کیلومتر) است.`);
-    }
-    if (avgHr < 110) {
-      reasons.push(`میانگین ضربان قلب (${avgHr} bpm) کمتر از حد فعالیت شدید دویدن (۱۱۰ bpm) است.`);
-    }
-    if (paceMinPerKm < 2.66) {
-      const pMin = Math.floor(paceMinPerKm);
-      const pSec = Math.round((paceMinPerKm - pMin) * 60);
-      reasons.push(`سرعت نامتعارف (پیس ${pMin}:${pSec < 10 ? '0' : ''}${pSec} سریع‌تر از ۲:۴۰ دقیقه/کیلومتر - تقلب خودرو/دوچرخه).`);
-    } else if (paceMinPerKm > 9.5) {
-      const pMin = Math.floor(paceMinPerKm);
-      const pSec = Math.round((paceMinPerKm - pMin) * 60);
-      reasons.push(`سرعت پایین‌تر از حد دویدن (پیس ${pMin}:${pSec < 10 ? '0' : ''}${pSec} کندتر از ۹:۳۰ دقیقه/کیلومتر - پیاده‌روی).`);
-    }
-
-    const isValid = reasons.length === 0;
-    return {
-      isValid,
-      reason: isValid ? undefined : reasons.join(' | '),
-    };
-  };
-
-  // Check if an activity with the same filename or identical telemetry is already registered
-  const findExistingDuplicateActivity = (
-    filename: string,
-    distanceKm: number,
-    elapsedSec: number,
-    avgHr: number
-  ): RunActivity | undefined => {
-    const normFile = filename.trim().toLowerCase();
-    return activities.find(
-      (a) =>
-        a.filename.trim().toLowerCase() === normFile ||
-        (Math.abs(a.distanceKm - distanceKm) < 0.01 &&
-          a.elapsedSeconds === elapsedSec &&
-          a.avgHeartRate === avgHr)
-    );
-  };
-
-  // Process a verified run with Proof of Human, Anti-Duplicate & Anti-Mention/Tag Check
-  const handleProcessRun = (
-    distanceKm: number,
-    elapsedSec: number,
-    avgHr: number,
-    filename: string,
-    source: string,
-    customMeta?: {
-      title?: string;
-      elevGainMeters?: number;
-      cadenceScore?: number;
-      proofOfHumanScore?: number;
-      overrideMultiplier?: number;
-      isMentionedOrTagged?: boolean;
-    }
-  ): boolean => {
-    if (!user) return false;
-
-    // 1. Silent Background Anti-Mention / Anti-Tag Activity Check
-    if (
-      isMentionedOrTaggedActivity(
-        customMeta?.title,
-        filename,
-        source,
-        customMeta?.isMentionedOrTagged
-      )
-    ) {
-      return false;
-    }
-
-    // 2. Silent Background Anti-Duplicate Activity Check
-    const existingDuplicate = findExistingDuplicateActivity(filename, distanceKm, elapsedSec, avgHr);
-    if (existingDuplicate) {
-      return false;
-    }
-
-    const pace = distanceKm > 0 ? elapsedSec / 60 / distanceKm : 99;
-    const { isValid, reason } = verifyAntiCheat(distanceKm, avgHr, pace);
-
-    const isFirstActivityBonus = isValid && !user.firstTimeMilestones?.firstActivity;
-    const firstActivityBonusAmount = isFirstActivityBonus ? FIRST_TIME_REWARD_COINS : 0;
-    const mult = customMeta?.overrideMultiplier ?? activeMultiplier;
-
-    const draftActivity: RunActivity = {
-      id: `act-${Date.now()}`,
-      title:
-        customMeta?.title ||
-        (filename.toLowerCase().includes('morning')
-          ? 'Morning Run · دویدن صبحگاهی'
-          : `دویدن ${source}`),
-      filename,
-      distanceKm: Math.round(distanceKm * 100) / 100,
-      elevGainMeters:
-        customMeta?.elevGainMeters ?? Math.max(12, Math.round(distanceKm * 3.7)),
-      elapsedSeconds: elapsedSec,
-      avgHeartRate: avgHr,
-      paceMinPerKm: pace,
-      status: isValid ? 'ACCEPTED' : 'REJECTED',
-      rejectionReason: reason,
-      poolReward: 0,
-      createdAt: 'لحظاتی پیش',
-      source,
-      multiplier: mult,
-      energyUsed: 0,
-      gpsScore: isValid ? 100 : 45,
-      hrScore: isValid ? 100 : 52,
-      cadenceScore: customMeta?.cadenceScore ?? (isValid ? 76 : 28),
-      proofOfHumanScore: customMeta?.proofOfHumanScore ?? (isValid ? 95 : 42),
-      firstActivityBonus: firstActivityBonusAmount,
-    };
-
-    const breakdown = computeActivityRewardBreakdown(draftActivity);
-    const totalEarned = isValid ? breakdown.earnedCoins : 0;
-    const newActivity: RunActivity = {
-      ...draftActivity,
-      poolReward: totalEarned,
-    };
-
-    setActivities((prev) => deduplicateActivitiesList([newActivity, ...prev]));
-    // Show sleek minimal popup with recovery nutrition for 6.4 seconds and auto-close with gentle scale/fade motion
+  const handleViewActivityReceipt = useCallback((act: { id: string }) => {
+    const found = activitiesRef.current.find((a) => a.id === act.id);
+    if (!found) return;
     if (receiptTimerRef.current) {
       window.clearTimeout(receiptTimerRef.current);
     }
-    setSelectedReceiptActivity(newActivity);
+    setSelectedReceiptActivity(found);
     receiptTimerRef.current = window.setTimeout(() => {
-      setSelectedReceiptActivity((curr) => (curr?.id === newActivity.id ? null : curr));
+      setSelectedReceiptActivity((curr) => (curr?.id === found.id ? null : curr));
     }, 6400);
+  }, []);
 
-    // Record SHA-256 fingerprint & verified activity in Firebase Firestore Cloud Vault
-    recordCloudRunActivity({
-      id: newActivity.id,
-      title: newActivity.title || 'دویدن دوپول',
-      filename: newActivity.filename,
-      distanceKm: newActivity.distanceKm,
-      elapsedSeconds: newActivity.elapsedSeconds,
-      avgHeartRate: newActivity.avgHeartRate,
-      paceMinPerKm: newActivity.paceMinPerKm,
-      status: newActivity.status,
-      poolReward: newActivity.poolReward,
-      source: newActivity.source,
-    }).catch(() => {});
+  // Anti-Cheat Engine (Proof of Human) Verification
+  const verifyAntiCheat = useCallback(
+    (distanceKm: number, avgHr: number, paceMinPerKm: number) => {
+      const reasons: string[] = [];
+      if (distanceKm < 1.0) {
+        reasons.push(`مسافت ثبت‌شده (${distanceKm.toFixed(2)} km) کمتر از حداقل مجاز (۱.۰ کیلومتر) است.`);
+      }
+      if (avgHr < 110) {
+        reasons.push(`میانگین ضربان قلب (${avgHr} bpm) کمتر از حد فعالیت شدید دویدن (۱۱۰ bpm) است.`);
+      }
+      if (paceMinPerKm < 2.66) {
+        const pMin = Math.floor(paceMinPerKm);
+        const pSec = Math.round((paceMinPerKm - pMin) * 60);
+        reasons.push(`سرعت نامتعارف (پیس ${pMin}:${pSec < 10 ? '0' : ''}${pSec} سریع‌تر از ۲:۴۰ دقیقه/کیلومتر - تقلب خودرو/دوچرخه).`);
+      } else if (paceMinPerKm > 9.5) {
+        const pMin = Math.floor(paceMinPerKm);
+        const pSec = Math.round((paceMinPerKm - pMin) * 60);
+        reasons.push(`سرعت پایین‌تر از حد دویدن (پیس ${pMin}:${pSec < 10 ? '0' : ''}${pSec} کندتر از ۹:۳۰ دقیقه/کیلومتر - پیاده‌روی).`);
+      }
 
-    if (isValid) {
-      const oldRank = getUserRank(user.totalKm);
-      const newTotalKm = Math.round((user.totalKm + distanceKm) * 10) / 10;
-      const runTaskNow = dailyTasks.find((t) => t.id === 'task-run');
-      const autoCompleteFiveKmBonus =
-        distanceKm >= 5.0 && runTaskNow && !runTaskNow.isClaimed ? runTaskNow.rewardPool : 0;
-      const newPoolBal =
-        Math.round((user.lockedPoolBalance + totalEarned + autoCompleteFiveKmBonus) * 10) / 10;
+      const isValid = reasons.length === 0;
+      return {
+        isValid,
+        reason: isValid ? undefined : reasons.join(' | '),
+      };
+    },
+    []
+  );
 
-      setUser((prev) => {
-        if (!prev) return null;
-        return {
-          ...prev,
-          lockedPoolBalance: newPoolBal,
-          totalKm: newTotalKm,
-          firstTimeMilestones: {
-            firstLogin: prev.firstTimeMilestones?.firstLogin || false,
-            firstActivity: true,
-            firstInvite: prev.firstTimeMilestones?.firstInvite || false,
-            firstWatchSync: prev.firstTimeMilestones?.firstWatchSync || false,
-          },
-        };
-      });
-
-      triggerCoinReward(totalEarned + autoCompleteFiveKmBonus, topWalletRef.current);
-
-      // Automatically tick 5 km Daily Running Mission if synced run >= 5 km
-      setDailyTasks((prev) =>
-        prev.map((t) => {
-          if (t.id === 'task-run') {
-            const nextProg = Math.min(5.0, Math.round((t.progress + distanceKm) * 10) / 10);
-            const reachedFiveKm = distanceKm >= 5.0 || nextProg >= 5.0 || t.isCompleted;
-            return {
-              ...t,
-              progress: reachedFiveKm ? 5.0 : nextProg,
-              target: 5.0,
-              isCompleted: reachedFiveKm,
-              isClaimed: reachedFiveKm ? true : t.isClaimed,
-            };
-          }
-          if (t.id === 'task-sync') {
-            return { ...t, progress: 1, isCompleted: true };
-          }
-          return t;
-        })
+  // Check if an activity with the same filename or identical telemetry is already registered
+  const findExistingDuplicateActivity = useCallback(
+    (
+      filename: string,
+      distanceKm: number,
+      elapsedSec: number,
+      avgHr: number
+    ): RunActivity | undefined => {
+      const normFile = filename.trim().toLowerCase();
+      return activitiesRef.current.find(
+        (a) =>
+          a.filename.trim().toLowerCase() === normFile ||
+          (Math.abs(a.distanceKm - distanceKm) < 0.01 &&
+            a.elapsedSeconds === elapsedSec &&
+            a.avgHeartRate === avgHr)
       );
+    },
+    []
+  );
 
-      // Update Crew total & weekly km if user is in a crew
-      if (user.crewId) {
-        setCrews((prev) =>
-          prev.map((c) =>
-            c.id === user.crewId
-              ? {
-                  ...c,
-                  weeklyKm: Math.round((c.weeklyKm + distanceKm) * 10) / 10,
-                  totalKm: Math.round((c.totalKm + distanceKm) * 10) / 10,
-                }
-              : c
-          )
+  // Process a verified run with Proof of Human, Anti-Duplicate & Anti-Mention/Tag Check
+  const handleProcessRun = useCallback(
+    (
+      distanceKm: number,
+      elapsedSec: number,
+      avgHr: number,
+      filename: string,
+      source: string,
+      customMeta?: {
+        title?: string;
+        elevGainMeters?: number;
+        cadenceScore?: number;
+        proofOfHumanScore?: number;
+        overrideMultiplier?: number;
+        isMentionedOrTagged?: boolean;
+      }
+    ): boolean => {
+      if (!user) return false;
+
+      // 1. Silent Background Anti-Mention / Anti-Tag Activity Check
+      if (
+        isMentionedOrTaggedActivity(
+          customMeta?.title,
+          filename,
+          source,
+          customMeta?.isMentionedOrTagged
+        )
+      ) {
+        return false;
+      }
+
+      // 2. Silent Background Anti-Duplicate Activity Check
+      const existingDuplicate = findExistingDuplicateActivity(filename, distanceKm, elapsedSec, avgHr);
+      if (existingDuplicate) {
+        return false;
+      }
+
+      const pace = distanceKm > 0 ? elapsedSec / 60 / distanceKm : 99;
+      const { isValid, reason } = verifyAntiCheat(distanceKm, avgHr, pace);
+
+      const isFirstActivityBonus = isValid && !user.firstTimeMilestones?.firstActivity;
+      const firstActivityBonusAmount = isFirstActivityBonus ? FIRST_TIME_REWARD_COINS : 0;
+      const mult = customMeta?.overrideMultiplier ?? activeMultiplier;
+
+      const draftActivity: RunActivity = {
+        id: `act-${Date.now()}`,
+        title:
+          customMeta?.title ||
+          (filename.toLowerCase().includes('morning')
+            ? 'Morning Run · دویدن صبحگاهی'
+            : `دویدن ${source}`),
+        filename,
+        distanceKm: Math.round(distanceKm * 100) / 100,
+        elevGainMeters:
+          customMeta?.elevGainMeters ?? Math.max(12, Math.round(distanceKm * 3.7)),
+        elapsedSeconds: elapsedSec,
+        avgHeartRate: avgHr,
+        paceMinPerKm: pace,
+        status: isValid ? 'ACCEPTED' : 'REJECTED',
+        rejectionReason: reason,
+        poolReward: 0,
+        createdAt: 'لحظاتی پیش',
+        source,
+        multiplier: mult,
+        energyUsed: 0,
+        gpsScore: isValid ? 100 : 45,
+        hrScore: isValid ? 100 : 52,
+        cadenceScore: customMeta?.cadenceScore ?? (isValid ? 76 : 28),
+        proofOfHumanScore: customMeta?.proofOfHumanScore ?? (isValid ? 95 : 42),
+        firstActivityBonus: firstActivityBonusAmount,
+      };
+
+      const breakdown = computeActivityRewardBreakdown(draftActivity);
+      const totalEarned = isValid ? breakdown.earnedCoins : 0;
+      const newActivity: RunActivity = {
+        ...draftActivity,
+        poolReward: totalEarned,
+      };
+
+      setActivities((prev) => deduplicateActivitiesList([newActivity, ...prev]));
+      // Show sleek minimal popup with recovery nutrition for 6.4 seconds and auto-close with gentle scale/fade motion
+      if (receiptTimerRef.current) {
+        window.clearTimeout(receiptTimerRef.current);
+      }
+      setSelectedReceiptActivity(newActivity);
+      receiptTimerRef.current = window.setTimeout(() => {
+        setSelectedReceiptActivity((curr) => (curr?.id === newActivity.id ? null : curr));
+      }, 6400);
+
+      // Record SHA-256 fingerprint & verified activity in Firebase Firestore Cloud Vault
+      recordCloudRunActivity({
+        id: newActivity.id,
+        title: newActivity.title || 'دویدن دوپول',
+        filename: newActivity.filename,
+        distanceKm: newActivity.distanceKm,
+        elapsedSeconds: newActivity.elapsedSeconds,
+        avgHeartRate: newActivity.avgHeartRate,
+        paceMinPerKm: newActivity.paceMinPerKm,
+        status: newActivity.status,
+        poolReward: newActivity.poolReward,
+        source: newActivity.source,
+      }).catch(() => {});
+
+      if (isValid) {
+        const oldRank = getUserRank(user.totalKm);
+        const newTotalKm = Math.round((user.totalKm + distanceKm) * 10) / 10;
+        const runTaskNow = dailyTasks.find((t) => t.id === 'task-run');
+        const autoCompleteFiveKmBonus =
+          distanceKm >= 5.0 && runTaskNow && !runTaskNow.isClaimed ? runTaskNow.rewardPool : 0;
+        const newPoolBal =
+          Math.round((user.lockedPoolBalance + totalEarned + autoCompleteFiveKmBonus) * 10) / 10;
+
+        setUser((prev) => {
+          if (!prev) return null;
+          return {
+            ...prev,
+            lockedPoolBalance: newPoolBal,
+            totalKm: newTotalKm,
+            firstTimeMilestones: {
+              firstLogin: prev.firstTimeMilestones?.firstLogin || false,
+              firstActivity: true,
+              firstInvite: prev.firstTimeMilestones?.firstInvite || false,
+              firstWatchSync: prev.firstTimeMilestones?.firstWatchSync || false,
+            },
+          };
+        });
+
+        triggerCoinReward(totalEarned + autoCompleteFiveKmBonus, topWalletRef.current);
+
+        // Automatically tick 5 km Daily Running Mission if synced run >= 5 km
+        setDailyTasks((prev) =>
+          prev.map((t) => {
+            if (t.id === 'task-run') {
+              const nextProg = Math.min(5.0, Math.round((t.progress + distanceKm) * 10) / 10);
+              const reachedFiveKm = distanceKm >= 5.0 || nextProg >= 5.0 || t.isCompleted;
+              return {
+                ...t,
+                progress: reachedFiveKm ? 5.0 : nextProg,
+                target: 5.0,
+                isCompleted: reachedFiveKm,
+                isClaimed: reachedFiveKm ? true : t.isClaimed,
+              };
+            }
+            if (t.id === 'task-sync') {
+              return { ...t, progress: 1, isCompleted: true };
+            }
+            return t;
+          })
         );
-      }
 
-      // Check if user ranked up on leaderboard
-      const newRank = getUserRank(newTotalKm);
-      if (newRank < oldRank) {
-        setTimeout(() => {
-          dispatchPushNotification({
-            type: 'RANK_UP',
-            title: 'ارتقای رتبه در جدول برترین‌ها! 🏆',
-            body: `تبریک قهرمان! شما با رسیدن به مسافت ${newTotalKm} کیلومتر، از رتبه ${oldRank} به رتبه ${newRank} صعود کردید!`,
-          });
-        }, 600);
+        // Update Crew total & weekly km if user is in a crew
+        if (user.crewId) {
+          setCrews((prev) =>
+            prev.map((c) =>
+              c.id === user.crewId
+                ? {
+                    ...c,
+                    weeklyKm: Math.round((c.weeklyKm + distanceKm) * 10) / 10,
+                    totalKm: Math.round((c.totalKm + distanceKm) * 10) / 10,
+                  }
+                : c
+            )
+          );
+        }
+
+        // Check if user ranked up on leaderboard
+        const newRank = getUserRank(newTotalKm);
+        if (newRank < oldRank) {
+          setTimeout(() => {
+            dispatchPushNotification({
+              type: 'RANK_UP',
+              title: 'ارتقای رتبه در جدول برترین‌ها! 🏆',
+              body: `تبریک قهرمان! شما با رسیدن به مسافت ${newTotalKm} کیلومتر، از رتبه ${oldRank} به رتبه ${newRank} صعود کردید!`,
+            });
+          }, 600);
+        }
+      } else {
+        triggerToast('رد توسط سیستم ضدتقلب ⚠️', reason || 'فعالیت با استانداردهای دویدن تطابق ندارد.', 'warning');
       }
-    } else {
-      triggerToast('رد توسط سیستم ضدتقلب ⚠️', reason || 'فعالیت با استانداردهای دویدن تطابق ندارد.', 'warning');
-    }
-    return true;
-  };
+      return true;
+    },
+    [
+      user,
+      isMentionedOrTaggedActivity,
+      findExistingDuplicateActivity,
+      verifyAntiCheat,
+      activeMultiplier,
+      deduplicateActivitiesList,
+      getUserRank,
+      dailyTasks,
+      triggerCoinReward,
+      dispatchPushNotification,
+      triggerToast,
+    ]
+  );
 
   // Refill user daily energy
   const handleRefillEnergy = () => {
@@ -3893,40 +3830,46 @@ export default function App() {
     });
   };
 
+  const processSelectedFile = useCallback(
+    (file: File) => {
+      if (!file.name.toLowerCase().endsWith('.fit')) {
+        triggerToast('فرمت نامعتبر', 'لطفاً فقط فایل با پسوند .fit بارگذاری فرمایید.', 'error');
+        return;
+      }
+
+      const randDist = 4.0 + (file.size % 70) / 10;
+      const randHr = 138 + (file.size % 25);
+      const randPace = 4.8 + (file.size % 15) / 10;
+      const elapsed = Math.round(randDist * randPace * 60);
+
+      // Silent background anti-duplicate check before parsing
+      const existingDup = findExistingDuplicateActivity(file.name, randDist, elapsed, randHr);
+      if (existingDup) {
+        return;
+      }
+
+      triggerToast('تحلیل فایل .fit', 'در حال استخراج استریم ضربان قلب و بررسی سرعت...', 'info');
+
+      setTimeout(() => {
+        handleProcessRun(randDist, elapsed, randHr, file.name, 'FIT File Parse');
+      }, 350);
+    },
+    [findExistingDuplicateActivity, handleProcessRun, triggerToast]
+  );
+
   // File Upload
-  const handleFileDrop = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      processSelectedFile(e.dataTransfer.files[0]);
-    }
-  };
-
-  const processSelectedFile = (file: File) => {
-    if (!file.name.toLowerCase().endsWith('.fit')) {
-      triggerToast('فرمت نامعتبر', 'لطفاً فقط فایل با پسوند .fit بارگذاری فرمایید.', 'error');
-      return;
-    }
-
-    const randDist = 4.0 + (file.size % 70) / 10;
-    const randHr = 138 + (file.size % 25);
-    const randPace = 4.8 + (file.size % 15) / 10;
-    const elapsed = Math.round(randDist * randPace * 60);
-
-    // Silent background anti-duplicate check before parsing
-    const existingDup = findExistingDuplicateActivity(file.name, randDist, elapsed, randHr);
-    if (existingDup) {
-      return;
-    }
-
-    triggerToast('تحلیل فایل .fit', 'در حال استخراج استریم ضربان قلب و بررسی سرعت...', 'info');
-
-    setTimeout(() => {
-      handleProcessRun(randDist, elapsed, randHr, file.name, 'FIT File Parse');
-    }, 350);
-  };
+  const handleFileDrop = useCallback(
+    (e: React.DragEvent<HTMLDivElement>) => {
+      e.preventDefault();
+      if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+        processSelectedFile(e.dataTransfer.files[0]);
+      }
+    },
+    [processSelectedFile]
+  );
 
   // Open Watch / Strava OAuth Modal
-  const openWatchAuthModal = (provider: WatchProviderKey) => {
+  const openWatchAuthModal = useCallback((provider: WatchProviderKey) => {
     setAuthWatchModal({
       isOpen: true,
       provider,
@@ -3934,183 +3877,192 @@ export default function App() {
     setCopiedLink(false);
     setIsAuthorizingWatch(false);
     setAuthStep(1);
-  };
+  }, []);
 
   // Authorize Watch / Strava Account (OAuth 2.0 Handshake)
-  const handleAuthorizeWatch = (provider: WatchProviderKey) => {
-    if (!user) return;
-    setIsAuthorizingWatch(true);
-    setAuthStep(1);
-
-    setTimeout(() => {
-      setAuthStep(2);
-    }, 220);
-
-    setTimeout(() => {
-      setAuthStep(3);
-    }, 440);
-
-    setTimeout(() => {
-      setIsAuthorizingWatch(false);
+  const handleAuthorizeWatch = useCallback(
+    (provider: WatchProviderKey) => {
+      if (!user) return;
+      setIsAuthorizingWatch(true);
       setAuthStep(1);
 
+      setTimeout(() => {
+        setAuthStep(2);
+      }, 220);
+
+      setTimeout(() => {
+        setAuthStep(3);
+      }, 440);
+
+      setTimeout(() => {
+        setIsAuthorizingWatch(false);
+        setAuthStep(1);
+
+        const providerInfo = WATCH_PROVIDERS.find((p) => p.id === provider);
+        const providerName = providerInfo ? providerInfo.nameFa : provider;
+
+        setUser((prev) => {
+          if (!prev) return null;
+          const currentDetails = prev.watchAuthDetails || {};
+          return {
+            ...prev,
+            connectedWatches: {
+              ...prev.connectedWatches,
+              [provider]: true,
+            },
+            watchAuthDetails: {
+              ...currentDetails,
+              [provider]: {
+                athleteName: prev.fullName || 'کاربر دوپول',
+                athleteId:
+                  provider === 'strava'
+                    ? '4829103'
+                    : provider === 'garmin'
+                    ? 'GRM-98124'
+                    : provider === 'appleHealth'
+                    ? 'HK-77291'
+                    : provider === 'xiaomi'
+                    ? 'MI-91283'
+                    : 'ATH-44810',
+                connectedAt:
+                  'امروز، ساعت ' +
+                  new Date().toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' }),
+                lastSyncedAt: 'هم‌اکنون',
+                accessToken: `${provider}_live_` + Math.random().toString(36).slice(2, 10),
+                autoSync: true,
+              },
+            },
+          };
+        });
+
+        dispatchPushNotification({
+          type: 'SYSTEM',
+          title: `اتصال ${providerName} تایید شد ⚡`,
+          body: 'اکانت ورزشی شما با موفقیت به پروتکل ماینینگ دوپ‌Pool متصل گردید. دویدن‌های بعدی به طور خودکار همگام می‌شوند.',
+        });
+
+        triggerToast(
+          'اتصال موفق OAuth 2.0 ⚡',
+          `سرویس ${providerName} با موفقیت احراز هویت و مجوزهای لازم اعطا شد.`,
+          'success'
+        );
+      }, 680);
+    },
+    [user, dispatchPushNotification, triggerToast]
+  );
+
+  // Revoke Watch / Strava OAuth Access
+  const handleRevokeWatch = useCallback(
+    (provider: WatchProviderKey) => {
+      if (!user) return;
       const providerInfo = WATCH_PROVIDERS.find((p) => p.id === provider);
       const providerName = providerInfo ? providerInfo.nameFa : provider;
 
       setUser((prev) => {
         if (!prev) return null;
-        const currentDetails = prev.watchAuthDetails || {};
         return {
           ...prev,
           connectedWatches: {
             ...prev.connectedWatches,
-            [provider]: true,
-          },
-          watchAuthDetails: {
-            ...currentDetails,
-            [provider]: {
-              athleteName: prev.fullName || 'سهراب مرادی',
-              athleteId:
-                provider === 'strava'
-                  ? '4829103'
-                  : provider === 'garmin'
-                  ? 'GRM-98124'
-                  : provider === 'appleHealth'
-                  ? 'HK-77291'
-                  : provider === 'xiaomi'
-                  ? 'MI-91283'
-                  : 'ATH-44810',
-              connectedAt:
-                'امروز، ساعت ' +
-                new Date().toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' }),
-              lastSyncedAt: 'هم‌اکنون',
-              accessToken: `${provider}_live_` + Math.random().toString(36).slice(2, 10),
-              autoSync: true,
-            },
+            [provider]: false,
           },
         };
-      });
-
-      dispatchPushNotification({
-        type: 'SYSTEM',
-        title: `اتصال ${providerName} تایید شد ⚡`,
-        body: 'اکانت ورزشی شما با موفقیت به پروتکل ماینینگ دوپ‌Pool متصل گردید. دویدن‌های بعدی به طور خودکار همگام می‌شوند.',
       });
 
       triggerToast(
-        'اتصال موفق OAuth 2.0 ⚡',
-        `سرویس ${providerName} با موفقیت احراز هویت و مجوزهای لازم اعطا شد.`,
-        'success'
+        'قطع ارتباط سرویس',
+        `مجوز دسترسی ${providerName} با موفقیت لغو و اتصال قطع گردید.`,
+        'info'
       );
-    }, 680);
-  };
-
-  // Revoke Watch / Strava OAuth Access
-  const handleRevokeWatch = (provider: WatchProviderKey) => {
-    if (!user) return;
-    const providerInfo = WATCH_PROVIDERS.find((p) => p.id === provider);
-    const providerName = providerInfo ? providerInfo.nameFa : provider;
-
-    setUser((prev) => {
-      if (!prev) return null;
-      return {
-        ...prev,
-        connectedWatches: {
-          ...prev.connectedWatches,
-          [provider]: false,
-        },
-      };
-    });
-
-    triggerToast(
-      'قطع ارتباط سرویس',
-      `مجوز دسترسی ${providerName} با موفقیت لغو و اتصال قطع گردید.`,
-      'info'
-    );
-  };
+    },
+    [user, triggerToast]
+  );
 
   // Fetch latest run from Watch / Strava Server (Protected against duplicate syncing)
-  const handleSyncWatchActivity = (provider: WatchProviderKey) => {
-    if (!user) return;
+  const handleSyncWatchActivity = useCallback(
+    (provider: WatchProviderKey) => {
+      if (!user) return;
 
-    const providerInfo = WATCH_PROVIDERS.find((p) => p.id === provider);
-    const providerName = providerInfo ? providerInfo.nameFa : provider;
-    const todayKey = new Date().toISOString().split('T')[0];
+      const providerInfo = WATCH_PROVIDERS.find((p) => p.id === provider);
+      const providerName = providerInfo ? providerInfo.nameFa : provider;
+      const todayKey = new Date().toISOString().split('T')[0];
 
-    const providerDailyWorkouts: Record<
-      WatchProviderKey,
-      { dist: number; elapsed: number; hr: number; elev: number; title: string }
-    > = {
-      strava: { dist: 6.8, elapsed: 2040, hr: 154, elev: 42, title: 'دویدن عصرگاهی استراوا · Strava Run' },
-      garmin: { dist: 7.5, elapsed: 2205, hr: 151, elev: 48, title: 'دویدن گارمین · Garmin Connect Run' },
-      appleHealth: { dist: 5.6, elapsed: 1736, hr: 149, elev: 28, title: 'دویدن اپل واچ · Apple Watch Workout' },
-      xiaomi: { dist: 4.8, elapsed: 1536, hr: 145, elev: 21, title: 'دویدن شیائومی · Zepp Life Run' },
-      coros: { dist: 8.4, elapsed: 2436, hr: 156, elev: 55, title: 'دویدن کوروس · COROS Pace Run' },
-      samsung: { dist: 6.1, elapsed: 1890, hr: 147, elev: 31, title: 'دویدن سامسونگ · Galaxy Watch Run' },
-    };
+      const providerDailyWorkouts: Record<
+        WatchProviderKey,
+        { dist: number; elapsed: number; hr: number; elev: number; title: string }
+      > = {
+        strava: { dist: 6.8, elapsed: 2040, hr: 154, elev: 42, title: 'دویدن عصرگاهی استراوا · Strava Run' },
+        garmin: { dist: 7.5, elapsed: 2205, hr: 151, elev: 48, title: 'دویدن گارمین · Garmin Connect Run' },
+        appleHealth: { dist: 5.6, elapsed: 1736, hr: 149, elev: 28, title: 'دویدن اپل واچ · Apple Watch Workout' },
+        xiaomi: { dist: 4.8, elapsed: 1536, hr: 145, elev: 21, title: 'دویدن شیائومی · Zepp Life Run' },
+        coros: { dist: 8.4, elapsed: 2436, hr: 156, elev: 55, title: 'دویدن کوروس · COROS Pace Run' },
+        samsung: { dist: 6.1, elapsed: 1890, hr: 147, elev: 31, title: 'دویدن سامسونگ · Galaxy Watch Run' },
+      };
 
-    const baseWorkout = providerDailyWorkouts[provider] || providerDailyWorkouts.strava;
-    let syncFilename = `${provider}_sync_${todayKey}.fit`;
-    let dist = baseWorkout.dist;
-    let elapsed = baseWorkout.elapsed;
-    let hr = baseWorkout.hr;
-    let elev = baseWorkout.elev;
+      const baseWorkout = providerDailyWorkouts[provider] || providerDailyWorkouts.strava;
+      let syncFilename = `${provider}_sync_${todayKey}.fit`;
+      let dist = baseWorkout.dist;
+      let elapsed = baseWorkout.elapsed;
+      let hr = baseWorkout.hr;
+      let elev = baseWorkout.elev;
 
-    // If today's default workout was already synced, generate a fresh unique session so repeated sync tests work smoothly
-    if (findExistingDuplicateActivity(syncFilename, dist, elapsed, hr)) {
-      const salt = Date.now() % 1000;
-      syncFilename = `${provider}_sync_${todayKey}_${salt}.fit`;
-      dist = Math.round((baseWorkout.dist + ((salt % 18) + 2) * 0.1) * 10) / 10;
-      elapsed = Math.round(dist * 305);
-      hr = 144 + (salt % 16);
-      elev = baseWorkout.elev + (salt % 15);
-    }
+      // If today's default workout was already synced, generate a fresh unique session so repeated sync tests work smoothly
+      if (findExistingDuplicateActivity(syncFilename, dist, elapsed, hr)) {
+        const salt = Date.now() % 1000;
+        syncFilename = `${provider}_sync_${todayKey}_${salt}.fit`;
+        dist = Math.round((baseWorkout.dist + ((salt % 18) + 2) * 0.1) * 10) / 10;
+        elapsed = Math.round(dist * 305);
+        hr = 144 + (salt % 16);
+        elev = baseWorkout.elev + (salt % 15);
+      }
 
-    setIsSyncingFromProvider(true);
+      setIsSyncingFromProvider(true);
 
-    setTimeout(() => {
-      setIsSyncingFromProvider(false);
+      setTimeout(() => {
+        setIsSyncingFromProvider(false);
 
-      const registered = handleProcessRun(
-        dist,
-        elapsed,
-        hr,
-        syncFilename,
-        `${providerName} Auto-Sync`,
-        {
-          title: baseWorkout.title,
-          elevGainMeters: elev,
-        }
-      );
+        const registered = handleProcessRun(
+          dist,
+          elapsed,
+          hr,
+          syncFilename,
+          `${providerName} Auto-Sync`,
+          {
+            title: baseWorkout.title,
+            elevGainMeters: elev,
+          }
+        );
 
-      if (!registered) return;
+        if (!registered) return;
 
-      // Update last sync in watchAuthDetails
-      setUser((prev) => {
-        if (!prev) return null;
-        const currentDetails = prev.watchAuthDetails || {};
-        const provDetail = currentDetails[provider] || {
-          athleteName: prev.fullName,
-          athleteId: '4829103',
-          connectedAt: 'امروز',
-          accessToken: 'tok_active_' + Math.random().toString(36).slice(2, 8),
-          autoSync: true,
-          lastSyncedAt: 'هم‌اکنون',
-        };
+        // Update last sync in watchAuthDetails
+        setUser((prev) => {
+          if (!prev) return null;
+          const currentDetails = prev.watchAuthDetails || {};
+          const provDetail = currentDetails[provider] || {
+            athleteName: prev.fullName,
+            athleteId: '4829103',
+            connectedAt: 'امروز',
+            accessToken: 'tok_active_' + Math.random().toString(36).slice(2, 8),
+            autoSync: true,
+            lastSyncedAt: 'هم‌اکنون',
+          };
 
-        return {
-          ...prev,
-          watchAuthDetails: {
-            ...currentDetails,
-            [provider]: {
-              ...provDetail,
-              lastSyncedAt: 'هم‌اکنون',
+          return {
+            ...prev,
+            watchAuthDetails: {
+              ...currentDetails,
+              [provider]: {
+                ...provDetail,
+                lastSyncedAt: 'هم‌اکنون',
+              },
             },
-          },
-        };
-      });
-    }, 450);
-  };
+          };
+        });
+      }, 450);
+    },
+    [user, findExistingDuplicateActivity, handleProcessRun]
+  );
 
   const activeWatchProvider: WatchProviderKey = useMemo(() => {
     const cw = user?.connectedWatches;
@@ -4122,6 +4074,10 @@ export default function App() {
     if (cw?.xiaomi) return 'xiaomi';
     return 'strava';
   }, [user?.connectedWatches]);
+
+  const handleAutoSyncActiveWatch = useCallback(() => {
+    handleSyncWatchActivity(activeWatchProvider);
+  }, [handleSyncWatchActivity, activeWatchProvider]);
 
   const activeWatchProviderName = useMemo(() => {
     const found = WATCH_PROVIDERS.find((p) => p.id === activeWatchProvider);
@@ -4235,31 +4191,32 @@ export default function App() {
     try {
       const fbUser = await signInWithGoogleCloud();
       const seedProfile: UserProfile = user || {
-        id: 1,
-        fullName: fbUser.displayName || 'سهراب مرادی',
-        phone: '09121234567',
+        id: Date.now(),
+        fullName: fbUser.displayName || 'کاربر دوپول',
+        phone: '',
         email: fbUser.email || 'runner@dopool.ir',
-        username: (fbUser.email ? fbUser.email.split('@')[0] : 'sohrab_run').toLowerCase(),
+        username: (fbUser.email ? fbUser.email.split('@')[0] : 'runner_dopool').toLowerCase(),
         referralCode: 'DP-' + Math.floor(1000 + Math.random() * 9000),
-        lockedPoolBalance: 125.0,
-        totalKm: 12.5,
-        invitedFriendsCount: 3,
+        lockedPoolBalance: 0,
+        totalKm: 0,
+        invitedFriendsCount: 0,
         dailyEnergyMax: 20.0,
-        dailyEnergyCurrent: 16.0,
+        dailyEnergyCurrent: 20.0,
         crewId: 1,
         crewName: 'باشگاه انقلاب تهران (Enghelab Crew)',
         crewBadge: '🔥',
-        streakDays: 4,
-        battleWins: 4,
-        battleLosses: 1,
-        battleRating: 1250,
+        streakDays: 1,
+        battleWins: 0,
+        battleLosses: 0,
+        battleRating: 1200,
         firstTimeMilestones: {
           firstLogin: false,
           firstActivity: false,
           firstInvite: false,
+          firstWatchSync: false,
         },
         connectedWatches: {
-          strava: true,
+          strava: false,
           garmin: false,
           coros: false,
           appleHealth: false,
@@ -4272,7 +4229,7 @@ export default function App() {
         fullName: seedProfile.fullName,
         username: seedProfile.username,
         email: fbUser.email || seedProfile.email || 'runner@dopool.ir',
-        phone: seedProfile.phone || '09121234567',
+        phone: seedProfile.phone || '',
         referralCode: seedProfile.referralCode,
         lockedPoolBalance: seedProfile.lockedPoolBalance,
         totalKm: seedProfile.totalKm,
@@ -4304,6 +4261,7 @@ export default function App() {
           firstLogin: cloudVault.firstLogin,
           firstActivity: cloudVault.firstActivity,
           firstInvite: cloudVault.firstInvite,
+          firstWatchSync: Boolean(seedProfile.firstTimeMilestones?.firstWatchSync),
         },
       };
 
@@ -4332,7 +4290,7 @@ export default function App() {
     }
   };
 
-  // Login handler (Awards +10 POOL for First Login or restores saved profile!)
+  // Login handler (Clean zero-state for first-time production release or restores saved profile)
   const handleLoginSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!loginUsername.trim()) {
@@ -4350,15 +4308,14 @@ export default function App() {
       );
       return;
     }
-    const cleanInput = loginUsername.trim();
-    const isDemoSohrab = cleanInput.toLowerCase() === 'sohrab_run' || cleanInput === '09121234567';
+    const cleanInput = loginUsername.trim().replace(/^@/, '');
 
-    // Check if we have a saved profile in localStorage to preserve user balance
+    // Check if we have a saved profile in localStorage matching this user
     const savedRaw = localStorage.getItem('dopool_saved_profile') || localStorage.getItem('dopool_user_session');
     if (savedRaw) {
       try {
         const parsed = sanitizeUserProfile(JSON.parse(savedRaw));
-        if (parsed && (!isDemoSohrab || parsed.username?.toLowerCase() === 'sohrab_run')) {
+        if (parsed && parsed.username?.toLowerCase() === cleanInput.toLowerCase()) {
           try {
             localStorage.setItem('dopool_user_session', JSON.stringify(parsed));
             localStorage.setItem('dopool_saved_profile', JSON.stringify(parsed));
@@ -4375,7 +4332,7 @@ export default function App() {
           return;
         }
       } catch {
-        // Fallback to default login profile below
+        // Fallback to clean profile creation below
       }
     }
 
@@ -4401,44 +4358,42 @@ export default function App() {
     }
 
     const loggedInUser: UserProfile = {
-      id: 1,
-      fullName: isDemoSohrab ? 'سهراب مرادی' : cleanInput,
-      phone: '09121234567',
-      email: isDemoSohrab ? 'sohrab.moradi@dopool.ir' : `${cleanInput.toLowerCase()}@gmail.com`,
+      id: Date.now(),
+      fullName: cleanInput,
+      phone: '',
+      email: cleanInput.includes('@') ? cleanInput.toLowerCase() : `${cleanInput.toLowerCase()}@dopool.ir`,
       username: cleanInput.toLowerCase(),
-      referralCode: 'DP-8834',
-      lockedPoolBalance: 125.0,
-      totalKm: 12.5,
-      invitedFriendsCount: 3,
+      referralCode: 'DP-' + Math.floor(1000 + Math.random() * 9000),
+      lockedPoolBalance: 0,
+      totalKm: 0,
+      invitedFriendsCount: 0,
       dailyEnergyMax: 20.0,
-      dailyEnergyCurrent: 16.0,
+      dailyEnergyCurrent: 20.0,
       crewId: 1,
       crewName: 'باشگاه انقلاب تهران (Enghelab Crew)',
       crewBadge: '🔥',
       streakDays: 1,
-      battleWins: 4,
-      battleLosses: 1,
-      battleRating: 1250,
+      battleWins: 0,
+      battleLosses: 0,
+      battleRating: 1200,
       firstTimeMilestones: persistedMilestones,
       connectedWatches: {
-        strava: true,
+        strava: false,
         garmin: false,
         coros: false,
         appleHealth: false,
         xiaomi: false,
         samsung: false,
       },
-      watchAuthDetails: {
-        strava: {
-          athleteName: 'سهراب مرادی (Sohrab Moradi)',
-          athleteId: '4829103',
-          connectedAt: '۱۴۰۳/۰۷/۱۵',
-          lastSyncedAt: 'امروز، ساعت ۰۶:۴۵',
-          accessToken: 'strava_oauth_98af21d9b4c09',
-          autoSync: true,
-        },
-      },
     };
+    if (loginPassword) {
+      setSavedUserPassword(loginPassword);
+      try {
+        localStorage.setItem('dopool_user_password', loginPassword);
+      } catch {
+        // ignore
+      }
+    }
     setSplashSubtitle(`خوش آمدید ${loggedInUser.fullName} · در حال ورود به دوپول...`);
     setShowSplash(true);
     setUser(loggedInUser);
@@ -4484,6 +4439,7 @@ export default function App() {
         firstLogin: true,
         firstActivity: false,
         firstInvite: false,
+        firstWatchSync: false,
       },
       connectedWatches: {
         strava: false,
@@ -4495,6 +4451,21 @@ export default function App() {
       },
     };
 
+    try {
+      localStorage.setItem(
+        'dopool_first_milestones_v2',
+        JSON.stringify({
+          firstLogin: true,
+          firstActivity: false,
+          firstInvite: false,
+          firstWatchSync: false,
+        })
+      );
+    } catch {
+      // ignore
+    }
+
+    setAccountOwnerName(combinedFullName);
     setSplashSubtitle(`خوش آمدید ${newUser.fullName} · در حال ورود به دوپول...`);
     setShowSplash(true);
     setUser(newUser);
@@ -4826,7 +4797,7 @@ export default function App() {
                             required
                             value={loginUsername}
                             onChange={(e) => setLoginUsername(e.target.value)}
-                            placeholder="sohrab_run"
+                            placeholder="username"
                             className="w-full bg-slate-950/45 backdrop-blur-xs border border-white/20 rounded-2xl pl-3.5 pr-10 py-2.5 text-sm text-white placeholder-slate-400 focus:outline-none focus:border-amber-400 transition-colors text-left font-mono"
                             dir="ltr"
                           />
@@ -5381,7 +5352,7 @@ export default function App() {
                       activities={activities}
                       onShareStory={handleShareActivityStory}
                       onViewReceipt={handleViewActivityReceipt}
-                      onAutoSync={() => handleSyncWatchActivity(activeWatchProvider)}
+                      onAutoSync={handleAutoSyncActiveWatch}
                       isSyncing={isSyncingFromProvider}
                       lang={appLanguage}
                     />
