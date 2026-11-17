@@ -9,10 +9,10 @@ echo "===================================================="
 sudo apt-get update -y
 sudo apt-get install -y curl nginx unzip git
 
-# 2. Install Node.js 20 LTS if not installed
+# 2. Install Node.js 22 LTS if not installed
 if ! command -v node &> /dev/null; then
-  echo "📦 در حال نصب Node.js 20..."
-  curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+  echo "📦 در حال نصب Node.js 22..."
+  curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
   sudo apt-get install -y nodejs
 fi
 
@@ -43,7 +43,12 @@ server {
     gzip_min_length 1024;
     gzip_types text/plain text/css text/javascript application/javascript application/json image/svg+xml;
 
-    location ~* \.(?:ico|css|js|gif|jpe?g|png|svg|woff2?|ttf|eot)$ {
+    location ~* ^/(?:sw\.js|manifest\.json|index\.html)$ {
+        expires -1;
+        add_header Cache-Control "no-cache, no-store, must-revalidate";
+    }
+
+    location ~* ^/assets/.*\.(?:css|js|png|jpe?g|svg|woff2?)$ {
         expires 30d;
         access_log off;
         add_header Cache-Control "public, max-age=2592000, immutable";

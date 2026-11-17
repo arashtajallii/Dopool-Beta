@@ -6,8 +6,8 @@
   "scripts": {
     "dev": "vite --port=3000 --host=0.0.0.0",
     "build": "vite build",
-    "start": "vite preview --port=3000 --host=0.0.0.0",
-    "preview": "vite preview --port=3000 --host=0.0.0.0",
+    "start": "vite preview --host=0.0.0.0",
+    "preview": "vite preview --host=0.0.0.0",
     "clean": "node -e \"const fs=require('fs');['dist','server.js'].forEach(p=>fs.rmSync(p,{recursive:true,force:true}))\"",
     "lint": "tsc --noEmit",
     "android:setup": "node scripts/android-setup.mjs",
